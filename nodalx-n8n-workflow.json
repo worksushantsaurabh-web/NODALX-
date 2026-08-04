@@ -1,0 +1,220 @@
+{
+  "name": "NodalX — Inquiry Pipeline",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "nodalx-inquiry",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-trigger",
+      "name": "Inquiry Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [220, 300],
+      "webhookId": "nodalx-inquiry"
+    },
+    {
+      "parameters": {
+        "inputText": "=You are an AI business inquiry classifier for a B2B company. Analyze the following inquiry and return a JSON object.\n\nInquiry:\n- Name: {{ $json.body.name }}\n- Email: {{ $json.body.email }}\n- Company: {{ $json.body.company }}\n- Message: {{ $json.body.message }}\n\nReturn ONLY a valid JSON object with these fields:\n{\n  \"intent\": \"<one of: purchase, partnership, support, general, spam>\",\n  \"urgency\": \"<one of: high, medium, low>\",\n  \"fit_score\": <number 1-10>,\n  \"summary\": \"<one sentence summary>\",\n  \"suggested_action\": \"<what the sales/ops team should do next>\",\n  \"category\": \"<one of: enterprise, smb, individual, unknown>\"\n}",
+        "options": {
+          "temperature": 0.3
+        }
+      },
+      "id": "gemini-classify",
+      "name": "Gemini Classify",
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogle",
+      "typeVersion": 1,
+      "position": [480, 300],
+      "credentials": {
+        "googleGeminiApi": {
+          "id": "REPLACE_WITH_YOUR_CREDENTIAL_ID",
+          "name": "Google Gemini"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Parse the AI response and merge with original inquiry data\nconst items = $input.all();\nconst results = [];\n\nfor (const item of items) {\n  const aiResponse = item.json.text || item.json.output || '';\n  \n  // Extract JSON from the AI response\n  let classification = {};\n  try {\n    const jsonMatch = aiResponse.match(/\\{[\\s\\S]*\\}/);\n    if (jsonMatch) {\n      classification = JSON.parse(jsonMatch[0]);\n    }\n  } catch (e) {\n    classification = {\n      intent: 'general',\n      urgency: 'medium',\n      fit_score: 5,\n      summary: 'Could not parse AI classification',\n      suggested_action: 'Manual review required',\n      category: 'unknown'\n    };\n  }\n\n  // Get the original inquiry from the webhook\n  const webhook = $('Inquiry Webhook').first().json;\n  const body = webhook.body || webhook;\n\n  results.push({\n    json: {\n      // Original inquiry fields\n      name: body.name || '',\n      email: body.email || '',\n      company: body.company || '',\n      message: body.message || '',\n      received_at: new Date().toISOString(),\n      \n      // AI classification fields\n      intent: classification.intent || 'general',\n      urgency: classification.urgency || 'medium',\n      fit_score: classification.fit_score || 5,\n      summary: classification.summary || '',\n      suggested_action: classification.suggested_action || '',\n      category: classification.category || 'unknown',\n      status: 'New',\n      \n      // Full AI response for debugging\n      ai_raw: aiResponse\n    }\n  });\n}\n\nreturn results;"
+      },
+      "id": "parse-response",
+      "name": "Parse AI Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [740, 300]
+    },
+    {
+      "parameters": {
+        "operation": "create",
+        "application": {
+          "__rl": true,
+          "mode": "list",
+          "value": ""
+        },
+        "table": {
+          "__rl": true,
+          "mode": "list",
+          "value": ""
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Name": "={{ $json.name }}",
+            "Email": "={{ $json.email }}",
+            "Company": "={{ $json.company }}",
+            "Message": "={{ $json.message }}",
+            "Intent": "={{ $json.intent }}",
+            "Urgency": "={{ $json.urgency }}",
+            "Fit Score": "={{ $json.fit_score }}",
+            "Summary": "={{ $json.summary }}",
+            "Suggested Action": "={{ $json.suggested_action }}",
+            "Category": "={{ $json.category }}",
+            "Status": "={{ $json.status }}",
+            "Received At": "={{ $json.received_at }}"
+          }
+        },
+        "options": {}
+      },
+      "id": "airtable-store",
+      "name": "Store in Airtable",
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 2.1,
+      "position": [1000, 300],
+      "credentials": {
+        "airtableTokenApi": {
+          "id": "REPLACE_WITH_YOUR_CREDENTIAL_ID",
+          "name": "Airtable"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"status\": \"classified\",\n  \"inquiry\": {\n    \"name\": \"{{ $('Parse AI Response').first().json.name }}\",\n    \"email\": \"{{ $('Parse AI Response').first().json.email }}\",\n    \"company\": \"{{ $('Parse AI Response').first().json.company }}\"\n  },\n  \"classification\": {\n    \"intent\": \"{{ $('Parse AI Response').first().json.intent }}\",\n    \"urgency\": \"{{ $('Parse AI Response').first().json.urgency }}\",\n    \"fit_score\": {{ $('Parse AI Response').first().json.fit_score }},\n    \"summary\": \"{{ $('Parse AI Response').first().json.summary }}\",\n    \"suggested_action\": \"{{ $('Parse AI Response').first().json.suggested_action }}\",\n    \"category\": \"{{ $('Parse AI Response').first().json.category }}\"\n  },\n  \"stored\": true\n}",
+        "options": {}
+      },
+      "id": "respond-webhook",
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [1260, 300]
+    },
+    {
+      "parameters": {
+        "httpMethod": "GET",
+        "path": "nodalx-customers",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "customers-webhook",
+      "name": "Customers Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [220, 560],
+      "webhookId": "nodalx-customers"
+    },
+    {
+      "parameters": {
+        "operation": "search",
+        "application": {
+          "__rl": true,
+          "mode": "list",
+          "value": ""
+        },
+        "table": {
+          "__rl": true,
+          "mode": "list",
+          "value": ""
+        },
+        "returnAll": true,
+        "sort": {
+          "property": [
+            {
+              "field": "Received At",
+              "direction": "desc"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "airtable-read",
+      "name": "Read from Airtable",
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 2.1,
+      "position": [480, 560],
+      "credentials": {
+        "airtableTokenApi": {
+          "id": "REPLACE_WITH_YOUR_CREDENTIAL_ID",
+          "name": "Airtable"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Transform Airtable records into the format the dashboard expects\nconst items = $input.all();\nconst customers = items.map((item, index) => {\n  const fields = item.json.fields || item.json;\n  return {\n    id: item.json.id || String(index + 1),\n    name: fields.Name || fields.name || 'Unknown',\n    email: fields.Email || fields.email || '',\n    status: fields.Status || fields.status || 'New',\n    last_active: fields['Received At'] || fields.received_at || new Date().toISOString(),\n    company: fields.Company || fields.company || '',\n    intent: fields.Intent || fields.intent || '',\n    urgency: fields.Urgency || fields.urgency || '',\n    fit_score: fields['Fit Score'] || fields.fit_score || 0,\n    summary: fields.Summary || fields.summary || '',\n    suggested_action: fields['Suggested Action'] || fields.suggested_action || ''\n  };\n});\n\nreturn [{ json: { customers } }];"
+      },
+      "id": "format-customers",
+      "name": "Format for Dashboard",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [740, 560]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json.customers) }}",
+        "options": {}
+      },
+      "id": "respond-customers",
+      "name": "Respond Customers",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [1000, 560]
+    }
+  ],
+  "connections": {
+    "Inquiry Webhook": {
+      "main": [
+        [{ "node": "Gemini Classify", "type": "main", "index": 0 }]
+      ]
+    },
+    "Gemini Classify": {
+      "main": [
+        [{ "node": "Parse AI Response", "type": "main", "index": 0 }]
+      ]
+    },
+    "Parse AI Response": {
+      "main": [
+        [{ "node": "Store in Airtable", "type": "main", "index": 0 }]
+      ]
+    },
+    "Store in Airtable": {
+      "main": [
+        [{ "node": "Respond to Webhook", "type": "main", "index": 0 }]
+      ]
+    },
+    "Customers Webhook": {
+      "main": [
+        [{ "node": "Read from Airtable", "type": "main", "index": 0 }]
+      ]
+    },
+    "Read from Airtable": {
+      "main": [
+        [{ "node": "Format for Dashboard", "type": "main", "index": 0 }]
+      ]
+    },
+    "Format for Dashboard": {
+      "main": [
+        [{ "node": "Respond Customers", "type": "main", "index": 0 }]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "tags": [
+    { "name": "NodalX" },
+    { "name": "Inquiry Pipeline" }
+  ]
+}

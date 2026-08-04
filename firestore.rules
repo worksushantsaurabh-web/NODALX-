@@ -1,0 +1,67 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Default rule: Deny all reads and writes
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Rule 1: Users collection
+    // - Readable only by the signed-in user
+    // - Creatable only by the user with a "tier" field of "free"
+    // - Not updatable by the client
+    match /users/{userId} {
+      allow read: if request.auth != null && request.auth.uid == userId;
+      allow create: if request.auth != null && request.auth.uid == userId && request.resource.data.tier == 'free';
+      allow update: if false; // Disallow direct client updates
+    }
+    
+    // Rule 2: User Flows collection (user-scoped)
+    // - Users can read/write their own flows
+    match /users/{userId}/flows/{flowId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+    
+    // Rule 3: User Profile collection (user-scoped)
+    // - Users can read/write their own profile
+    match /users/{userId}/profile/{profileId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+    
+    // Rule 4: User Data Sources collection (user-scoped)
+    // - Users can read/write their own data sources
+    match /users/{userId}/data-sources/{sourceId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // Rule 5: ApiKeys collection
+    // - No client can read or write
+    match /apiKeys/{keyId} {
+      allow read, write: if false;
+    }
+
+    // Rule 6: PremiumContent collection
+    // - Readable only by users with a "tier" of "full"
+    match /premiumContent/{contentId} {
+      allow read: if request.auth != null && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.tier == 'full';
+      allow write: if false; // Or set your own write rules if needed
+    }
+
+    // Allow whitelisted emails to be read by authenticated users only
+    match /whitelisted_emails/{email} {
+      allow get: if request.auth != null;
+    }
+
+    // Allow inquiries to be created by authenticated users only
+    match /inquiries/{inquiryId} {
+      allow create: if request.auth != null;
+    }
+
+    // Rate limits collection - backend only (no client access)
+    match /rateLimits/{userId} {
+      allow read, write: if false;
+    }
+  }
+}
