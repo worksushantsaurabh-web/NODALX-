@@ -39,10 +39,10 @@ export default function ProcessTimeline() {
 
       <div className="max-w-7xl mx-auto px-6 md:px-12 relative z-10">
         <div className="text-center max-w-2xl mx-auto mb-16 lg:mb-24 animate-fade-in-up">
-          <h2 className="text-sm font-bold tracking-widest text-teal-600 uppercase mb-3">
+          <h2 className="text-sm font-bold tracking-widest text-teal-600 dark:text-teal-500 uppercase mb-3">
             The Workflow
           </h2>
-          <h3 className="text-3xl md:text-4xl font-extrabold text-slate-900 tracking-tight">
+          <h3 className="text-3xl md:text-4xl font-extrabold text-slate-900 dark:text-white tracking-tight">
             What Happens Next?
           </h3>
         </div>

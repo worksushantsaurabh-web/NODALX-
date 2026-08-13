@@ -25,6 +25,7 @@ import {
   RefreshCw,
   Search,
   Settings2,
+  Sheet,
   Sparkles,
   User as UserIcon,
   Users,
@@ -40,8 +41,14 @@ import IntegrationSetup from '../components/IntegrationSetup';
 import CustomerOnboarding from '../components/CustomerOnboarding';
 import UserProfilePage from '../components/UserProfile';
 import DataConnectors from '../components/DataConnectors';
+import GoogleSheetsModal from '../components/GoogleSheetsModal';
+import NotificationSettings from '../components/NotificationSettings';
 import { api } from '../src/services/api';
 import { flowsService, Flow } from '../src/services/flows';
+import { Badge, StatCard } from '../ui';
+import OnboardingWizard from '../components/OnboardingWizard';
+
+const APPSCRIPT_URL = import.meta.env.VITE_APPSCRIPT_WEBHOOK_URL || '';
 
 interface Inquiry {
   id: string;
@@ -71,15 +78,11 @@ const tabLabels: Array<{ id: DashboardTab; label: string; icon: React.ElementTyp
   { id: 'profile', label: 'Your profile', icon: UserIcon },
 ];
 
-function statusBadge(status: string) {
+function getStatusVariant(status: string): 'success' | 'warning' | 'neutral' {
   const normalized = status.toLowerCase();
-  if (['qualified', 'active', 'completed', 'routed'].some(v => normalized.includes(v))) {
-    return 'bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-200/60 dark:border-emerald-500/20';
-  }
-  if (['pending', 'new', 'review'].some(v => normalized.includes(v))) {
-    return 'bg-amber-50 dark:bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-200/60 dark:border-amber-500/20';
-  }
-  return 'bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border-slate-200 dark:border-slate-700';
+  if (['qualified', 'active', 'completed', 'routed'].some(v => normalized.includes(v))) return 'success';
+  if (['pending', 'new', 'review'].some(v => normalized.includes(v))) return 'warning';
+  return 'neutral';
 }
 
 function intentColor(intent?: string) {
@@ -118,6 +121,7 @@ export default function Dashboard({ defaultTab = 'overview' }: { defaultTab?: st
   const isPremium = tier === 'full';
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<DashboardTab>((defaultTab as DashboardTab) || 'overview');
+  const [showWizard, setShowWizard] = useState(() => localStorage.getItem('nodalx_wizard') === '1');
   const [inquiries, setInquiries] = useState<Inquiry[]>([]);
   const [flows, setFlows] = useState<Flow[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -130,26 +134,92 @@ export default function Dashboard({ defaultTab = 'overview' }: { defaultTab?: st
   const [selectedInquiry, setSelectedInquiry] = useState<Inquiry | null>(null);
   const [copiedEmail, setCopiedEmail] = useState(false);
 
+  // Google Sheets modal state
+  const [isSheetsModalOpen, setIsSheetsModalOpen] = useState(false);
+  const [googleSheetsConnected, setGoogleSheetsConnected] = useState(false);
+  const [connectedSheetTitle, setConnectedSheetTitle] = useState('');
+
   const loadWorkspace = useCallback(async (refresh = false) => {
     if (refresh) setIsRefreshing(true);
     setIsLoading(true);
-    const [inquiryResult, flowResult] = await Promise.allSettled([
+
+    // ── Fetch inquiries from Apps Script (if configured) ──
+    let appsScriptInquiries: Inquiry[] = [];
+    let appsScriptSuccess = false;
+
+    if (APPSCRIPT_URL) {
+      try {
+        const res = await fetch(`${APPSCRIPT_URL}?action=list`);
+        const data = await res.json();
+        if (data.success && Array.isArray(data.customers)) {
+          appsScriptInquiries = data.customers.map((c: any) => ({
+            id: c.id || String(Math.random()),
+            name: c.name || 'Unknown',
+            email: c.email || '',
+            company: c.company || '',
+            message: c.message || '',
+            status: c.status || 'New',
+            intent: c.intent || '',
+            urgency: c.urgency || '',
+            fit_score: String(c.fit_score || '0'),
+            category: c.category || '',
+            summary: c.summary || '',
+            suggested_action: c.suggested_action || '',
+            last_active: c.last_active || new Date().toISOString(),
+          }));
+          appsScriptSuccess = true;
+          setInquiryError(null);
+        }
+      } catch (err) {
+        console.warn('Apps Script fetch failed:', err);
+      }
+    }
+
+    // ── Fallback: fetch from backend ──
+    const [backendInquiryResult, flowResult, dataSourcesResult] = await Promise.allSettled([
       api.get<Inquiry[]>('/api/customers'),
       flowsService.getAll(),
+      api.get<any[]>('/api/connectors'),
     ]);
 
-    if (inquiryResult.status === 'fulfilled') {
-      setInquiries(Array.isArray(inquiryResult.value) ? inquiryResult.value : []);
+    let mergedInquiries = appsScriptInquiries;
+
+    if (!appsScriptSuccess && backendInquiryResult.status === 'fulfilled') {
+      mergedInquiries = Array.isArray(backendInquiryResult.value) ? backendInquiryResult.value : [];
       setInquiryError(null);
-    } else {
-      setInquiries([]);
+    } else if (!appsScriptSuccess && backendInquiryResult.status === 'rejected') {
       setInquiryError('Connect your inquiry source to start receiving live business inquiries.');
     }
+
+    // Merge: Apps Script inquiries take priority, backend fills gaps
+    if (appsScriptSuccess && backendInquiryResult.status === 'fulfilled') {
+      const backendInquiries = Array.isArray(backendInquiryResult.value) ? backendInquiryResult.value : [];
+      const existingIds = new Set(appsScriptInquiries.map(i => i.id));
+      const newBackendInquiries = backendInquiries.filter(i => !existingIds.has(i.id));
+      mergedInquiries = [...appsScriptInquiries, ...newBackendInquiries];
+    }
+
+    setInquiries(mergedInquiries);
     if (flowResult.status === 'fulfilled') setFlows(flowResult.value);
     else setFlows([]);
+
+    // Check Google Sheets connection status
+    if (dataSourcesResult.status === 'fulfilled' && Array.isArray(dataSourcesResult.value)) {
+      const sheetsSource = dataSourcesResult.value.find((s: any) => s.id === 'google-sheets');
+      if (sheetsSource?.connected && sheetsSource?.config?.spreadsheetId) {
+        setGoogleSheetsConnected(true);
+        setConnectedSheetTitle(sheetsSource.name || 'Google Sheet');
+      }
+    }
+
     setIsLoading(false);
     setIsRefreshing(false);
   }, []);
+
+  const handleSheetsConnected = (sheetTitle: string, spreadsheetId: string) => {
+    setGoogleSheetsConnected(true);
+    setConnectedSheetTitle(sheetTitle);
+  };
 
   useEffect(() => {
     setActiveTab((defaultTab as DashboardTab) || 'overview');
@@ -233,87 +303,111 @@ export default function Dashboard({ defaultTab = 'overview' }: { defaultTab?: st
         </div>
       )}
 
-      {/* Tier banner */}
+      {/* Tier banner - Glassmorphism */}
       {tierLoading ? (
-        <div className="flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-5 py-3 text-sm text-slate-500 dark:border-white/10 dark:bg-white/5 dark:text-slate-400">
-          <RefreshCw className="h-4 w-4 animate-spin" /> Checking your plan…
+        <div className="glass-card flex items-center gap-3 rounded-2xl px-6 py-4 animate-pulse">
+          <div className="skeleton skeleton-circle w-8 h-8" />
+          <div className="skeleton skeleton-text w-40" />
         </div>
       ) : !isPremium ? (
-        <div className="space-y-3">
-          <div className="flex flex-col gap-4 rounded-2xl border border-teal-300/60 bg-teal-50 p-5 dark:border-teal-500/20 dark:bg-teal-500/10 sm:flex-row sm:items-center sm:justify-between">
-            <div className="flex gap-3">
-              <Sparkles className="mt-0.5 h-5 w-5 shrink-0 text-teal-600 dark:text-teal-400" />
-              <div>
-                <p className="font-semibold text-teal-900 dark:text-teal-200">Upgrade to Full Access</p>
-                <p className="mt-1 text-sm text-teal-800/80 dark:text-teal-200/70">Unlock bulk analysis, advanced AI scoring, and priority support.</p>
+        <div className="space-y-4">
+          <div className="relative glass-card rounded-2xl p-6 overflow-hidden">
+            <div className="absolute inset-0 bg-gradient-to-br from-teal-500/10 via-transparent to-cyan-500/10" />
+            <div className="relative flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex gap-4">
+                <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-teal-500/20 to-cyan-500/20 flex items-center justify-center flex-shrink-0">
+                  <Sparkles className="h-6 w-6 text-teal-600 dark:text-teal-400" />
+                </div>
+                <div>
+                  <p className="text-lg font-bold text-slate-900 dark:text-white tracking-tight">Upgrade to Full Access</p>
+                  <p className="mt-1 text-sm text-slate-600 dark:text-slate-400 leading-relaxed">Unlock bulk analysis, advanced AI scoring, and priority support.</p>
+                </div>
               </div>
+              <button onClick={() => openTab('onboarding')} className="inline-flex shrink-0 items-center gap-2 rounded-xl bg-gradient-to-r from-teal-600 to-teal-500 hover:from-teal-700 hover:to-teal-600 px-5 py-3 text-sm font-bold text-white shadow-lg shadow-teal-600/20 hover:shadow-teal-600/30 transition-all duration-200 hover:-translate-y-0.5 group">
+                Upgrade
+                <ArrowRight className="h-4 w-4 transition-transform duration-200 group-hover:translate-x-1" />
+              </button>
             </div>
-            <button onClick={() => openTab('onboarding')} className="inline-flex shrink-0 items-center gap-2 rounded-xl bg-teal-600 px-4 py-2 text-sm font-bold text-white hover:bg-teal-700 transition">
-              Upgrade <ArrowRight className="h-4 w-4" />
-            </button>
           </div>
           <AccessKeyRedemption onRedemptionSuccess={refetchTier} />
         </div>
       ) : (
-        <div className="flex items-center gap-2 rounded-2xl border border-emerald-200/60 bg-emerald-50 px-5 py-3 text-sm font-semibold text-emerald-700 dark:border-emerald-500/20 dark:bg-emerald-500/10 dark:text-emerald-300">
-          <CheckCircle2 className="h-4 w-4" /> Full Access — all premium features are enabled.
+        <div className="glass-card flex items-center gap-3 rounded-2xl px-6 py-4">
+          <div className="w-8 h-8 rounded-lg bg-emerald-500/15 flex items-center justify-center">
+            <CheckCircle2 className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
+          </div>
+          <span className="text-sm font-bold text-emerald-700 dark:text-emerald-400">Full Access — all premium features are enabled.</span>
         </div>
       )}
 
-      {/* Stat Cards - Matching Landing Page Preview Style */}
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      {/* Analytics Cards */}
+      <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-4">
         {[
-          { title: "Today's Leads", value: inquiries.length, trend: inquiries.length > 0 ? `+${inquiries.length}` : '0', isPositive: true, icon: Users, color: 'text-blue-600 dark:text-blue-400', bgColor: 'bg-blue-50 dark:bg-blue-500/10', borderColor: 'border-blue-100 dark:border-blue-500/20' },
-          { title: 'Hot Leads', value: hotInquiries.length, trend: hotInquiries.length > 0 ? `+${hotInquiries.length}` : '0', isPositive: true, icon: Flame, color: 'text-orange-600 dark:text-orange-400', bgColor: 'bg-orange-50 dark:bg-orange-500/10', borderColor: 'border-orange-100 dark:border-orange-500/20' },
-          { title: 'Pending', value: pendingInquiries.length, trend: pendingInquiries.length > 0 ? `${pendingInquiries.length}` : '0', isPositive: pendingInquiries.length === 0, icon: Clock, color: 'text-amber-600 dark:text-amber-400', bgColor: 'bg-amber-50 dark:bg-amber-500/10', borderColor: 'border-amber-100 dark:border-amber-500/20' },
-          { title: 'Qualified', value: qualifiedInquiries.length, trend: qualifiedInquiries.length > 0 ? `+${qualifiedInquiries.length}` : '0', isPositive: true, icon: CheckCircle2, color: 'text-emerald-600 dark:text-emerald-400', bgColor: 'bg-emerald-50 dark:bg-emerald-500/10', borderColor: 'border-emerald-100 dark:border-emerald-500/20' },
-        ].map(stat => (
-          <div key={stat.title} className="bg-white dark:bg-white/5 rounded-2xl p-5 border border-slate-200/80 dark:border-white/10 shadow-sm">
-            <div className="flex items-center justify-between mb-4">
-              <div className={`w-10 h-10 rounded-lg ${stat.bgColor} border ${stat.borderColor} flex items-center justify-center`}>
-                <stat.icon className={`w-5 h-5 ${stat.color}`} />
-              </div>
-              <div className={`flex items-center gap-1 text-xs font-bold px-2 py-1 rounded-md ${stat.isPositive ? 'bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-400' : 'bg-rose-50 dark:bg-rose-500/10 text-rose-700 dark:text-rose-400'}`}>
-                {stat.isPositive ? <ArrowUpRight className="w-3 h-3" /> : <ArrowDownRight className="w-3 h-3" />}
-                {stat.trend}
-              </div>
-            </div>
-            <h4 className="text-slate-500 dark:text-slate-400 text-sm font-medium mb-1">{stat.title}</h4>
-            <div className="text-2xl font-extrabold text-slate-900 dark:text-white tracking-tight">{isLoading ? '—' : stat.value}</div>
-          </div>
+          { title: "Today's Leads", value: inquiries.length,          trend: inquiries.length > 0 ? `+${inquiries.length}` : '0',           isPositive: true,                           icon: Users,       color: 'text-blue-600 dark:text-blue-400',    iconBg: 'bg-blue-500/10 dark:bg-blue-400/10' },
+          { title: 'Hot Leads',     value: hotInquiries.length,       trend: hotInquiries.length > 0 ? `+${hotInquiries.length}` : '0',     isPositive: true,                           icon: Flame,       color: 'text-orange-600 dark:text-orange-400', iconBg: 'bg-orange-500/10 dark:bg-orange-400/10' },
+          { title: 'Pending',       value: pendingInquiries.length,   trend: pendingInquiries.length > 0 ? `${pendingInquiries.length}` : '0', isPositive: pendingInquiries.length === 0, icon: Clock,       color: 'text-amber-600 dark:text-amber-400',  iconBg: 'bg-amber-500/10 dark:bg-amber-400/10' },
+          { title: 'Qualified',     value: qualifiedInquiries.length, trend: qualifiedInquiries.length > 0 ? `+${qualifiedInquiries.length}` : '0', isPositive: true,                   icon: CheckCircle2, color: 'text-emerald-600 dark:text-emerald-400', iconBg: 'bg-emerald-500/10 dark:bg-emerald-400/10' },
+        ].map((stat, index) => (
+          <StatCard
+            key={stat.title}
+            label={stat.title}
+            value={stat.value}
+            icon={<stat.icon className={`w-6 h-6 ${stat.color}`} />}
+            iconBg={stat.iconBg}
+            trend={{ value: stat.trend, direction: stat.isPositive ? 'up' : 'down' }}
+            loading={isLoading}
+            className="cursor-default animate-fade-in-up"
+            style={{ animationDelay: `${index * 0.1}s` }}
+          />
         ))}
       </div>
 
-      {/* Recent Inquiries Table - Matching Landing Page Preview Style */}
-      <div className="bg-white dark:bg-white/5 rounded-2xl border border-slate-200/80 dark:border-white/10 shadow-sm overflow-hidden">
-        <div className="px-6 py-4 border-b border-slate-200/80 dark:border-white/10 flex items-center justify-between">
+      {/* Recent Inquiries Table - Glassmorphism Design */}
+      <div className="glass-card rounded-2xl overflow-hidden">
+        <div className="px-6 py-5 border-b border-slate-200/60 dark:border-white/5 flex items-center justify-between bg-slate-50/30 dark:bg-white/[0.02]">
           <div>
-            <h3 className="text-base font-bold text-slate-900 dark:text-white">Recent Inquiries</h3>
-            <p className="mt-0.5 text-sm text-slate-500 dark:text-slate-400">Live records from your connected pipeline</p>
+            <h3 className="text-lg font-bold text-slate-900 dark:text-white tracking-tight">Recent Inquiries</h3>
+            <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">Live records from your connected pipeline</p>
           </div>
           <div className="flex items-center gap-3">
-            <div className="hidden sm:flex items-center gap-2 px-3 py-2 bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-lg text-sm text-slate-400 dark:text-slate-500">
-              <Search className="w-3.5 h-3.5" />
+            <div className="hidden sm:flex items-center gap-2.5 px-4 py-2.5 glass-card-subtle rounded-xl text-sm">
+              <Search className="w-4 h-4 text-slate-400" />
               <input
                 type="text"
                 placeholder="Search leads..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="bg-transparent outline-none text-slate-700 dark:text-slate-200 placeholder-slate-400 dark:placeholder-slate-500 w-32"
+                className="bg-transparent outline-none text-slate-700 dark:text-slate-200 placeholder-slate-400 dark:placeholder-slate-500 w-36 font-medium"
               />
             </div>
-            <button onClick={() => setActiveTab('inquiries')} className="flex items-center gap-2 text-xs font-semibold text-slate-600 dark:text-slate-300 px-3 py-2 rounded-lg border border-slate-200 dark:border-white/10 shadow-sm hover:border-teal-400 transition">
-              <Filter className="w-3.5 h-3.5" />
+            <button onClick={() => setActiveTab('inquiries')} className="btn-glass flex items-center gap-2 text-xs font-bold text-slate-700 dark:text-slate-300 px-4 py-2.5 rounded-xl">
+              <Filter className="w-4 h-4" />
               View all
             </button>
           </div>
         </div>
 
         {isLoading ? (
-          <div className="p-12 text-center">
-            <div className="inline-flex items-center gap-2 text-sm text-slate-500 dark:text-slate-400">
-              <RefreshCw className="w-4 h-4 animate-spin" />
-              Loading live inquiries…
+          <div className="p-6">
+            {/* Skeleton Table Rows */}
+            <div className="space-y-4">
+              {[...Array(5)].map((_, i) => (
+                <div key={i} className="flex items-center justify-between p-4 rounded-xl bg-slate-50/50 dark:bg-white/[0.02] animate-fade-in" style={{ animationDelay: `${i * 0.1}s` }}>
+                  <div className="flex items-center gap-4">
+                    <div className="skeleton skeleton-circle w-10 h-10" />
+                    <div className="space-y-2">
+                      <div className="skeleton skeleton-text w-32" />
+                      <div className="skeleton skeleton-text-sm w-24" />
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-6">
+                    <div className="skeleton w-16 h-6 rounded-full" />
+                    <div className="skeleton w-20 h-6 rounded-lg" />
+                    <div className="skeleton skeleton-text-sm w-16" />
+                    <div className="skeleton w-16 h-8 rounded-lg" />
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
         ) : filteredInquiries.length === 0 ? (
@@ -330,51 +424,53 @@ export default function Dashboard({ defaultTab = 'overview' }: { defaultTab?: st
             <div className="overflow-x-auto">
               <table className="w-full text-left border-collapse">
                 <thead>
-                  <tr className="bg-slate-50/80 dark:bg-white/[0.02] text-xs uppercase tracking-wider text-slate-500 dark:text-slate-400 font-semibold border-b border-slate-200/80 dark:border-white/10">
-                    <th className="px-6 py-3.5">Customer</th>
-                    <th className="px-6 py-3.5">Intent</th>
-                    <th className="px-6 py-3.5">Status</th>
-                    <th className="px-6 py-3.5">Time</th>
-                    <th className="px-6 py-3.5 text-right">Action</th>
+                  <tr className="bg-slate-50/50 dark:bg-white/[0.02] text-[11px] uppercase tracking-[0.08em] text-slate-500 dark:text-slate-400 font-bold border-b border-slate-200/60 dark:border-white/5">
+                    <th className="px-6 py-4">Customer</th>
+                    <th className="px-6 py-4">Intent</th>
+                    <th className="px-6 py-4">Status</th>
+                    <th className="px-6 py-4">Time</th>
+                    <th className="px-6 py-4 text-right">Action</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-100 dark:divide-white/5">
+                <tbody className="divide-y divide-slate-100/80 dark:divide-white/5">
                   {filteredInquiries.slice(0, 8).map((inquiry, index) => (
-                    <tr key={inquiry.id} className="bg-white dark:bg-transparent hover:bg-slate-50 dark:hover:bg-white/[0.02] transition-colors animate-fade-in-up" style={{ animationDelay: `${index * 0.05}s` }}>
+                    <tr key={inquiry.id} className="group bg-transparent hover:bg-slate-50/70 dark:hover:bg-white/[0.03] transition-all duration-200 animate-fade-in-up" style={{ animationDelay: `${index * 0.05}s` }}>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="flex items-center gap-3">
-                          <div className="w-9 h-9 rounded-full bg-gradient-to-br from-teal-500 to-cyan-500 flex items-center justify-center text-xs font-bold text-white flex-shrink-0">
+                        <div className="flex items-center gap-3.5">
+                          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-teal-500 to-cyan-500 flex items-center justify-center text-xs font-bold text-white flex-shrink-0 shadow-sm group-hover:shadow-md transition-shadow duration-200">
                             {getInitials(inquiry.name)}
                           </div>
                           <div className="min-w-0">
-                            <div className="font-bold text-slate-900 dark:text-white text-sm truncate">{inquiry.name}</div>
-                            <div className="text-xs text-slate-500 dark:text-slate-400 font-medium truncate">{inquiry.company || inquiry.email}</div>
+                            <div className="font-bold text-slate-900 dark:text-white text-sm truncate tracking-tight">{inquiry.name}</div>
+                            <div className="text-xs text-slate-500 dark:text-slate-400 font-medium truncate mt-0.5">{inquiry.company || inquiry.email}</div>
                           </div>
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="flex items-center gap-1.5">
-                          {(inquiry.intent?.toLowerCase() === 'high' || inquiry.urgency?.toLowerCase() === 'high') && <Flame className="w-4 h-4 text-orange-500 dark:text-orange-400" />}
+                        <div className="flex items-center gap-2">
+                          {(inquiry.intent?.toLowerCase() === 'high' || inquiry.urgency?.toLowerCase() === 'high') && (
+                            <div className="w-6 h-6 rounded-lg bg-orange-500/10 flex items-center justify-center">
+                              <Flame className="w-3.5 h-3.5 text-orange-500 dark:text-orange-400" />
+                            </div>
+                          )}
                           <span className={`text-sm font-semibold capitalize ${intentColor(inquiry.intent || inquiry.urgency)}`}>
                             {inquiry.intent || inquiry.urgency || '—'}
                           </span>
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <span className={`inline-flex items-center px-2.5 py-1 rounded-md text-xs font-bold border ${statusBadge(inquiry.status)}`}>
-                          {inquiry.status}
-                        </span>
+                        <Badge variant={getStatusVariant(inquiry.status)} size="md">{inquiry.status}</Badge>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-slate-500 dark:text-slate-400">
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-slate-500 dark:text-slate-400 tabular-nums">
                         {timeAgo(inquiry.last_active)}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-right">
                         <button
                           onClick={() => setSelectedInquiry(inquiry)}
-                          className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-teal-700 bg-teal-50 dark:bg-teal-500/10 dark:text-teal-300 rounded-lg hover:bg-teal-100 dark:hover:bg-teal-500/20 transition border border-teal-200/60 dark:border-teal-500/20"
+                          className="inline-flex items-center gap-2 px-4 py-2 text-xs font-bold text-teal-700 dark:text-teal-300 bg-teal-50/80 dark:bg-teal-500/10 rounded-xl hover:bg-teal-100 dark:hover:bg-teal-500/20 transition-all duration-200 border border-teal-200/60 dark:border-teal-500/20 hover:border-teal-300 dark:hover:border-teal-500/40 hover-scale"
                           title="View Inquiry Details"
                         >
-                          <Eye className="w-3.5 h-3.5" />
+                          <Eye className="w-4 h-4" />
                           View
                         </button>
                       </td>
@@ -384,9 +480,10 @@ export default function Dashboard({ defaultTab = 'overview' }: { defaultTab?: st
               </table>
             </div>
             {inquiries.length > 8 && (
-              <div className="px-6 py-3.5 border-t border-slate-200/80 dark:border-white/10 bg-slate-50/50 dark:bg-white/[0.01] text-center">
-                <button onClick={() => setActiveTab('inquiries')} className="text-xs font-bold text-teal-600 dark:text-teal-400 hover:text-teal-700 dark:hover:text-teal-300 transition">
-                  View all {inquiries.length} inquiries &rarr;
+              <div className="px-6 py-4 border-t border-slate-200/60 dark:border-white/5 bg-slate-50/30 dark:bg-white/[0.01] text-center">
+                <button onClick={() => setActiveTab('inquiries')} className="text-sm font-bold text-teal-600 dark:text-teal-400 hover:text-teal-700 dark:hover:text-teal-300 transition-colors duration-200 inline-flex items-center gap-1.5">
+                  View all {inquiries.length} inquiries
+                  <ChevronRight className="w-4 h-4" />
                 </button>
               </div>
             )}
@@ -394,49 +491,166 @@ export default function Dashboard({ defaultTab = 'overview' }: { defaultTab?: st
         )}
       </div>
 
-      {/* AI Pipeline Status Card */}
+      {/* AI Pipeline Status Cards - Glassmorphism */}
       <div className="grid gap-6 xl:grid-cols-2">
-        <div className="rounded-2xl border border-slate-200 bg-white p-6 dark:border-white/10 dark:bg-white/5">
-          <div className="flex items-center gap-3"><div className="rounded-xl bg-teal-500/10 p-2.5"><Bot className="h-5 w-5 text-teal-600 dark:text-teal-400" /></div><div><h2 className="font-bold text-slate-950 dark:text-white">AI Pipeline Status</h2><p className="text-xs text-slate-500 dark:text-slate-400">The operating loop</p></div></div>
-          <div className="mt-6 space-y-5">
-            {['Capture the inquiry from your form or webhook', 'Analyze intent, urgency, and fit with AI', 'Route the next action to your team or CRM'].map((step, index) => <div key={step} className="flex gap-3"><span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-slate-100 text-xs font-bold text-slate-600 dark:bg-white/10 dark:text-slate-300">{index + 1}</span><p className="pt-0.5 text-sm text-slate-600 dark:text-slate-300">{step}</p></div>)}
+        <div className="glass-card rounded-2xl p-6 hover-lift">
+          <div className="flex items-center gap-4">
+            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-teal-500/15 to-cyan-500/15 dark:from-teal-500/20 dark:to-cyan-500/20 flex items-center justify-center">
+              <Bot className="h-6 w-6 text-teal-600 dark:text-teal-400" />
+            </div>
+            <div>
+              <h2 className="text-lg font-bold text-slate-900 dark:text-white tracking-tight">AI Pipeline Status</h2>
+              <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5">The operating loop</p>
+            </div>
           </div>
-          <button onClick={() => openTab('integration')} className="mt-7 inline-flex items-center gap-2 text-sm font-bold text-teal-700 dark:text-teal-400">Configure the loop <ArrowRight className="h-4 w-4" /></button>
+          <div className="mt-7 space-y-4">
+            {['Capture the inquiry from your form or webhook', 'Analyze intent, urgency, and fit with AI', 'Route the next action to your team or CRM'].map((step, index) => (
+              <div key={step} className="flex gap-4 items-start group">
+                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-slate-100/80 dark:bg-white/10 text-sm font-bold text-slate-700 dark:text-slate-300 group-hover:bg-teal-500/10 group-hover:text-teal-600 dark:group-hover:text-teal-400 transition-colors duration-200">{index + 1}</span>
+                <p className="pt-1.5 text-sm text-slate-600 dark:text-slate-300 leading-relaxed">{step}</p>
+              </div>
+            ))}
+          </div>
+          <button onClick={() => openTab('integration')} className="mt-8 inline-flex items-center gap-2 text-sm font-bold text-teal-600 dark:text-teal-400 hover:text-teal-700 dark:hover:text-teal-300 transition-colors duration-200 group">
+            Configure the loop
+            <ArrowRight className="h-4 w-4 transition-transform duration-200 group-hover:translate-x-1" />
+          </button>
         </div>
 
-        {/* Active Automation Card */}
-        <div className="relative overflow-hidden rounded-2xl border border-teal-500/30 bg-white p-6 shadow-sm dark:border-teal-500/20 dark:bg-white/5">
-          <div className="absolute right-0 top-0 h-full w-1 bg-teal-500"></div>
-          <div className="flex items-start justify-between gap-3">
-            <div>
-              <div className="flex items-center gap-2">
-                <Bot className="h-5 w-5 text-teal-600 dark:text-teal-400" />
-                <h3 className="font-bold text-slate-950 dark:text-white">AI Lead Scoring Pipeline</h3>
+        {/* Active Automation Card - Enhanced */}
+        <div className="group relative overflow-hidden glass-card rounded-2xl p-6 hover-lift">
+          {/* Accent gradient border */}
+          <div className="absolute right-0 top-0 bottom-0 w-1 bg-gradient-to-b from-teal-400 via-emerald-500 to-teal-600" />
+          <div className="absolute inset-0 bg-gradient-to-br from-teal-500/5 via-transparent to-emerald-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+
+          <div className="relative flex items-start justify-between gap-4">
+            <div className="flex-1">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-lg bg-teal-500/10 dark:bg-teal-500/15 flex items-center justify-center">
+                  <Bot className="h-5 w-5 text-teal-600 dark:text-teal-400" />
+                </div>
+                <h3 className="text-lg font-bold text-slate-900 dark:text-white tracking-tight">AI Lead Scoring Pipeline</h3>
               </div>
-              <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">Classifies and routes incoming sales inquiries using advanced AI models.</p>
+              <p className="mt-3 text-sm text-slate-600 dark:text-slate-400 leading-relaxed">Classifies and routes incoming sales inquiries using advanced AI models.</p>
             </div>
-            <span className="flex items-center gap-1.5 rounded-full bg-emerald-500/10 px-2.5 py-1 text-xs font-bold text-emerald-700 dark:text-emerald-300">
-              <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-500"></span>
+            <span className="flex items-center gap-2 rounded-full bg-emerald-100/80 dark:bg-emerald-500/15 px-3.5 py-2 text-xs font-bold text-emerald-700 dark:text-emerald-400 shadow-sm">
+              <span className="h-2 w-2 animate-pulse rounded-full bg-emerald-500" />
               Active
             </span>
           </div>
-          <div className="mt-5 flex items-center justify-between border-t border-slate-100 pt-4 text-xs text-slate-500 dark:border-white/5 dark:text-slate-400">
-            <span>Last inquiry: {inquiries.length > 0 ? timeAgo(inquiries[0].last_active) : 'Waiting for connection...'}</span>
-            <span className="font-medium text-teal-600 dark:text-teal-400">{inquiries.length} inquiries processed</span>
+          <div className="relative mt-6 flex items-center justify-between border-t border-slate-200/60 dark:border-white/5 pt-5 text-sm">
+            <span className="text-slate-500 dark:text-slate-400 font-medium">
+              Last inquiry: <span className="text-slate-700 dark:text-slate-300">{inquiries.length > 0 ? timeAgo(inquiries[0].last_active) : 'Waiting...'}</span>
+            </span>
+            <span className="font-bold text-teal-600 dark:text-teal-400 tabular-nums">{inquiries.length} processed</span>
           </div>
         </div>
       </div>
+
+      {/* Data Sources Quick Connect - Glassmorphism */}
+      <div className="glass-card rounded-2xl p-7">
+        <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center gap-4">
+            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-emerald-500/15 to-teal-500/15 dark:from-emerald-500/20 dark:to-teal-500/20 flex items-center justify-center">
+              <Settings2 className="h-6 w-6 text-emerald-600 dark:text-emerald-400" />
+            </div>
+            <div>
+              <h2 className="text-lg font-bold text-slate-900 dark:text-white tracking-tight">Data Sources</h2>
+              <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5">Connect your tools to sync leads automatically</p>
+            </div>
+          </div>
+          <button onClick={() => openTab('connectors')} className="btn-glass text-sm font-bold text-teal-600 dark:text-teal-400 px-4 py-2 rounded-xl inline-flex items-center gap-1.5 hover:text-teal-700 dark:hover:text-teal-300">
+            View all
+            <ChevronRight className="w-4 h-4" />
+          </button>
+        </div>
+        <div className="grid gap-5 sm:grid-cols-2">
+          {/* Google Sheets Card - Modernized */}
+          <button
+            onClick={() => setIsSheetsModalOpen(true)}
+            className="group relative text-left glass-card rounded-2xl p-5 hover-lift overflow-hidden"
+          >
+            {/* Subtle gradient overlay */}
+            <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/5 via-transparent to-teal-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+
+            <div className="relative flex items-start justify-between gap-4">
+              <div className="flex items-center gap-4">
+                <div className={`h-12 w-12 rounded-xl flex items-center justify-center transition-all duration-300 group-hover:scale-110 ${googleSheetsConnected ? 'bg-emerald-500/15 dark:bg-emerald-400/15' : 'bg-slate-100 dark:bg-white/10'}`}>
+                  <Sheet className={`h-6 w-6 transition-colors duration-300 ${googleSheetsConnected ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-500 dark:text-slate-400 group-hover:text-emerald-600 dark:group-hover:text-emerald-400'}`} />
+                </div>
+                <div>
+                  <h4 className="font-bold text-slate-900 dark:text-white text-base tracking-tight group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors duration-200">
+                    Google Sheets
+                  </h4>
+                  <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5 leading-relaxed">
+                    {googleSheetsConnected ? connectedSheetTitle : 'Sync leads automatically'}
+                  </p>
+                </div>
+              </div>
+              {googleSheetsConnected ? (
+                <div className="flex flex-col items-end gap-2">
+                  <span className="px-3 py-1.5 bg-emerald-100/80 dark:bg-emerald-500/20 text-emerald-700 dark:text-emerald-400 text-xs font-bold rounded-full flex items-center gap-1.5 shadow-sm">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                    Synced
+                  </span>
+                  <span className="text-[10px] text-slate-400 dark:text-slate-500 font-medium">Click to manage</span>
+                </div>
+              ) : (
+                <span className="px-3 py-1.5 bg-slate-100 dark:bg-white/10 text-slate-600 dark:text-slate-400 text-xs font-bold rounded-full group-hover:bg-emerald-100 group-hover:text-emerald-700 dark:group-hover:bg-emerald-500/20 dark:group-hover:text-emerald-400 transition-colors duration-200">
+                  Connect
+                </span>
+              )}
+            </div>
+
+            {/* Connection indicator line */}
+            {googleSheetsConnected && (
+              <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-gradient-to-r from-emerald-500 via-teal-500 to-emerald-500" />
+            )}
+          </button>
+
+          {/* Webhook Card - Modernized */}
+          <button
+            onClick={() => openTab('integration')}
+            className="group relative text-left glass-card rounded-2xl p-5 hover-lift overflow-hidden"
+          >
+            {/* Subtle gradient overlay */}
+            <div className="absolute inset-0 bg-gradient-to-br from-teal-500/5 via-transparent to-cyan-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+
+            <div className="relative flex items-start justify-between gap-4">
+              <div className="flex items-center gap-4">
+                <div className="h-12 w-12 rounded-xl bg-teal-500/10 dark:bg-teal-400/10 flex items-center justify-center transition-all duration-300 group-hover:scale-110">
+                  <Zap className="h-6 w-6 text-teal-600 dark:text-teal-400" />
+                </div>
+                <div>
+                  <h4 className="font-bold text-slate-900 dark:text-white text-base tracking-tight group-hover:text-teal-600 dark:group-hover:text-teal-400 transition-colors duration-200">
+                    Webhooks & API
+                  </h4>
+                  <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5 leading-relaxed">
+                    Connect forms and tools
+                  </p>
+                </div>
+              </div>
+              <span className="px-3 py-1.5 bg-teal-100/80 dark:bg-teal-500/20 text-teal-700 dark:text-teal-400 text-xs font-bold rounded-full group-hover:bg-teal-200 dark:group-hover:bg-teal-500/30 transition-colors duration-200">
+                Configure
+              </span>
+            </div>
+          </button>
+        </div>
+      </div>
+
+      {/* Notifications & Alerts */}
+      <NotificationSettings />
     </div>
   );
 
-  const renderInquiries = () => <div className="space-y-6"><PageHeading title="Inquiry queue" description="Review the business inquiries coming through your connected source." action={<button onClick={() => loadWorkspace(true)} className="inline-flex items-center gap-2 rounded-xl bg-teal-600 px-4 py-2.5 text-sm font-bold text-white"><RefreshCw className="h-4 w-4" /> Refresh</button>} /><InquiryQueue inquiries={inquiries} isLoading={isLoading} onSelectInquiry={(inquiry) => setSelectedInquiry(inquiry)} /></div>;
+  const renderInquiries = () => <div className="space-y-6"><PageHeading title="Inquiry queue" description="Review the business inquiries coming through your connected source." action={<button onClick={() => loadWorkspace(true)} className="inline-flex items-center gap-2 rounded-xl bg-teal-600 hover:bg-teal-700 px-4 py-2.5 text-sm font-bold text-white transition-colors"><RefreshCw className="h-4 w-4" /> Refresh</button>} /><InquiryQueue inquiries={inquiries} isLoading={isLoading} onSelectInquiry={(inquiry) => setSelectedInquiry(inquiry)} /></div>;
 
   const renderAutomations = () => (
     <div className="space-y-6">
       <PageHeading
         title="Automations"
         description="Keep the AI workflows that turn inquiries into action visible and accountable."
-        action={<button onClick={() => openTab('onboarding')} className="inline-flex items-center gap-2 rounded-xl bg-teal-600 px-4 py-2.5 text-sm font-bold text-white">Get your API key <ArrowRight className="h-4 w-4" /></button>}
+        action={<button onClick={() => openTab('onboarding')} className="inline-flex items-center gap-2 rounded-xl bg-teal-600 hover:bg-teal-700 px-4 py-2.5 text-sm font-bold text-white transition-colors">Get your API key <ArrowRight className="h-4 w-4" /></button>}
       />
       {!isPremium && (
         <div className="flex flex-col gap-4 rounded-2xl border border-teal-300/60 bg-teal-50 p-5 dark:border-teal-500/20 dark:bg-teal-500/10 sm:flex-row sm:items-center sm:justify-between">
@@ -479,66 +693,91 @@ export default function Dashboard({ defaultTab = 'overview' }: { defaultTab?: st
 
   const content = activeTab === 'inquiries' ? renderInquiries() : activeTab === 'automations' ? renderAutomations() : activeTab === 'onboarding' ? <CustomerOnboarding /> : activeTab === 'connectors' ? <DataConnectors /> : activeTab === 'integration' ? <IntegrationSetup /> : activeTab === 'profile' ? <UserProfilePage /> : renderOverview();
 
+  if (showWizard) {
+    return (
+      <OnboardingWizard
+        userName={user?.displayName || 'there'}
+        onComplete={() => setShowWizard(false)}
+      />
+    );
+  }
+
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-white overflow-x-hidden w-full">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-100 text-slate-900 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950 dark:text-white overflow-x-hidden w-full">
       {/* Mobile Drawer Overlay */}
       {mobileOpen && (
-        <div 
-          className="fixed inset-0 z-30 bg-slate-950/60 backdrop-blur-xs md:hidden animate-fade-in"
+        <div
+          className="fixed inset-0 z-30 bg-slate-950/60 backdrop-blur-sm md:hidden animate-fade-in"
           onClick={() => setMobileOpen(false)}
         />
       )}
 
-      <aside className={`fixed inset-y-0 left-0 z-40 w-72 border-r border-slate-200 bg-white p-5 transition-transform dark:border-white/10 dark:bg-slate-950 ${mobileOpen ? 'translate-x-0 shadow-2xl' : '-translate-x-full md:translate-x-0'}`}>
+      <aside className={`fixed inset-y-0 left-0 z-40 w-72 border-r border-slate-200/80 bg-white/80 backdrop-blur-xl p-6 transition-transform duration-300 dark:border-white/5 dark:bg-slate-950/90 ${mobileOpen ? 'translate-x-0 shadow-2xl' : '-translate-x-full md:translate-x-0'}`}>
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2.5">
-            <NodalXLogo className="h-9 w-9" />
-            <span className="text-lg font-extrabold tracking-tight">NODALxAI</span>
+          <div className="flex items-center gap-3">
+            <NodalXLogo className="h-10 w-10" />
+            <span className="text-xl font-extrabold tracking-tight bg-gradient-to-r from-slate-900 to-slate-700 dark:from-white dark:to-slate-300 bg-clip-text text-transparent">NODALxAI</span>
           </div>
-          <button onClick={() => setMobileOpen(false)} className="md:hidden">
+          <button onClick={() => setMobileOpen(false)} className="md:hidden p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-white/10 transition-colors">
             <X className="h-5 w-5" />
           </button>
         </div>
-        <p className="mt-10 px-3 text-xs font-bold uppercase tracking-[0.16em] text-slate-400">Workspace</p>
-        <nav className="mt-3 space-y-1">
+        <p className="mt-10 px-3 text-[11px] font-bold uppercase tracking-[0.2em] text-slate-400 dark:text-slate-500">Workspace</p>
+        <nav className="mt-4 space-y-1.5">
           {tabLabels.map(tab => (
-            <button key={tab.id} onClick={() => openTab(tab.id)} className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-semibold transition ${activeTab === tab.id ? 'bg-teal-500/10 text-teal-700 dark:text-teal-300' : 'text-slate-500 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-white/5'}`}>
-              <tab.icon className="h-4 w-4" />
+            <button
+              key={tab.id}
+              onClick={() => openTab(tab.id)}
+              className={`group flex w-full items-center gap-3 rounded-xl px-4 py-3 text-left text-sm font-semibold transition-all duration-200 ${
+                activeTab === tab.id
+                  ? 'bg-teal-500/10 text-teal-700 dark:text-teal-300 shadow-sm'
+                  : 'text-slate-600 hover:bg-slate-100/80 dark:text-slate-400 dark:hover:bg-white/5 hover:text-slate-900 dark:hover:text-white'
+              }`}
+            >
+              <tab.icon className={`h-[18px] w-[18px] transition-transform duration-200 ${activeTab === tab.id ? '' : 'group-hover:scale-110'}`} />
               {tab.label}
+              {activeTab === tab.id && (
+                <div className="ml-auto w-1.5 h-1.5 rounded-full bg-teal-500" />
+              )}
             </button>
           ))}
         </nav>
-        <div className="mt-auto hidden border-t border-slate-200 pt-5 dark:border-white/10 md:block">
-          <button onClick={() => openTab('profile')} className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left transition hover:bg-slate-100 dark:hover:bg-white/5">
-            <div className="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-full bg-gradient-to-br from-teal-500 to-cyan-500 text-xs font-bold text-white">
+        <div className="absolute bottom-6 left-6 right-6 border-t border-slate-200/80 dark:border-white/5 pt-5 hidden md:block">
+          <button onClick={() => openTab('profile')} className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left transition-all duration-200 hover:bg-slate-100/80 dark:hover:bg-white/5 group">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-gradient-to-br from-teal-500 to-cyan-500 text-sm font-bold text-white shadow-sm group-hover:shadow-md transition-shadow duration-200">
               {user?.photoURL ? <img src={user.photoURL} alt="" className="h-full w-full object-cover" referrerPolicy="no-referrer" /> : (user?.displayName || 'U').charAt(0).toUpperCase()}
             </div>
             <div className="min-w-0 flex-1">
-              <p className="truncate text-sm font-semibold text-slate-700 dark:text-slate-200">{user?.displayName || 'User'}</p>
-              <p className="truncate text-xs text-slate-400">{user?.email}</p>
+              <p className="truncate text-sm font-bold text-slate-800 dark:text-slate-200 tracking-tight">{user?.displayName || 'User'}</p>
+              <p className="truncate text-xs text-slate-500 dark:text-slate-400 font-medium">{user?.email}</p>
             </div>
           </button>
         </div>
       </aside>
 
       <div className="md:pl-72">
-        <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b border-slate-200 bg-white/90 px-5 backdrop-blur md:px-8 dark:border-white/10 dark:bg-slate-950/90">
-          <button onClick={() => setMobileOpen(true)} className="md:hidden">
+        <header className="sticky top-0 z-30 flex h-[72px] items-center justify-between border-b border-slate-200/60 bg-white/70 backdrop-blur-xl px-6 md:px-8 dark:border-white/5 dark:bg-slate-950/80">
+          <button onClick={() => setMobileOpen(true)} className="md:hidden p-2 -ml-2 rounded-lg hover:bg-slate-100 dark:hover:bg-white/10 transition-colors">
             <Menu className="h-5 w-5" />
           </button>
-          <div className="hidden text-sm font-semibold text-slate-500 md:block">
-            {user?.displayName ? `Welcome, ${user.displayName.split(' ')[0]}` : 'Workspace'}
+          <div className="hidden md:block">
+            <p className="text-sm font-medium text-slate-600 dark:text-slate-400">
+              {user?.displayName ? `Welcome back, ${user.displayName.split(' ')[0]}` : 'Welcome to your workspace'}
+            </p>
           </div>
-          <div className="ml-auto flex items-center gap-4">
+          <div className="ml-auto flex items-center gap-5">
             <ThemeToggle />
-            <span className="hidden text-sm text-slate-500 sm:block">{user?.email}</span>
-            <button onClick={logout} className="text-slate-400 hover:text-rose-600 md:hidden">
-              <LogOut className="h-4 w-4" />
+            <div className="hidden sm:flex items-center gap-3 px-4 py-2 rounded-xl bg-slate-100/60 dark:bg-white/5">
+              <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+              <span className="text-sm font-medium text-slate-600 dark:text-slate-400">{user?.email}</span>
+            </div>
+            <button onClick={logout} className="p-2 text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 rounded-lg hover:bg-rose-50 dark:hover:bg-rose-500/10 transition-colors md:hidden">
+              <LogOut className="h-5 w-5" />
             </button>
           </div>
         </header>
 
-        <main className="mx-auto max-w-7xl p-5 md:p-8">{content}</main>
+        <main className="mx-auto max-w-7xl px-6 py-8 md:px-8 md:py-10">{content}</main>
       </div>
 
       {/* Inquiry Detail Modal */}
@@ -593,9 +832,7 @@ export default function Dashboard({ defaultTab = 'overview' }: { defaultTab?: st
                 </div>
                 <div className="p-3 rounded-xl bg-slate-50 dark:bg-white/5 border border-slate-100 dark:border-white/5">
                   <span className="block text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1">Status</span>
-                  <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-bold border ${statusBadge(selectedInquiry.status)}`}>
-                    {selectedInquiry.status}
-                  </span>
+                  <Badge variant={getStatusVariant(selectedInquiry.status)}>{selectedInquiry.status}</Badge>
                 </div>
               </div>
 
@@ -680,6 +917,13 @@ export default function Dashboard({ defaultTab = 'overview' }: { defaultTab?: st
           </div>
         </div>
       )}
+
+      {/* Google Sheets Connection Modal */}
+      <GoogleSheetsModal
+        isOpen={isSheetsModalOpen}
+        onClose={() => setIsSheetsModalOpen(false)}
+        onSuccess={handleSheetsConnected}
+      />
     </div>
   );
 }
@@ -690,44 +934,60 @@ function PageHeading({ title, description, action }: { title: string; descriptio
 
 function InquiryQueue({ inquiries, isLoading, onViewAll, onSelectInquiry }: { inquiries: Inquiry[]; isLoading: boolean; onViewAll?: () => void; onSelectInquiry?: (inquiry: Inquiry) => void }) {
   return (
-    <section className="rounded-2xl border border-slate-200 bg-white dark:border-white/10 dark:bg-white/5">
-      <div className="flex items-center justify-between border-b border-slate-200 p-6 dark:border-white/10">
+    <section className="glass-card rounded-2xl overflow-hidden">
+      <div className="flex items-center justify-between border-b border-slate-200/60 dark:border-white/5 p-6 bg-slate-50/30 dark:bg-white/[0.02]">
         <div>
-          <h2 className="font-bold text-slate-950 dark:text-white">Recent inquiries</h2>
+          <h2 className="text-lg font-bold text-slate-900 dark:text-white tracking-tight">Recent inquiries</h2>
           <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">Live records from your connected workflow</p>
         </div>
         {onViewAll && (
-          <button onClick={onViewAll} className="inline-flex items-center gap-1 text-sm font-bold text-teal-700 dark:text-teal-400">
+          <button onClick={onViewAll} className="btn-glass inline-flex items-center gap-1.5 text-sm font-bold text-teal-600 dark:text-teal-400 px-4 py-2 rounded-xl hover:text-teal-700 dark:hover:text-teal-300 transition-colors">
             View queue <ChevronRight className="h-4 w-4" />
           </button>
         )}
       </div>
       {isLoading ? (
-        <div className="p-10 text-center text-sm text-slate-500">Loading live inquiries…</div>
+        <div className="p-6 space-y-4">
+          {[...Array(4)].map((_, i) => (
+            <div key={i} className="flex items-center justify-between p-4 rounded-xl bg-slate-50/50 dark:bg-white/[0.02]" style={{ animationDelay: `${i * 0.1}s` }}>
+              <div className="flex items-center gap-4">
+                <div className="skeleton skeleton-circle w-10 h-10" />
+                <div className="space-y-2">
+                  <div className="skeleton skeleton-text w-32" />
+                  <div className="skeleton skeleton-text-sm w-24" />
+                </div>
+              </div>
+              <div className="flex items-center gap-4">
+                <div className="skeleton w-20 h-7 rounded-full" />
+                <div className="skeleton w-16 h-8 rounded-lg" />
+              </div>
+            </div>
+          ))}
+        </div>
       ) : inquiries.length === 0 ? (
         <EmptyState title="No inquiries yet" description="When your form or webhook receives an inquiry, it will appear here for triage." />
       ) : (
-        <div className="divide-y divide-slate-100 dark:divide-white/5">
-          {inquiries.map(inquiry => (
-            <div key={inquiry.id} className="flex flex-col gap-3 p-5 sm:flex-row sm:items-center sm:justify-between hover:bg-slate-50/60 dark:hover:bg-white/[0.02] transition-colors">
-              <div className="min-w-0 flex items-center gap-3">
-                <div className="w-9 h-9 rounded-full bg-gradient-to-br from-teal-500 to-cyan-500 flex items-center justify-center text-xs font-bold text-white flex-shrink-0">
+        <div className="divide-y divide-slate-100/80 dark:divide-white/5">
+          {inquiries.map((inquiry, index) => (
+            <div key={inquiry.id} className="group flex flex-col gap-3 p-5 sm:flex-row sm:items-center sm:justify-between hover:bg-slate-50/70 dark:hover:bg-white/[0.03] transition-all duration-200 animate-fade-in" style={{ animationDelay: `${index * 0.05}s` }}>
+              <div className="min-w-0 flex items-center gap-4">
+                <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-teal-500 to-cyan-500 flex items-center justify-center text-sm font-bold text-white flex-shrink-0 shadow-sm group-hover:shadow-md transition-shadow duration-200">
                   {getInitials(inquiry.name)}
                 </div>
                 <div>
-                  <p className="truncate font-semibold text-slate-900 dark:text-white">{inquiry.name}</p>
-                  <p className="truncate text-sm text-slate-500 dark:text-slate-400">{inquiry.company || inquiry.email}</p>
+                  <p className="truncate font-bold text-slate-900 dark:text-white tracking-tight">{inquiry.name}</p>
+                  <p className="truncate text-sm text-slate-500 dark:text-slate-400 mt-0.5 font-medium">{inquiry.company || inquiry.email}</p>
                 </div>
               </div>
-              <div className="flex items-center gap-3">
-                <span className={`rounded-full px-2.5 py-1 text-xs font-bold border ${statusBadge(inquiry.status)}`}>{inquiry.status}</span>
-                <span className="hidden text-xs text-slate-400 sm:block">{timeAgo(inquiry.last_active)}</span>
+              <div className="flex items-center gap-4">
+                <Badge variant={getStatusVariant(inquiry.status)} size="md">{inquiry.status}</Badge>
+                <span className="hidden text-sm text-slate-500 dark:text-slate-400 font-medium tabular-nums sm:block">{timeAgo(inquiry.last_active)}</span>
                 {onSelectInquiry && (
                   <button
                     onClick={() => onSelectInquiry(inquiry)}
-                    className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-bold text-teal-700 bg-teal-50 dark:bg-teal-500/10 dark:text-teal-300 rounded-lg hover:bg-teal-100 transition border border-teal-200/60 dark:border-teal-500/20"
+                    className="inline-flex items-center gap-2 px-4 py-2 text-xs font-bold text-teal-700 dark:text-teal-300 bg-teal-50/80 dark:bg-teal-500/10 rounded-xl hover:bg-teal-100 dark:hover:bg-teal-500/20 transition-all duration-200 border border-teal-200/60 dark:border-teal-500/20 hover-scale"
                   >
-                    <Eye className="w-3.5 h-3.5" />
+                    <Eye className="w-4 h-4" />
                     View
                   </button>
                 )}
@@ -741,5 +1001,22 @@ function InquiryQueue({ inquiries, isLoading, onViewAll, onSelectInquiry }: { in
 }
 
 function EmptyState({ title, description, action, actionLabel }: { title: string; description: string; action?: () => void; actionLabel?: string }) {
-  return <div className="rounded-2xl border border-dashed border-slate-300 p-10 text-center dark:border-white/15"><Sparkles className="mx-auto h-7 w-7 text-teal-500" /><h3 className="mt-4 font-bold text-slate-900 dark:text-white">{title}</h3><p className="mx-auto mt-2 max-w-md text-sm text-slate-500 dark:text-slate-400">{description}</p>{action && actionLabel && <button onClick={action} className="mt-5 inline-flex items-center gap-2 rounded-xl bg-teal-600 px-4 py-2.5 text-sm font-bold text-white">{actionLabel}<ArrowRight className="h-4 w-4" /></button>}</div>;
+  return (
+    <div className="relative rounded-2xl border border-dashed border-slate-300/80 dark:border-white/10 p-12 text-center overflow-hidden">
+      <div className="absolute inset-0 bg-gradient-to-br from-teal-500/5 via-transparent to-cyan-500/5" />
+      <div className="relative">
+        <div className="w-16 h-16 mx-auto rounded-2xl bg-teal-500/10 dark:bg-teal-500/15 flex items-center justify-center mb-5">
+          <Sparkles className="h-8 w-8 text-teal-500" />
+        </div>
+        <h3 className="text-lg font-bold text-slate-900 dark:text-white tracking-tight">{title}</h3>
+        <p className="mx-auto mt-3 max-w-md text-sm text-slate-500 dark:text-slate-400 leading-relaxed">{description}</p>
+        {action && actionLabel && (
+          <button onClick={action} className="mt-6 inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-teal-600 to-teal-500 hover:from-teal-700 hover:to-teal-600 px-5 py-3 text-sm font-bold text-white shadow-lg shadow-teal-600/20 hover:shadow-teal-600/30 transition-all duration-200 hover:-translate-y-0.5">
+            {actionLabel}
+            <ArrowRight className="h-4 w-4" />
+          </button>
+        )}
+      </div>
+    </div>
+  );
 }

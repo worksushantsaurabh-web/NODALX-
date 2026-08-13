@@ -14,18 +14,37 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 
 import cors from 'cors';
-import { initializeApp } from 'firebase-admin/app';
+import { initializeApp, applicationDefault } from 'firebase-admin/app';
 import { getAuth } from 'firebase-admin/auth';
 import { FieldValue, getFirestore, Timestamp } from 'firebase-admin/firestore';
+import * as googleSheets from './lib/googleSheets.js';
+import { Client as HubSpotClient } from '@hubspot/api-client';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 dotenv.config({ path: path.join(__dirname, '.env.local') });
 
-initializeApp();
+// Initialize Firebase Admin with Application Default Credentials
+// ADC is provided by: gcloud auth application-default login (local) or GCP runtime (production)
+const projectId = process.env.FIREBASE_PROJECT_ID || 'nodalxai-b9eb5';
+
+initializeApp({
+  credential: applicationDefault(),
+  projectId,
+});
+
 const firestore = getFirestore();
 const firebaseAuth = getAuth();
+console.log(`[Firebase] Initialized with ADC for project: ${projectId}`);
+
+const hubspotClient = process.env.HUBSPOT_ACCESS_TOKEN
+  ? new HubSpotClient({ accessToken: process.env.HUBSPOT_ACCESS_TOKEN })
+  : null;
+if (!hubspotClient) {
+  console.warn('[HubSpot] Client not initialized: HUBSPOT_ACCESS_TOKEN not set');
+}
+
 
 const app = express();
 app.use(cors({
@@ -40,107 +59,12 @@ const API_BACKEND_HOST = process?.env?.API_BACKEND_HOST || "127.0.0.1";
 const GOOGLE_CLOUD_LOCATION = process?.env?.GOOGLE_CLOUD_LOCATION;
 const GOOGLE_CLOUD_PROJECT = process?.env?.GOOGLE_CLOUD_PROJECT;
 const PROXY_HEADER = process?.env?.PROXY_HEADER;
-const N8N_INQUIRY_WEBHOOK_URL = process?.env?.N8N_INQUIRY_WEBHOOK_URL;
-const N8N_CUSTOMERS_WEBHOOK_URL = process?.env?.N8N_CUSTOMERS_WEBHOOK_URL;
-const N8N_FLOW_TEST_WEBHOOK_URL = process?.env?.N8N_FLOW_TEST_WEBHOOK_URL;
-const N8N_WEBHOOK_AUTH_TOKEN = process?.env?.N8N_WEBHOOK_AUTH_TOKEN;
-const N8N_REQUEST_TIMEOUT_MS = Number(process?.env?.N8N_REQUEST_TIMEOUT_MS || 10000);
 const isVertexProxyConfigured = Boolean(
   GOOGLE_CLOUD_PROJECT && GOOGLE_CLOUD_LOCATION && PROXY_HEADER
 );
 
 if (!isVertexProxyConfigured) {
   console.warn('Vertex AI proxy is disabled: Google Cloud environment variables are not configured.');
-}
-
-function getN8nHeaders() {
-  return {
-    'Content-Type': 'application/json',
-    ...(N8N_WEBHOOK_AUTH_TOKEN ? { Authorization: `Bearer ${N8N_WEBHOOK_AUTH_TOKEN}` } : {}),
-  };
-}
-
-function normalizeEmail(email) {
-  return String(email || '').trim().toLowerCase();
-}
-
-function isValidEmail(email) {
-  return /^\S+@\S+\.\S+$/.test(email);
-}
-
-async function requestN8n(webhookUrl, { method = 'POST', body } = {}) {
-  const timeoutController = new AbortController();
-  const timeout = setTimeout(() => timeoutController.abort(), N8N_REQUEST_TIMEOUT_MS);
-
-  try {
-    let response = await fetch(webhookUrl, {
-      method,
-      headers: getN8nHeaders(),
-      body: body ? JSON.stringify(body) : undefined,
-      signal: timeoutController.signal,
-    });
-
-    // If test webhook URL returned 404, automatically try production webhook URL
-    if (response.status === 404 && webhookUrl.includes('/webhook-test/')) {
-      const prodUrl = webhookUrl.replace('/webhook-test/', '/webhook/');
-      response = await fetch(prodUrl, {
-        method,
-        headers: getN8nHeaders(),
-        body: body ? JSON.stringify(body) : undefined,
-        signal: timeoutController.signal,
-      });
-    }
-
-    const responseText = await response.text();
-    let data = responseText;
-
-    try {
-      data = responseText ? JSON.parse(responseText) : {};
-    } catch {
-      // Some n8n Webhook Response nodes intentionally return plain text.
-    }
-
-    if (!response.ok) {
-      const error = new Error(data?.message || data?.error || `n8n responded with status ${response.status}`);
-      error.status = response.status;
-      throw error;
-    }
-
-    return data;
-  } finally {
-    clearTimeout(timeout);
-  }
-}
-
-function getFirstValue(source, keys, fallback = '') {
-  for (const key of keys) {
-    const value = source?.[key];
-    if (value !== undefined && value !== null && value !== '') return String(value);
-  }
-  return fallback;
-}
-
-function normalizeCustomers(payload) {
-  const records = Array.isArray(payload)
-    ? payload
-    : payload?.customers || payload?.records || payload?.data || [];
-
-  if (!Array.isArray(records)) return [];
-
-  return records.map((record, index) => {
-    const fields = record?.fields || record || {};
-    return {
-      id: getFirstValue(record, ['id'], String(index + 1)),
-      name: getFirstValue(fields, ['name', 'Name', 'fullName', 'Full Name'], 'Unnamed lead'),
-      email: getFirstValue(fields, ['email', 'Email', 'emailAddress', 'Email Address'], '—'),
-      status: getFirstValue(fields, ['status', 'Status', 'leadStatus', 'Lead Status'], 'New'),
-      last_active: getFirstValue(
-        fields,
-        ['last_active', 'Last Active', 'updatedAt', 'Updated At', 'createdAt', 'Created At'],
-        record?.createdTime || 'Just now'
-      ),
-    };
-  });
 }
 
 app.set('trust proxy', 1 /* number of proxies between user and server */);
@@ -306,7 +230,12 @@ app.post('/api-proxy', async (req, res) => {
     });
   }
 
-  // Check for the custom header added by the shim
+  // Require a valid Firebase ID token — prevents unauthenticated callers from
+  // using the proxy even if they discover the X-App-Proxy header value.
+  const userId = await requireUserId(req, res);
+  if (!userId) return;
+
+  // Secondary check: request must come from the frontend shim
   if (req.headers['x-app-proxy'] !== PROXY_HEADER) {
     return res.status(403).send('Forbidden: Request must originate from the Vertex App shim.');
   }
@@ -451,53 +380,51 @@ app.post('/api/inquiries', async (req, res) => {
     return res.status(400).json({ error: 'Name, email, company, and message are required.' });
   }
 
-  if (!N8N_INQUIRY_WEBHOOK_URL) {
-    return res.status(503).json({
-      error: 'Inquiry workflow is not configured.',
-      message: 'Set N8N_INQUIRY_WEBHOOK_URL in backend/.env.local.',
-    });
-  }
-
   try {
-    const workflowResponse = await requestN8n(N8N_INQUIRY_WEBHOOK_URL, { body: req.body });
-    return res.status(202).json({ accepted: true, workflowResponse });
+    const inquiryRef = firestore.collection('inquiries').doc();
+    await inquiryRef.set({
+      name: name.trim(),
+      email: email.trim().toLowerCase(),
+      company: company.trim(),
+      message: message.trim(),
+      createdAt: FieldValue.serverTimestamp(),
+    });
+
+    return res.status(201).json({ success: true, id: inquiryRef.id });
   } catch (error) {
-    console.error('[n8n] Inquiry workflow failed:', error);
-    return res.status(502).json({ error: 'The inquiry workflow could not be reached.' });
+    console.error('[Inquiries] Failed to save inquiry:', error);
+    return res.status(500).json({ error: 'Failed to save inquiry.' });
   }
 });
 
-app.post('/api/flows/test', async (req, res) => {
-  if (!N8N_FLOW_TEST_WEBHOOK_URL) {
-    return res.status(503).json({ error: 'Flow test workflow is not configured.' });
-  }
-
-  try {
-    const workflowResponse = await requestN8n(N8N_FLOW_TEST_WEBHOOK_URL, { body: req.body });
-    return res.json(workflowResponse);
-  } catch (error) {
-    console.error('[n8n] Flow test workflow failed:', error);
-    return res.status(502).json({ error: 'The flow test workflow could not be reached.' });
-  }
+app.post('/api/flows/test', (req, res) => {
+  return res.json({ success: true, received: req.body });
 });
 
 app.get('/api/customers', async (req, res) => {
   try {
     const userId = await requireUserId(req, res);
     if (!userId) return;
-    if (N8N_CUSTOMERS_WEBHOOK_URL) {
-      const workflowResponse = await requestN8n(N8N_CUSTOMERS_WEBHOOK_URL, { method: 'GET' });
-      res.set('X-NodalX-Data-Source', 'n8n-airtable');
-      return res.json(normalizeCustomers(workflowResponse));
-    }
 
-    return res.status(503).json({
-      error: 'Inquiry source is not configured.',
-      message: 'Set N8N_CUSTOMERS_WEBHOOK_URL to load live inquiries.',
+    const snapshot = await firestore.collection('inquiries').orderBy('createdAt', 'desc').limit(100).get();
+    const customers = snapshot.docs.map(doc => {
+      const data = doc.data();
+      const createdAt = data.createdAt instanceof Timestamp
+        ? data.createdAt.toDate().toISOString()
+        : data.createdAt || 'Just now';
+      return {
+        id: doc.id,
+        name: data.name || 'Unnamed',
+        email: data.email || '',
+        status: 'New',
+        last_active: createdAt,
+      };
     });
+
+    return res.json(customers);
   } catch (error) {
-    console.error('[Server Error] Loading customers failed:', error);
-    return res.status(502).json({ error: 'Failed to load customer data from the workflow.' });
+    console.error('[Customers] Failed to load customers:', error);
+    return res.status(500).json({ error: 'Failed to load customers.' });
   }
 });
 
@@ -507,6 +434,23 @@ const userCollection = (userId) => firestore.collection('users').doc(userId);
 const flowCollection = (userId) => userCollection(userId).collection('flows');
 const profileDocument = (userId) => userCollection(userId).collection('profile').doc('main');
 const dataSourceCollection = (userId) => userCollection(userId).collection('data-sources');
+
+function sheetsErrorStatus(err) {
+  if (err.message?.includes('Permission denied')) return 403;
+  if (err.message?.includes('not found')) return 404;
+  return 500;
+}
+
+function requireHubSpot(res) {
+  if (!hubspotClient) {
+    res.status(503).json({
+      error: 'HubSpot integration is not configured.',
+      message: 'Set HUBSPOT_ACCESS_TOKEN in backend/.env.local to enable HubSpot.',
+    });
+    return false;
+  }
+  return true;
+}
 
 function serializeFirestoreValue(value) {
   if (value instanceof Timestamp) return value.toDate().toISOString();
@@ -557,14 +501,20 @@ function getDefaultProfile(uid, user) {
 async function getUserId(req) {
   const authorization = req.headers.authorization || '';
   if (!authorization.startsWith('Bearer ')) {
+    console.error('[Auth] Missing or invalid Authorization header:', authorization ? 'Present but wrong format' : 'Missing');
     const error = new Error('Authentication required');
     error.status = 401;
     throw error;
   }
 
   const token = authorization.slice('Bearer '.length);
-  const decodedToken = await firebaseAuth.verifyIdToken(token);
-  return decodedToken.uid;
+  try {
+    const decodedToken = await firebaseAuth.verifyIdToken(token);
+    return decodedToken.uid;
+  } catch (verifyError) {
+    console.error('[Auth] Token verification failed:', verifyError.message);
+    throw verifyError;
+  }
 }
 
 async function requireUserId(req, res) {
@@ -667,8 +617,9 @@ app.get('/api/user/profile', async (req, res) => {
     let profileSnapshot = await profileRef.get();
     if (!profileSnapshot.exists) {
       const firebaseUser = await firebaseAuth.getUser(userId);
+      const defaultProfile = getDefaultProfile(userId, firebaseUser);
       await profileRef.set({
-        ...getDefaultProfile(userId, firebaseUser),
+        ...defaultProfile,
         createdAt: FieldValue.serverTimestamp(),
         updatedAt: FieldValue.serverTimestamp(),
       });
@@ -707,8 +658,9 @@ app.put('/api/user/profile', async (req, res) => {
   }
 });
 
-// DATA SOURCES API
-app.get('/api/data-sources', async (req, res) => {
+// ==================== Data Connectors API ====================
+
+app.get('/api/connectors', async (req, res) => {
   try {
     const userId = await requireUserId(req, res);
     if (!userId) return;
@@ -725,39 +677,440 @@ app.get('/api/data-sources', async (req, res) => {
     }
     res.json(sourceSnapshot.docs.map(serializeDocument));
   } catch (error) {
-    console.error('[Server Error] Loading data sources failed:', error);
-    res.status(500).json({ error: 'Failed to load data sources' });
+    console.error('[Server Error] Loading connectors failed:', error);
+    res.status(500).json({ error: 'Failed to load connectors' });
   }
 });
 
-app.put('/api/data-sources/:sourceId', async (req, res) => {
+app.put('/api/connectors/:connectorId', async (req, res) => {
   try {
     const userId = await requireUserId(req, res);
     if (!userId) return;
-    const { sourceId } = req.params;
+    const { connectorId } = req.params;
     const updates = req.body;
-    const sourceRef = dataSourceCollection(userId).doc(sourceId);
-    if (!(await sourceRef.get()).exists) {
-      return res.status(404).json({ error: 'Data source not found' });
+    const sourceRef = dataSourceCollection(userId).doc(connectorId);
+    const sourceSnapshot = await sourceRef.get();
+    if (!sourceSnapshot.exists) {
+      return res.status(404).json({ error: 'Connector not found' });
     }
-    const currentSource = (await sourceRef.get()).data();
-    await sourceRef.set({
+    const currentSource = sourceSnapshot.data();
+    const merged = {
       ...updates,
       config: { ...currentSource.config, ...updates.config },
       updatedAt: FieldValue.serverTimestamp(),
-    }, { merge: true });
-    res.json(serializeDocument(await sourceRef.get()));
+    };
+    await sourceRef.set(merged, { merge: true });
+    const updated = await sourceRef.get();
+    res.json(serializeDocument(updated));
   } catch (error) {
-    console.error('[Server Error] Updating data source failed:', error);
-    res.status(500).json({ error: 'Failed to update data source' });
+    console.error('[Server Error] Updating connector failed:', error);
+    res.status(500).json({ error: 'Failed to update connector' });
   }
 });
+
+// ==================== Google Sheets Connector ====================
+
+app.post('/api/connectors/google-sheets/verify', async (req, res) => {
+  try {
+    const userId = await requireUserId(req, res);
+    if (!userId) return;
+
+    const { spreadsheetId } = req.body;
+
+    if (!spreadsheetId || typeof spreadsheetId !== 'string' || !spreadsheetId.trim()) {
+      return res.status(400).json({ error: 'Spreadsheet ID or URL is required.' });
+    }
+
+    let sanitizedId;
+    try {
+      sanitizedId = googleSheets.extractSpreadsheetId(spreadsheetId);
+    } catch (extractError) {
+      return res.status(400).json({ error: extractError.message });
+    }
+
+    let result;
+    try {
+      result = await googleSheets.verifyAccess(sanitizedId);
+    } catch (verifyError) {
+      return res.status(sheetsErrorStatus(verifyError)).json({ error: verifyError.message });
+    }
+
+    const sourceRef = dataSourceCollection(userId).doc('google-sheets');
+    await sourceRef.set({
+      id: 'google-sheets',
+      name: 'Google Sheets',
+      connected: true,
+      config: {
+        spreadsheetId: sanitizedId,
+        title: result.title,
+        connectedAt: new Date().toISOString(),
+      },
+      updatedAt: FieldValue.serverTimestamp(),
+    }, { merge: true });
+
+    return res.json({
+      success: true,
+      title: result.title,
+      spreadsheetId: sanitizedId,
+      serviceAccountEmail: await googleSheets.getServiceAccountEmail(),
+    });
+  } catch (error) {
+    console.error('[Google Sheets Verify Error]:', error);
+    return res.status(500).json({ error: 'Failed to verify Google Sheet access.' });
+  }
+});
+
+app.post('/api/connectors/google-sheets/analyze', async (req, res) => {
+  try {
+    const userId = await requireUserId(req, res);
+    if (!userId) return;
+
+    const { spreadsheetId: reqSpreadsheetId } = req.body;
+    let spreadsheetId = reqSpreadsheetId;
+
+    if (!spreadsheetId) {
+      const sourceRef = dataSourceCollection(userId).doc('google-sheets');
+      const sourceDoc = await sourceRef.get();
+      if (sourceDoc.exists && sourceDoc.data()?.config?.spreadsheetId) {
+        spreadsheetId = sourceDoc.data().config.spreadsheetId;
+      }
+    }
+
+    if (!spreadsheetId) {
+      return res.status(400).json({
+        error: 'No Google Sheet connected. Please connect a sheet first.',
+      });
+    }
+
+    let sheetData;
+    try {
+      sheetData = await googleSheets.readSheetRows(spreadsheetId);
+    } catch (readError) {
+      return res.status(sheetsErrorStatus(readError)).json({ error: readError.message });
+    }
+
+    if (sheetData.isEmpty) {
+      return res.json({
+        success: true,
+        message: 'Sheet is empty or has no data rows.',
+        headers: sheetData.headers,
+        rows: [],
+        totalRows: 0,
+      });
+    }
+
+    return res.json({
+      success: true,
+      headers: sheetData.headers,
+      rows: sheetData.rows,
+      totalRows: sheetData.rows.length,
+    });
+  } catch (error) {
+    console.error('[Google Sheets Analyze Error]:', error);
+    return res.status(500).json({ error: 'Failed to analyze Google Sheet.' });
+  }
+});
+
+app.get('/api/connectors/google-sheets/service-account', async (req, res) => {
+  try {
+    const userId = await requireUserId(req, res);
+    if (!userId) return;
+
+    const email = await googleSheets.getServiceAccountEmail();
+    return res.json({ serviceAccountEmail: email });
+  } catch (error) {
+    console.error('[Google Sheets Service Account Error]:', error);
+    return res.status(500).json({ error: 'Failed to get service account email.' });
+  }
+});
+
+// ==================== Notification Settings ====================
+
+app.get('/api/integrations/notifications', async (req, res) => {
+  try {
+    const userId = await requireUserId(req, res);
+    if (!userId) return;
+
+    const notifDoc = await dataSourceCollection(userId).doc('notifications').get();
+    if (!notifDoc.exists) {
+      return res.json({ slackWebhookUrl: '', emailAlerts: true });
+    }
+
+    return res.json(notifDoc.data());
+  } catch (error) {
+    console.error('[Server Error] Fetching notifications failed:', error);
+    return res.status(500).json({ error: 'Failed to fetch notification settings' });
+  }
+});
+
+app.put('/api/integrations/notifications', async (req, res) => {
+  try {
+    const userId = await requireUserId(req, res);
+    if (!userId) return;
+
+    const { slackWebhookUrl, emailAlerts } = req.body;
+
+    await dataSourceCollection(userId).doc('notifications').set({
+      slackWebhookUrl: slackWebhookUrl || '',
+      emailAlerts: emailAlerts !== false,
+      updatedAt: FieldValue.serverTimestamp(),
+    }, { merge: true });
+
+    return res.json({ success: true, message: 'Notification settings updated successfully' });
+  } catch (error) {
+    console.error('[Server Error] Saving notifications failed:', error);
+    return res.status(500).json({ error: 'Failed to save notification settings' });
+  }
+});
+
+app.post('/api/integrations/notifications/test', async (req, res) => {
+  try {
+    const userId = await requireUserId(req, res);
+    if (!userId) return;
+
+    const { slackWebhookUrl } = req.body;
+
+    if (!slackWebhookUrl || typeof slackWebhookUrl !== 'string' || !slackWebhookUrl.trim()) {
+      return res.status(400).json({ error: 'Slack Webhook URL is required.' });
+    }
+
+    const trimmedUrl = slackWebhookUrl.trim();
+    if (!trimmedUrl.startsWith('https://hooks.slack.com/')) {
+      return res.status(400).json({ error: 'Invalid Slack Webhook URL. It must start with https://hooks.slack.com/' });
+    }
+
+    const testPayload = {
+      text: '🎉 *NODALxAI Test Alert*: Your Slack integration is connected successfully!',
+    };
+
+    const slackResponse = await fetch(trimmedUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(testPayload),
+    });
+
+    if (slackResponse.ok) {
+      return res.json({
+        success: true,
+        message: 'Slack alert sent! Check your Slack channel.',
+      });
+    } else {
+      const slackError = await slackResponse.text();
+      console.error('[Slack Test Error]:', slackResponse.status, slackError);
+      return res.status(400).json({
+        error: `Slack rejected the request (${slackResponse.status}): ${slackError || 'Please verify your Incoming Webhook URL.'}`,
+      });
+    }
+  } catch (error) {
+    console.error('[Test Slack Notification Error]:', error);
+    return res.status(500).json({
+      error: 'Failed to send test notification. Please check your network connection and Webhook URL.',
+    });
+  }
+});
+
+// ==================== HubSpot CRM Integration ====================
+
+app.get('/api/hubspot/test', async (req, res) => {
+  try {
+    const userId = await requireUserId(req, res);
+    if (!userId) return;
+
+    if (!requireHubSpot(res)) return;
+
+    const contactsResponse = await hubspotClient.crm.contacts.basicApi.getPage(10);
+
+    return res.json({
+      success: true,
+      total: contactsResponse.total,
+      contacts: contactsResponse.results.map(contact => ({
+        id: contact.id,
+        email: contact.properties.email,
+        firstName: contact.properties.firstname,
+        lastName: contact.properties.lastname,
+        createdAt: contact.createdAt,
+      })),
+    });
+  } catch (error) {
+    console.error('[HubSpot] Error fetching contacts:', error);
+    return res.status(500).json({
+      error: 'Failed to fetch HubSpot contacts.',
+      message: error.message,
+    });
+  }
+});
+
+app.post('/api/hubspot/contact', async (req, res) => {
+  try {
+    const userId = await requireUserId(req, res);
+    if (!userId) return;
+
+    if (!requireHubSpot(res)) return;
+
+    const { email, firstName, lastName } = req.body;
+
+    if (!email) {
+      return res.status(400).json({ error: 'Email is required.' });
+    }
+
+    const contactResponse = await hubspotClient.crm.contacts.basicApi.create({
+      properties: {
+        email: email.trim().toLowerCase(),
+        firstname: firstName?.trim() || '',
+        lastname: lastName?.trim() || '',
+      },
+    });
+
+    console.log('[HubSpot] Contact created:', contactResponse.id);
+
+    return res.status(201).json({
+      success: true,
+      contact: {
+        id: contactResponse.id,
+        email: contactResponse.properties.email,
+        firstName: contactResponse.properties.firstname,
+        lastName: contactResponse.properties.lastname,
+        createdAt: contactResponse.createdAt,
+      },
+    });
+  } catch (error) {
+    console.error('[HubSpot] Error creating contact:', error);
+
+    if (error.code === 409 || error.message?.includes('already exists')) {
+      return res.status(409).json({
+        error: 'Contact already exists in HubSpot.',
+        message: error.message,
+      });
+    }
+
+    return res.status(500).json({
+      error: 'Failed to create HubSpot contact.',
+      message: error.message,
+    });
+  }
+});
+
+// ==================== Onboarding / API Key Management ====================
+
+app.get('/api/onboarding/status', async (req, res) => {
+  try {
+    const userId = await requireUserId(req, res);
+    if (!userId) return;
+
+    const profileRef = profileDocument(userId);
+    const profileSnapshot = await profileRef.get();
+
+    if (!profileSnapshot.exists) {
+      return res.json({ hasApiKey: false });
+    }
+
+    const profile = profileSnapshot.data();
+    const apiKeys = profile.apiKeys || [];
+    const activeKey = apiKeys.find(k => k.active);
+
+    if (!activeKey) {
+      return res.json({ hasApiKey: false });
+    }
+
+    return res.json({
+      hasApiKey: true,
+      apiKey: activeKey.key,
+      businessName: activeKey.businessName || 'My Company',
+      plan: profile.subscription?.tier || 'starter',
+      totalInquiries: activeKey.totalInquiries || 0,
+      lastUsedAt: activeKey.lastUsedAt || null,
+    });
+  } catch (error) {
+    console.error('[Onboarding] Error fetching status:', error);
+    return res.status(500).json({ error: 'Failed to fetch onboarding status.' });
+  }
+});
+
+app.post('/api/onboarding/generate-key', async (req, res) => {
+  try {
+    const userId = await requireUserId(req, res);
+    if (!userId) return;
+
+    const { businessName = 'My Company' } = req.body;
+
+    const randomBytes = Array.from({ length: 24 }, () =>
+      Math.floor(Math.random() * 256).toString(16).padStart(2, '0')
+    ).join('');
+    const apiKey = `nxk_live_${randomBytes}`;
+
+    const profileRef = profileDocument(userId);
+    const profileSnapshot = await profileRef.get();
+    if (!profileSnapshot.exists) {
+      await profileRef.set(getDefaultProfile(userId, {}));
+    }
+    const existingProfile = (await profileRef.get()).data();
+
+    const newKeyEntry = {
+      key: apiKey,
+      businessName: businessName.trim(),
+      active: true,
+      totalInquiries: 0,
+      lastUsedAt: null,
+      createdAt: new Date().toISOString(),
+    };
+
+    const existingKeys = (existingProfile.apiKeys || []).map(k => ({ ...k, active: false }));
+
+    await profileRef.update({
+      apiKeys: [...existingKeys, newKeyEntry],
+      updatedAt: FieldValue.serverTimestamp(),
+    });
+
+    return res.status(201).json({
+      apiKey,
+      businessName: businessName.trim(),
+      plan: existingProfile.subscription?.tier || 'starter',
+      createdAt: newKeyEntry.createdAt,
+    });
+  } catch (error) {
+    console.error('[Onboarding] Error generating key:', error);
+    return res.status(500).json({ error: 'Failed to generate API key.' });
+  }
+});
+
+app.put('/api/onboarding/business-name', async (req, res) => {
+  try {
+    const userId = await requireUserId(req, res);
+    if (!userId) return;
+
+    const { businessName } = req.body;
+    if (!businessName || typeof businessName !== 'string' || !businessName.trim()) {
+      return res.status(400).json({ error: 'Business name is required.' });
+    }
+
+    const profileRef = profileDocument(userId);
+    const profileSnapshot = await profileRef.get();
+
+    if (!profileSnapshot.exists) {
+      return res.status(404).json({ error: 'Profile not found.' });
+    }
+
+    const profile = profileSnapshot.data();
+    const apiKeys = (profile.apiKeys || []).map(k =>
+      k.active ? { ...k, businessName: businessName.trim() } : k
+    );
+
+    await profileRef.set({ apiKeys, updatedAt: FieldValue.serverTimestamp() }, { merge: true });
+
+    return res.json({ success: true, businessName: businessName.trim() });
+  } catch (error) {
+    console.error('[Onboarding] Error updating business name:', error);
+    return res.status(500).json({ error: 'Failed to update business name.' });
+  }
+});
+
+// ==================== Webhooks ====================
 
 app.post('/api/webhook/:webhookId', (req, res) => {
   const { webhookId } = req.params;
   console.log(`[Webhook Received] ID: ${webhookId}`);
   console.log('[Webhook Payload Body]:', JSON.stringify(req.body, null, 2));
-  
+
   res.status(200).json({
     success: true,
     message: 'Webhook received and processed successfully',

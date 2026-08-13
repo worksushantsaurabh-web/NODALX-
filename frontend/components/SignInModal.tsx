@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { X, LogIn, Mail, Lock, AlertCircle, RefreshCw, KeyRound, Eye, EyeOff, Phone, MessageSquare, User, Building } from 'lucide-react';
+import { Analytics } from '../lib/analytics';
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { auth, db } from '../lib/firebase';
@@ -16,6 +17,7 @@ import {
   updateProfile,
 } from 'firebase/auth';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { api } from '../src/services/api';
 
 type AuthMode = 'email' | 'phone' | 'google';
 type EmailStep = 'signin' | 'signup' | 'forgot';
@@ -154,6 +156,7 @@ export default function SignInModal({ isOpen, onClose }: SignInModalProps) {
 
     try {
       await signInWithEmailAndPassword(auth, email, password);
+      Analytics.signinComplete('email');
       onClose();
       navigate('/dashboard');
     } catch (err: any) {
@@ -201,6 +204,20 @@ export default function SignInModal({ isOpen, onClose }: SignInModalProps) {
         companyName: companyName,
         createdAt: new Date(),
       });
+
+      // Create HubSpot contact for new user
+      const nameParts = fullName.trim().split(' ');
+      const firstName = nameParts[0] || '';
+      const lastName = nameParts.slice(1).join(' ') || '';
+      try {
+        await api.post('/api/hubspot/contact', {
+          email: userCred.user.email,
+          firstName,
+          lastName,
+        });
+      } catch (hubspotErr) {
+        console.warn('[HubSpot] Failed to create contact:', hubspotErr);
+      }
 
       // Send verification email
       await sendEmailVerification(userCred.user);
@@ -270,12 +287,43 @@ export default function SignInModal({ isOpen, onClose }: SignInModalProps) {
 
       // Map the Firebase user
       if (result.user) {
+        // Check if this is a new user by looking for their Firestore doc
+        const userDocRef = doc(db, 'users', result.user.uid);
+        const userDoc = await getDoc(userDocRef);
+        const isNewUser = !userDoc.exists();
+
+        if (isNewUser) {
+          // Save to Firestore
+          await setDoc(userDocRef, {
+            uid: result.user.uid,
+            email: result.user.email,
+            displayName: result.user.displayName || '',
+            createdAt: new Date(),
+          });
+
+          // Create HubSpot contact for new Google user
+          const displayName = result.user.displayName || '';
+          const nameParts = displayName.trim().split(' ');
+          const firstName = nameParts[0] || result.user.email?.split('@')[0] || '';
+          const lastName = nameParts.slice(1).join(' ') || '';
+          try {
+            await api.post('/api/hubspot/contact', {
+              email: result.user.email,
+              firstName,
+              lastName,
+            });
+          } catch (hubspotErr) {
+            console.warn('[HubSpot] Failed to create contact:', hubspotErr);
+          }
+        }
+
         await login({
           uid: result.user.uid,
           displayName: result.user.displayName || result.user.email?.split('@')[0] || 'User',
           email: result.user.email || '',
           photoURL: result.user.photoURL || '',
         });
+        Analytics.signinComplete('google');
       }
       onClose();
       navigate('/dashboard');
@@ -362,6 +410,34 @@ export default function SignInModal({ isOpen, onClose }: SignInModalProps) {
     try {
       const result = await confirmationResult.confirm(otpCode);
       if (result.user) {
+        // Check if this is a new user
+        const userDocRef = doc(db, 'users', result.user.uid);
+        const userDoc = await getDoc(userDocRef);
+        const isNewUser = !userDoc.exists();
+
+        if (isNewUser) {
+          // Save to Firestore
+          await setDoc(userDocRef, {
+            uid: result.user.uid,
+            phoneNumber: result.user.phoneNumber || phoneNumber,
+            displayName: result.user.displayName || '',
+            createdAt: new Date(),
+          });
+
+          // Create HubSpot contact for new phone user (phone number as identifier)
+          if (result.user.email) {
+            try {
+              await api.post('/api/hubspot/contact', {
+                email: result.user.email,
+                firstName: result.user.displayName || 'Phone User',
+                lastName: '',
+              });
+            } catch (hubspotErr) {
+              console.warn('[HubSpot] Failed to create contact:', hubspotErr);
+            }
+          }
+        }
+
         await login({
           uid: result.user.uid,
           displayName: result.user.displayName || 'User',
@@ -369,6 +445,7 @@ export default function SignInModal({ isOpen, onClose }: SignInModalProps) {
           phoneNumber: result.user.phoneNumber || phoneNumber,
           photoURL: result.user.photoURL || '',
         });
+        Analytics.signinComplete('phone');
       }
       onClose();
       navigate('/dashboard');

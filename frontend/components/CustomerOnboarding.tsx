@@ -3,10 +3,11 @@ import { useAuth } from '../contexts/AuthContext';
 import { api } from '../src/services/api';
 import AccessKeyRedemption from './AccessKeyRedemption';
 import { useUserTier } from '../hooks/useUserTier';
-import { 
-  Key, Copy, Check, Send, Terminal, Code2, Activity, Globe, ArrowRight, 
-  Pencil, Sparkles, Shield, RefreshCw, Zap, Eye, EyeOff, Loader2 
+import {
+  Key, Copy, Check, Send, Terminal, Code2, Activity, Globe, ArrowRight,
+  Pencil, Sparkles, Shield, RefreshCw, Zap, Eye, EyeOff, Loader2
 } from 'lucide-react';
+import { Analytics } from '../lib/analytics';
 
 export default function CustomerOnboarding() {
   const { user } = useAuth();
@@ -19,6 +20,8 @@ export default function CustomerOnboarding() {
   const [lastUsedAt, setLastUsedAt] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [generateError, setGenerateError] = useState<string | null>(null);
+  const [updateNameError, setUpdateNameError] = useState<string | null>(null);
   const [isTesting, setIsTesting] = useState(false);
   const [testResult, setTestResult] = useState<{ success: boolean; message: string } | null>(null);
   const [isEditingName, setIsEditingName] = useState(false);
@@ -61,6 +64,7 @@ export default function CustomerOnboarding() {
 
   const handleGenerateKey = async () => {
     setIsGenerating(true);
+    setGenerateError(null);
     try {
       const response = await api.post<{
         apiKey: string;
@@ -68,12 +72,13 @@ export default function CustomerOnboarding() {
         plan: string;
         createdAt: string;
       }>('/api/onboarding/generate-key', { businessName: 'My Company' });
-      
+
       setApiKey(response.apiKey);
       setBusinessName(response.businessName);
       setPlan(response.plan);
-    } catch (error) {
-      console.error('Error generating API key:', error);
+      Analytics.apiKeyGenerated();
+    } catch (error: any) {
+      setGenerateError(error?.message || 'Failed to generate API key. Please try again.');
     } finally {
       setIsGenerating(false);
     }
@@ -81,11 +86,12 @@ export default function CustomerOnboarding() {
 
   const handleUpdateName = async (e: React.FormEvent) => {
     e.preventDefault();
+    setUpdateNameError(null);
     try {
       await api.put('/api/onboarding/business-name', { businessName });
       setIsEditingName(false);
-    } catch (error) {
-      console.error('Error updating business name:', error);
+    } catch (error: any) {
+      setUpdateNameError(error?.message || 'Failed to update name. Please try again.');
     }
   };
 
@@ -95,9 +101,7 @@ export default function CustomerOnboarding() {
     setIsTesting(true);
     setTestResult(null);
     try {
-      const baseUrl = typeof window !== 'undefined' && window.location.origin.includes('localhost') 
-        ? window.location.origin
-        : 'https://nodalxai-b9eb5.web.app';
+      const baseUrl = import.meta.env.VITE_APP_HOST || window.location.origin;
         
       const response = await fetch(`${baseUrl}/api/inquiries`, {
         method: 'POST',
@@ -144,8 +148,8 @@ export default function CustomerOnboarding() {
   const renderCodeSnippet = () => {
     const snippets = {
       widget: `<!-- 1-Line NODALxAI Form Widget Script -->
-<script 
-  src="https://nodalxai-b9eb5.web.app/widget.js" 
+<script
+  src="${import.meta.env.VITE_APP_HOST}/widget.js"
   data-api-key="${apiKey || 'nxk_live_...'}"
 ></script>
 
@@ -177,7 +181,7 @@ document.getElementById('contact-form').addEventListener('submit', async (e) => 
   };
 
   try {
-    const response = await fetch('https://nodalxai-b9eb5.web.app/api/inquiries', {
+    const response = await fetch(\`\${import.meta.env.VITE_APP_HOST}/api/inquiries\`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -192,7 +196,7 @@ document.getElementById('contact-form').addEventListener('submit', async (e) => 
   }
 });
 </script>`,
-      curl: `curl -X POST https://nodalxai-b9eb5.web.app/api/inquiries \\
+      curl: `curl -X POST ${import.meta.env.VITE_APP_HOST}/api/inquiries \\
   -H "Content-Type: application/json" \\
   -H "X-API-Key: ${apiKey || 'nxk_live_...'}" \\
   -d '{
@@ -202,7 +206,7 @@ document.getElementById('contact-form').addEventListener('submit', async (e) => 
   }'`,
       python: `import requests
 
-url = "https://nodalxai-b9eb5.web.app/api/inquiries"
+url = "${import.meta.env.VITE_APP_HOST}/api/inquiries"
 headers = {
     "Content-Type": "application/json",
     "X-API-Key": "${apiKey || 'nxk_live_...'}"
@@ -228,7 +232,7 @@ export function ContactForm() {
     const data = Object.fromEntries(formData.entries());
 
     try {
-      const res = await fetch('https://nodalxai-b9eb5.web.app/api/inquiries', {
+      const res = await fetch('${import.meta.env.VITE_APP_HOST}/api/inquiries', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -294,7 +298,7 @@ export function ContactForm() {
                   Create a unique API key to securely send leads and inquiries directly into your NodalX AI pipeline.
                 </p>
               </div>
-              <button 
+              <button
                 onClick={handleGenerateKey}
                 disabled={isGenerating}
                 className="inline-flex items-center gap-2 px-6 py-3 bg-teal-600 hover:bg-teal-700 text-white rounded-lg font-medium transition-colors disabled:opacity-70"
@@ -302,6 +306,9 @@ export function ContactForm() {
                 {isGenerating ? <Loader2 className="h-5 w-5 animate-spin" /> : <Sparkles className="h-5 w-5" />}
                 {isGenerating ? 'Generating...' : 'Generate API Key'}
               </button>
+              {generateError && (
+                <p className="mt-3 text-sm text-rose-600 dark:text-rose-400">{generateError}</p>
+              )}
             </div>
           ) : (
             <div className="space-y-8">
@@ -309,17 +316,22 @@ export function ContactForm() {
                 <div className="space-y-4 flex-1">
                   <div className="flex items-center gap-3">
                     {isEditingName ? (
-                      <form onSubmit={handleUpdateName} className="flex items-center gap-2">
-                        <input
-                          type="text"
-                          value={businessName}
-                          onChange={(e) => setBusinessName(e.target.value)}
-                          className="px-3 py-1 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-md text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-teal-500"
-                          autoFocus
-                        />
-                        <button type="submit" className="p-1.5 bg-teal-100 text-teal-700 dark:bg-teal-900/30 dark:text-teal-400 rounded-md hover:bg-teal-200 dark:hover:bg-teal-900/50">
-                          <Check className="h-4 w-4" />
-                        </button>
+                      <form onSubmit={handleUpdateName} className="flex flex-col gap-1.5">
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="text"
+                            value={businessName}
+                            onChange={(e) => setBusinessName(e.target.value)}
+                            className="px-3 py-1 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-md text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-teal-500"
+                            autoFocus
+                          />
+                          <button type="submit" className="p-1.5 bg-teal-100 text-teal-700 dark:bg-teal-900/30 dark:text-teal-400 rounded-md hover:bg-teal-200 dark:hover:bg-teal-900/50">
+                            <Check className="h-4 w-4" />
+                          </button>
+                        </div>
+                        {updateNameError && (
+                          <p className="text-xs text-rose-600 dark:text-rose-400">{updateNameError}</p>
+                        )}
                       </form>
                     ) : (
                       <div className="flex items-center gap-2">

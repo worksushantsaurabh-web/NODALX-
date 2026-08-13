@@ -1,6 +1,7 @@
 import { initializeApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
+import { getAnalytics, isSupported } from 'firebase/analytics';
 
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
@@ -15,4 +16,10 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
 export const db = getFirestore(app);
+
+// Activate Firebase Analytics only in supported environments (not in SSR or blocked browsers)
+isSupported().then((supported) => {
+  if (supported) getAnalytics(app);
+});
+
 export default app;

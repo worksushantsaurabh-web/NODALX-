@@ -33,6 +33,22 @@ export default defineConfig(({ mode }) => {
         },
       },
       plugins: react(),
+      build: {
+        rollupOptions: {
+          output: {
+            manualChunks(id) {
+              if (id.includes('node_modules')) {
+                if (id.includes('react') || id.includes('react-dom') || id.includes('react-router')) {
+                  return 'vendor-react';
+                }
+                if (id.includes('lucide-react')) {
+                  return 'vendor-icons';
+                }
+              }
+            },
+          },
+        },
+      },
       resolve: {
         alias: {
           '@': path.resolve(__dirname, '.'),

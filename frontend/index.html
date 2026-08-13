@@ -1,160 +1,63 @@
 <!DOCTYPE html>
 <html lang="en">
   <head>
+    <!-- Anti-flash: set dark class + block transitions until React has fully painted -->
+    <script>
+      try {
+        var s = localStorage.getItem('theme');
+        if (s === 'dark' || (!s && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+          document.documentElement.classList.add('dark');
+        }
+        document.documentElement.classList.add('theme-loading');
+        window.addEventListener('load', function() {
+          requestAnimationFrame(function() {
+            requestAnimationFrame(function() {
+              document.documentElement.classList.remove('theme-loading');
+            });
+          });
+        });
+      } catch (e) {}
+    </script>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0" />
-    <title>NODALxAI - Business Inquiry Assistant</title>
+    <title>NODALxAI — Capture, Qualify, and Convert Business Inquiries Automatically</title>
+    <meta name="description" content="NODALxAI reads your incoming business inquiries, scores each lead against your criteria, and drafts a ready-to-send reply — in seconds, not hours." />
+
+    <!-- Open Graph -->
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="NODALxAI — Automated Inquiry Qualification &amp; Response" />
+    <meta property="og:description" content="Every inquiry answered. Every lead scored. Nothing missed. Set up in 15 minutes, no developer required." />
+    <meta property="og:url" content="https://nodalxai.com" />
+    <meta property="og:image" content="/og-image.png" />
+
+    <!-- Twitter -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="NODALxAI — Automated Inquiry Qualification &amp; Response" />
+    <meta name="twitter:description" content="Every inquiry answered. Every lead scored. Nothing missed." />
+    <meta name="twitter:image" content="/og-image.png" />
+
+    <!-- Canonical -->
+    <link rel="canonical" href="https://nodalxai.com/" />
+
+    <!-- Favicon + icons -->
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 36 36'><rect width='36' height='36' rx='10' fill='%23083344'/><path d='M10 10 L26 26 M26 10 L10 26' stroke='white' stroke-width='2.5' stroke-linecap='round' opacity='0.8'/><circle cx='10' cy='10' r='3' fill='white'/><circle cx='26' cy='10' r='3' fill='white'/><circle cx='10' cy='26' r='3' fill='white'/><circle cx='26' cy='26' r='3' fill='white'/><circle cx='18' cy='18' r='2.5' fill='%2314b8a6'/></svg>" />
+    <link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 36 36'><rect width='36' height='36' rx='10' fill='%23083344'/><path d='M10 10 L26 26 M26 10 L10 26' stroke='white' stroke-width='2.5' stroke-linecap='round' opacity='0.8'/><circle cx='10' cy='10' r='3' fill='white'/><circle cx='26' cy='10' r='3' fill='white'/><circle cx='10' cy='26' r='3' fill='white'/><circle cx='26' cy='26' r='3' fill='white'/><circle cx='18' cy='18' r='2.5' fill='%2314b8a6'/></svg>" />
+    <meta name="theme-color" content="#0d9488" />
+
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script>
-      tailwind.config = {
-        darkMode: 'class',
-        theme: {
-          extend: {
-            fontFamily: {
-              sans: ['Inter', 'system-ui', '-apple-system', 'sans-serif'],
-            },
-            colors: {
-              teal: {
-                50: '#f0fdfa',
-                100: '#ccfbf1',
-                200: '#99f6e4',
-                300: '#5eead4',
-                400: '#2dd4bf',
-                500: '#14b8a6',
-                600: '#0d9488',
-                700: '#0f766e',
-                800: '#115e59',
-                900: '#134e4a',
-              }
-            },
-            animation: {
-              'fade-in-up': 'fadeInUp 0.8s ease-out forwards',
-              'float': 'float 6s ease-in-out infinite',
-              'pulse-slow': 'pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite',
-              'fade-in': 'fadeIn 0.3s ease-out forwards',
-              'scale-in': 'scaleIn 0.45s cubic-bezier(0.34, 1.56, 0.64, 1) forwards',
-              'shimmer': 'shimmer 2.5s linear infinite',
-              'pulse-glow': 'pulseGlow 2s ease-in-out infinite',
-              'draw-path': 'drawPath 2s ease-out forwards',
-              'flow-line': 'flowLine 1s linear infinite',
-              'glass-shine': 'glassShine 3s ease-in-out infinite',
-              'border-glow': 'borderGlow 3s ease-in-out infinite',
-              'shake': 'shake 0.5s ease-in-out',
-              'slide-up': 'slideUp 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) forwards',
-            },
-            keyframes: {
-              fadeInUp: {
-                '0%': { opacity: '0', transform: 'translateY(20px)' },
-                '100%': { opacity: '1', transform: 'translateY(0)' },
-              },
-              float: {
-                '0%, 100%': { transform: 'translateY(0)' },
-                '50%': { transform: 'translateY(-10px)' },
-              },
-              travelDown: {
-                '0%': { top: '0%', opacity: '0' },
-                '20%': { opacity: '1' },
-                '80%': { opacity: '1' },
-                '100%': { top: '100%', opacity: '0' },
-              },
-              fadeIn: {
-                '0%': { opacity: '0' },
-                '100%': { opacity: '1' },
-              },
-              scaleIn: {
-                '0%': { transform: 'scale(0.85) translateY(10px)', opacity: '0' },
-                '100%': { transform: 'scale(1) translateY(0)', opacity: '1' },
-              },
-              shimmer: {
-                '0%': { backgroundPosition: '-200% 0' },
-                '100%': { backgroundPosition: '200% 0' }
-              },
-              pulseGlow: {
-                '0%, 100%': { transform: 'scale(1)', boxShadow: '0 0 15px rgba(20, 184, 166, 0.3)' },
-                '50%': { transform: 'scale(1.02)', boxShadow: '0 0 25px rgba(20, 184, 166, 0.6)' },
-              },
-              drawPath: {
-                'to': { strokeDashoffset: '0' }
-              },
-              flowLine: {
-                'from': { strokeDashoffset: '20' },
-                'to': { strokeDashoffset: '0' }
-              },
-              glassShine: {
-                '0%': { backgroundPosition: '-200% 0' },
-                '50%': { backgroundPosition: '200% 0' },
-                '100%': { backgroundPosition: '-200% 0' },
-              },
-              borderGlow: {
-                '0%, 100%': { borderColor: 'rgba(20, 184, 166, 0.15)' },
-                '50%': { borderColor: 'rgba(20, 184, 166, 0.4)' },
-              },
-              shake: {
-                '0%, 100%': { transform: 'translateX(0)' },
-                '20%': { transform: 'translateX(-4px)' },
-                '40%': { transform: 'translateX(4px)' },
-                '60%': { transform: 'translateX(-3px)' },
-                '80%': { transform: 'translateX(2px)' },
-              },
-              slideUp: {
-                '0%': { opacity: '0', transform: 'translateY(16px)' },
-                '100%': { opacity: '1', transform: 'translateY(0)' },
-              },
-            }
-          }
-        }
-      }
-    </script>
-    <style>
-      /* Glass card utility */
-      .glass-card {
-        background: rgba(255, 255, 255, 0.6);
-        backdrop-filter: blur(20px);
-        -webkit-backdrop-filter: blur(20px);
-        border: 1px solid rgba(255, 255, 255, 0.3);
-      }
-      .dark .glass-card {
-        background: rgba(15, 23, 42, 0.6);
-        border: 1px solid rgba(255, 255, 255, 0.08);
-      }
-      /* Glass shine overlay */
-      .glass-shine {
-        position: relative;
-        overflow: hidden;
-      }
-      .glass-shine::after {
-        content: '';
-        position: absolute;
-        inset: 0;
-        background: linear-gradient(
-          105deg,
-          transparent 40%,
-          rgba(255, 255, 255, 0.08) 45%,
-          rgba(255, 255, 255, 0.15) 50%,
-          rgba(255, 255, 255, 0.08) 55%,
-          transparent 60%
-        );
-        background-size: 200% 100%;
-        animation: glassShine 3s ease-in-out infinite;
-        pointer-events: none;
-      }
-      /* Modal backdrop blur */
-      .modal-backdrop {
-        backdrop-filter: blur(8px) saturate(150%);
-        -webkit-backdrop-filter: blur(8px) saturate(150%);
-      }
-      /* Prevent horizontal scroll on mobile */
-      html, body {
-        overflow-x: hidden;
-        max-width: 100vw;
-      }
-    </style>
-      </head>
+  </head>
   <body class="bg-white dark:bg-slate-950 text-slate-900 dark:text-slate-50 transition-colors duration-300 font-sans">
     <div id="root"></div>
+    <noscript>
+      <div style="display:flex;align-items:center;justify-content:center;min-height:100vh;font-family:system-ui,sans-serif;text-align:center;padding:2rem;">
+        <div>
+          <strong>NODALxAI requires JavaScript.</strong><br/>
+          Please enable JavaScript in your browser to continue.
+        </div>
+      </div>
+    </noscript>
     <script type="module" src="./index.tsx"></script>
-  <script type="module" src="/index.js"></script></body>
+  </body>
 </html>

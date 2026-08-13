@@ -56,12 +56,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   // Listen for Firebase auth state changes
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (fbUser) => {
+    const unsubscribe = onAuthStateChanged(auth, async (fbUser) => {
       setFirebaseUser(fbUser);
       if (fbUser) {
         const mapped = firebaseUserToUser(fbUser);
         setUser(mapped);
         localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(mapped));
+        // Expose ID token for the Vertex AI proxy shim; refresh it proactively
+        try {
+          const token = await fbUser.getIdToken();
+          (window as any).__nodalxFirebaseToken = token;
+        } catch {
+          (window as any).__nodalxFirebaseToken = null;
+        }
       } else {
         // Only clear user if we're not in a loading transition
         // (avoids flash on page refresh when user was previously logged in)
@@ -70,6 +77,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           setUser(null);
           localStorage.removeItem(AUTH_STORAGE_KEY);
         }
+        (window as any).__nodalxFirebaseToken = null;
       }
       setIsLoading(false);
     });

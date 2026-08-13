@@ -27,5 +27,9 @@
     "eslint": "^8.15.0",
     "eslint-config-google": "^0.14.0"
   },
-  "private": true
+  "private": true,
+  "allowScripts": {
+    "@firebase/util@1.15.1": true,
+    "protobufjs@7.6.5": true
+  }
 }
