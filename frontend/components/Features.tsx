@@ -1,77 +1,66 @@
 import React from 'react';
-import { Bot, Send, FileSpreadsheet, BarChart3 } from 'lucide-react';
+import { SlidersHorizontal, MessageSquare, LayoutDashboard, Plug, Code2, FileCheck } from 'lucide-react';
+import { Section, SectionHeader, Card } from '../ui';
 
 const features = [
   {
-    title: 'AI Lead Qualification',
-    description: 'Automatically score and categorize incoming leads based on custom criteria using advanced AI models.',
-    icon: Bot,
+    icon: SlidersHorizontal,
+    title: 'Configurable qualification',
+    description:
+      'Set scoring criteria in plain language — budget range, company size, urgency signals. Your rules, applied consistently, with a score and a reason for every result.',
   },
   {
-    title: 'Instant Email Replies',
-    description: 'Draft and send personalized, context-aware responses to common customer inquiries in seconds.',
-    icon: Send,
+    icon: MessageSquare,
+    title: 'Context-aware reply drafts',
+    description:
+      'Each draft references the actual inquiry. Not a template. Not a macro. Something a thoughtful rep would send, ready to approve in one click.',
   },
   {
-    title: 'Google Sheets Integration',
-    description: 'Seamlessly sync all captured lead data and conversation history directly to your spreadsheets.',
-    icon: FileSpreadsheet,
+    icon: LayoutDashboard,
+    title: 'Live pipeline dashboard',
+    description:
+      'Track inquiry volume, average response time, and conversion rate in real time. No separate analytics tool needed.',
   },
   {
-    title: 'Business Analytics',
-    description: 'Gain actionable insights into inquiry volume, response times, and lead conversion rates.',
-    icon: BarChart3,
+    icon: Plug,
+    title: 'Integrations that actually work',
+    description:
+      'Google Sheets, email, and Slack sync automatically. Every lead record, every reply, every status update — without manual exports.',
+  },
+  {
+    icon: Code2,
+    title: 'Embeddable in 2 minutes',
+    description:
+      'Drop one script tag on your site. Customize the fields. Done. Your web team does not need to get involved after that.',
+  },
+  {
+    icon: FileCheck,
+    title: 'Full audit trail',
+    description:
+      'Every action logged. Every AI decision traceable. So you can explain a reply, review a flag, or escalate a deal without guessing what happened.',
   },
 ];
 
 export default function Features() {
   return (
-    <section id="features" className="relative py-24 lg:py-32 overflow-hidden bg-slate-50/50">
-      {/* Subtle background decoration */}
-      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] opacity-20 pointer-events-none">
-        <div className="absolute inset-0 bg-gradient-to-tr from-teal-200 to-transparent rounded-full blur-3xl"></div>
-      </div>
-
-      <div className="max-w-7xl mx-auto px-6 md:px-12 relative z-10">
-        <div className="text-center max-w-3xl mx-auto mb-16 lg:mb-24 animate-fade-in-up">
-          <h2 className="text-sm font-bold tracking-widest text-teal-600 uppercase mb-3">
-            Supercharge Your Workflow
-          </h2>
-          <h3 className="text-3xl md:text-4xl lg:text-5xl font-extrabold text-slate-900 tracking-tight mb-6">
-            Everything you need to scale your inbound sales
-          </h3>
-          <p className="text-lg text-slate-600 leading-relaxed">
-            NODALxAI replaces manual data entry and slow response times with intelligent automation, giving you more time to close deals.
-          </p>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 lg:gap-8">
-          {features.map((feature, index) => (
-            <div
-              key={feature.title}
-              className="group relative p-8 rounded-3xl bg-white/60 backdrop-blur-xl border border-slate-200/60 shadow-sm hover:shadow-2xl hover:shadow-teal-600/10 transition-all duration-500 hover:-translate-y-2 animate-fade-in-up"
-              style={{ animationDelay: `${index * 0.15}s` }}
-            >
-              {/* Hover Gradient Overlay */}
-              <div className="absolute inset-0 rounded-3xl bg-gradient-to-br from-teal-50/50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none"></div>
-              
-              <div className="relative z-10">
-                <div className="w-14 h-14 rounded-2xl bg-white border border-slate-100 shadow-sm text-teal-600 flex items-center justify-center mb-6 group-hover:scale-110 group-hover:bg-teal-600 group-hover:text-white transition-all duration-500">
-                  <feature.icon strokeWidth={1.5} className="w-7 h-7" />
-                </div>
-                
-                <h4 className="text-xl font-bold text-slate-900 mb-3 tracking-tight">
-                  {feature.title}
-                </h4>
-                
-                <p className="text-slate-600 leading-relaxed text-sm">
-                  {feature.description}
-                </p>
+    <Section id="features" bg="white" innerClassName="max-w-6xl mx-auto px-4 sm:px-6 md:px-12">
+      <SectionHeader
+        label="What you get"
+        heading="Built for teams that close deals, not manage inboxes."
+      />
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+        {features.map((feature) => (
+          <Card key={feature.title}>
+            <Card.Body>
+              <div className="w-8 h-8 rounded-md border border-slate-200 dark:border-slate-700 flex items-center justify-center bg-white dark:bg-slate-900 mb-4">
+                <feature.icon className="w-4 h-4 text-teal-600 dark:text-teal-500" strokeWidth={1.5} />
               </div>
-            </div>
-          ))}
-        </div>
+              <h3 className="text-sm font-semibold text-slate-900 dark:text-white mb-2">{feature.title}</h3>
+              <p className="text-sm text-slate-500 dark:text-slate-400 leading-relaxed">{feature.description}</p>
+            </Card.Body>
+          </Card>
+        ))}
       </div>
-    </section>
+    </Section>
   );
 }

@@ -1,7 +1,9 @@
 const admin = require("firebase-admin");
+const { applicationDefault } = require("firebase-admin/app");
 const crypto = require("crypto");
 
 admin.initializeApp({
+  credential: applicationDefault(),
   projectId: "nodalxai-b9eb5",
 });
 

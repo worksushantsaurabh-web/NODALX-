@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Menu, X, LogIn } from 'lucide-react';
+import { Button } from '../ui';
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import ThemeToggle from './ThemeToggle';
@@ -69,21 +70,18 @@ export default function Navbar() {
 
   return (
     <header
-      className={`fixed top-0 left-0 right-0 z-50 transition-all duration-500 ${
+      className={`fixed top-0 left-0 right-0 z-50 transition-all duration-200 ${
         isScrolled
-          ? 'bg-white/70 dark:bg-slate-950/70 backdrop-blur-xl border-b border-slate-200/40 dark:border-white/5 shadow-lg shadow-slate-200/20 dark:shadow-none py-3'
-          : 'bg-transparent py-5'
+          ? 'bg-white dark:bg-slate-950 border-b border-slate-200 dark:border-slate-800 py-3'
+          : 'bg-white dark:bg-slate-950 py-5'
       }`}
     >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 md:px-12 flex items-center justify-between">
         {/* Logo & Theme Toggle */}
         <div className="flex items-center gap-1">
-          <div className="flex items-center gap-2.5 cursor-pointer group" onClick={() => window.scrollTo(0,0)}>
-            <div className="relative group-hover:scale-105 transition-transform duration-300">
-              <NodalXLogo className="w-9 h-9" />
-              <div className="absolute inset-0 rounded-full bg-teal-400/20 blur-lg opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
-            </div>
-            <span className="text-xl font-extrabold tracking-tight text-slate-900 dark:text-white">
+          <div className="flex items-center gap-2.5 cursor-pointer" onClick={() => window.scrollTo(0,0)}>
+            <NodalXLogo className="w-8 h-8" />
+            <span className="text-base font-bold tracking-tight text-slate-900 dark:text-white">
               NODALxAI
             </span>
           </div>
@@ -94,24 +92,23 @@ export default function Navbar() {
 
         {/* Desktop Nav */}
         <nav className="hidden md:flex items-center gap-6 lg:gap-8">
-          <div className="relative group">
+          {[
+            { label: 'How it works', id: 'how-it-works' },
+            { label: 'Features', id: 'features' },
+            { label: 'FAQ', id: 'faq' },
+          ].map((item) => (
             <button
-              onClick={handleSignIn}
-              disabled={isLoading}
-              className="text-sm font-semibold px-5 py-2.5 rounded-xl border border-slate-200/80 dark:border-white/10 bg-white/60 dark:bg-white/5 backdrop-blur-md hover:bg-teal-50/80 dark:hover:bg-teal-900/20 hover:border-teal-300 dark:hover:border-teal-700 text-slate-700 dark:text-slate-200 transition-all duration-300 flex items-center gap-2 shadow-sm hover:shadow-md hover:-translate-y-0.5 glass-shine relative z-10 group-hover:scale-105"
+              key={item.id}
+              onClick={() => document.getElementById(item.id)?.scrollIntoView({ behavior: 'smooth' })}
+              className="text-sm font-medium text-slate-600 dark:text-slate-400 hover:text-teal-600 dark:hover:text-teal-400 transition-colors"
             >
-              {isLoading ? (
-                <svg className="animate-spin h-4 w-4 text-teal-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                </svg>
-              ) : (
-                <LogIn className="w-4 h-4" />
-              )}
-              {isLoading ? 'Signing in...' : user ? 'Dashboard' : 'Sign In'}
+              {item.label}
             </button>
-            <div className="absolute inset-0 rounded-xl bg-teal-400/20 blur-lg opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
-          </div>
+          ))}
+          <Button variant="secondary" size="sm" onClick={handleSignIn} disabled={isLoading} loading={isLoading}>
+            {!isLoading && <LogIn className="w-4 h-4" />}
+            {isLoading ? 'Signing in...' : user ? 'Dashboard' : 'Sign In'}
+          </Button>
         </nav>
 
         {/* Mobile Menu Toggle */}
@@ -126,28 +123,17 @@ export default function Navbar() {
 
       {/* Mobile Nav */}
       {mobileMenuOpen && (
-        <div className="md:hidden absolute top-full left-0 right-0 bg-white/90 dark:bg-slate-900/95 backdrop-blur-xl border-b border-slate-200/50 dark:border-slate-800 shadow-xl py-4 px-4 sm:px-6 flex flex-col gap-3 animate-slide-up">
-          <div className="relative group">
-            <button
-              onClick={() => {
-                handleSignIn();
-                setMobileMenuOpen(false);
-              }}
-              disabled={isLoading}
-              className="w-full text-base font-semibold text-white bg-teal-600 hover:bg-teal-700 py-3 flex items-center justify-center gap-2 rounded-xl transition-all shadow-lg shadow-teal-600/20 relative z-10 group-hover:scale-105"
-            >
-              {isLoading ? (
-                <svg className="animate-spin h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                </svg>
-              ) : (
-                <LogIn className="w-5 h-5" />
-              )}
-              {isLoading ? 'Signing in...' : user ? 'Go to Dashboard' : 'Sign In'}
-            </button>
-            <div className="absolute inset-0 rounded-xl bg-teal-400/20 blur-lg opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
-          </div>
+        <div className="md:hidden absolute top-full left-0 right-0 bg-white dark:bg-slate-950 border-b border-slate-200 dark:border-slate-800 py-4 px-4 sm:px-6 flex flex-col gap-2">
+          <Button
+            variant="primary"
+            className="w-full"
+            onClick={() => { handleSignIn(); setMobileMenuOpen(false); }}
+            disabled={isLoading}
+            loading={isLoading}
+          >
+            {!isLoading && <LogIn className="w-4 h-4" />}
+            {isLoading ? 'Signing in...' : user ? 'Go to Dashboard' : 'Sign In'}
+          </Button>
         </div>
       )}
       <SignInModal isOpen={signInOpen} onClose={() => setSignInOpen(false)} />

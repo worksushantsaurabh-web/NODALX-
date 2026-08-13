@@ -1,0 +1,5 @@
+User-agent: *
+Allow: /
+Disallow: /#/dashboard
+
+Sitemap: https://nodalxai.com/sitemap.xml

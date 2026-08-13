@@ -257,48 +257,25 @@ async function checkRateLimit(userId, maxRequests = 10, windowMs = 60000) {
 }
 
 const MAKE_WEBHOOK_URL = process.env.MAKE_WEBHOOK_URL;
-const N8N_FLOW_TEST_WEBHOOK_URL = process.env.N8N_FLOW_TEST_WEBHOOK_URL;
-const N8N_WEBHOOK_AUTH_TOKEN = process.env.N8N_WEBHOOK_AUTH_TOKEN;
-const N8N_REQUEST_TIMEOUT_MS = Number(process.env.N8N_REQUEST_TIMEOUT_MS || 30000);
+const WEBHOOK_TIMEOUT_MS = Number(process.env.WEBHOOK_TIMEOUT_MS || 30000);
 
 /**
- * Get HTTP headers for N8N webhook requests.
- * @return {Object} Headers object.
- */
-function getN8nHeaders() {
-  return {
-    "Content-Type": "application/json",
-    ...(N8N_WEBHOOK_AUTH_TOKEN ? {Authorization: `Bearer ${N8N_WEBHOOK_AUTH_TOKEN}`} : {}),
-  };
-}
-
-/**
- * Send a request to a webhook with automatic retry on 404.
+ * Send a request to a webhook.
  * @param {string} webhookUrl The webhook URL to call.
  * @param {Object} config Request configuration.
  * @return {Promise<Object>} The webhook response data.
  */
 async function requestWebhook(webhookUrl, {method = "POST", body} = {}) {
   const timeoutController = new AbortController();
-  const timeout = setTimeout(() => timeoutController.abort(), N8N_REQUEST_TIMEOUT_MS);
+  const timeout = setTimeout(() => timeoutController.abort(), WEBHOOK_TIMEOUT_MS);
 
   try {
-    let response = await fetch(webhookUrl, {
+    const response = await fetch(webhookUrl, {
       method,
-      headers: getN8nHeaders(),
+      headers: {"Content-Type": "application/json"},
       body: body ? JSON.stringify(body) : undefined,
       signal: timeoutController.signal,
     });
-
-    if (response.status === 404 && webhookUrl.includes("/webhook-test/")) {
-      const prodUrl = webhookUrl.replace("/webhook-test/", "/webhook/");
-      response = await fetch(prodUrl, {
-        method,
-        headers: getN8nHeaders(),
-        body: body ? JSON.stringify(body) : undefined,
-        signal: timeoutController.signal,
-      });
-    }
 
     const responseText = await response.text();
     let data = responseText;
@@ -484,17 +461,8 @@ app.post("/api/inquiries", async (req, res) => {
   }
 });
 
-app.post("/api/flows/test", async (req, res) => {
-  if (!N8N_FLOW_TEST_WEBHOOK_URL) {
-    return res.status(503).json({error: "Flow test workflow is not configured."});
-  }
-  try {
-    const workflowResponse = await requestWebhook(N8N_FLOW_TEST_WEBHOOK_URL, {body: req.body});
-    return res.json(workflowResponse);
-  } catch (error) {
-    console.error("[n8n] Flow test workflow failed:", error);
-    return res.status(502).json({error: "The flow test workflow could not be reached."});
-  }
+app.post("/api/flows/test", (req, res) => {
+  return res.json({success: true, received: req.body});
 });
 
 app.patch("/api/inquiries/:id/status", async (req, res) => {
@@ -545,6 +513,56 @@ app.put("/api/integrations/notifications", async (req, res) => {
     return res.json({success: true, message: "Notification settings updated successfully"});
   } catch (error) {
     return res.status(500).json({error: "Failed to save notification settings"});
+  }
+});
+
+app.post("/api/integrations/notifications/test", async (req, res) => {
+  try {
+    const userId = await requireUserId(req, res);
+    if (!userId) return;
+
+    const slackWebhookUrl = req.body.slackWebhookUrl;
+
+    if (!slackWebhookUrl || typeof slackWebhookUrl !== "string" || !slackWebhookUrl.trim()) {
+      return res.status(400).json({
+        error: "Slack Webhook URL is required.",
+      });
+    }
+
+    const trimmedUrl = slackWebhookUrl.trim();
+    if (!trimmedUrl.startsWith("https://hooks.slack.com/")) {
+      return res.status(400).json({
+        error: "Invalid Slack Webhook URL. It must start with https://hooks.slack.com/",
+      });
+    }
+
+    const testPayload = {
+      text: "🎉 *NODALxAI Test Alert*: Your Slack integration is working perfectly!",
+    };
+
+    const slackResponse = await fetch(trimmedUrl, {
+      method: "POST",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify(testPayload),
+    });
+
+    if (slackResponse.ok) {
+      return res.json({
+        success: true,
+        message: "Slack alert sent! Check your Slack channel.",
+      });
+    } else {
+      const slackError = await slackResponse.text();
+      console.error("[Slack Test Error]:", slackResponse.status, slackError);
+      return res.status(400).json({
+        error: `Slack rejected the request (${slackResponse.status}): ${slackError || "Please verify your Incoming Webhook URL."}`,
+      });
+    }
+  } catch (error) {
+    console.error("[Test Slack Notification Error]:", error);
+    return res.status(500).json({
+      error: "Failed to send test notification. Please check your network connection and Webhook URL.",
+    });
   }
 });
 
@@ -791,7 +809,7 @@ app.put("/api/user/profile", async (req, res) => {
   }
 });
 
-app.get("/api/data-sources", async (req, res) => {
+app.get("/api/connectors", async (req, res) => {
   try {
     const userId = await requireUserId(req, res);
     if (!userId) return;
@@ -808,16 +826,16 @@ app.get("/api/data-sources", async (req, res) => {
     }
     res.json(sourceSnapshot.docs.map(serializeDocument));
   } catch (error) {
-    res.status(500).json({error: "Failed to load data sources"});
+    res.status(500).json({error: "Failed to load connectors"});
   }
 });
 
-app.put("/api/data-sources/:sourceId", async (req, res) => {
+app.put("/api/connectors/:connectorId", async (req, res) => {
   try {
     const userId = await requireUserId(req, res);
     if (!userId) return;
-    const sourceRef = dataSourceCollection(userId).doc(req.params.sourceId);
-    if (!(await sourceRef.get()).exists) return res.status(404).json({error: "Data source not found"});
+    const sourceRef = dataSourceCollection(userId).doc(req.params.connectorId);
+    if (!(await sourceRef.get()).exists) return res.status(404).json({error: "Connector not found"});
     const currentSource = (await sourceRef.get()).data();
     await sourceRef.set({
       ...req.body,
@@ -826,53 +844,107 @@ app.put("/api/data-sources/:sourceId", async (req, res) => {
     }, {merge: true});
     res.json(serializeDocument(await sourceRef.get()));
   } catch (error) {
-    res.status(500).json({error: "Failed to update data source"});
+    res.status(500).json({error: "Failed to update connector"});
   }
 });
 
-app.post("/api/data-sources/google-sheets/verify", async (req, res) => {
+app.post("/api/connectors/google-sheets/verify", async (req, res) => {
   try {
     const userId = await requireUserId(req, res);
     if (!userId) return;
 
     const {spreadsheetId} = req.body;
-    if (!spreadsheetId) {
-      return res.status(400).json({error: "Spreadsheet ID is required"});
+    if (!spreadsheetId || typeof spreadsheetId !== "string" || !spreadsheetId.trim()) {
+      return res.status(400).json({error: "Spreadsheet ID or URL is required"});
+    }
+
+    // Extract and sanitize spreadsheet ID (handles both URLs and raw IDs)
+    let sanitizedId;
+    try {
+      sanitizedId = googleSheets.extractSpreadsheetId(spreadsheetId);
+    } catch (extractError) {
+      return res.status(400).json({error: extractError.message});
     }
 
     // Verify access
-    const result = await googleSheets.verifyAccess(spreadsheetId);
+    let result;
+    try {
+      result = await googleSheets.verifyAccess(sanitizedId);
+    } catch (verifyError) {
+      const message = verifyError.message || "Failed to verify Google Sheet access";
+      if (message.includes("Permission denied")) {
+        return res.status(403).json({error: message});
+      }
+      if (message.includes("not found") || message.includes("does not exist")) {
+        return res.status(404).json({error: message});
+      }
+      return res.status(500).json({error: message});
+    }
 
     // Save it if successful
     const sourceRef = dataSourceCollection(userId).doc("google-sheets");
     await sourceRef.set({
       connected: true,
-      config: {spreadsheetId},
+      config: {spreadsheetId: sanitizedId},
       updatedAt: FieldValue.serverTimestamp(),
     }, {merge: true});
 
-    res.json({success: true, title: result.title, message: "Google Sheet connected successfully!"});
+    return res.json({
+      success: true,
+      title: result.title,
+      spreadsheetId: sanitizedId,
+      message: "Google Sheet connected successfully!",
+    });
   } catch (error) {
-    res.status(400).json({error: error.message});
+    console.error("[Google Sheets Verify Error]:", error);
+    return res.status(500).json({error: "An unexpected error occurred while verifying the Google Sheet"});
   }
 });
 
-app.post("/api/data-sources/google-sheets/analyze", async (req, res) => {
+app.post("/api/connectors/google-sheets/analyze", async (req, res) => {
   try {
     const userId = await requireUserId(req, res);
     if (!userId) return;
 
-    const sourceRef = dataSourceCollection(userId).doc("google-sheets");
-    const sourceDoc = await sourceRef.get();
-    if (!sourceDoc.exists || !sourceDoc.data().connected || !sourceDoc.data().config?.spreadsheetId) {
-      return res.status(400).json({error: "No Google Sheet connected. Please connect a Google Sheet first."});
+    // Allow spreadsheetId from request body OR fall back to stored config
+    let spreadsheetId;
+    if (req.body.spreadsheetId && typeof req.body.spreadsheetId === "string" && req.body.spreadsheetId.trim()) {
+      try {
+        spreadsheetId = googleSheets.extractSpreadsheetId(req.body.spreadsheetId);
+      } catch (extractError) {
+        return res.status(400).json({error: extractError.message});
+      }
+    } else {
+      const sourceRef = dataSourceCollection(userId).doc("google-sheets");
+      const sourceDoc = await sourceRef.get();
+      if (!sourceDoc.exists || !sourceDoc.data().connected || !sourceDoc.data().config?.spreadsheetId) {
+        return res.status(400).json({
+          error: "No Google Sheet connected. Please provide a spreadsheetId or connect a Google Sheet first.",
+        });
+      }
+      spreadsheetId = sourceDoc.data().config.spreadsheetId;
     }
 
-    const spreadsheetId = sourceDoc.data().config.spreadsheetId;
+    // Read rows from the sheet
+    let sheetData;
+    try {
+      sheetData = await googleSheets.readSheetRows(spreadsheetId);
+    } catch (readError) {
+      const message = readError.message || "Failed to read Google Sheet";
+      if (message.includes("Permission denied")) {
+        return res.status(403).json({error: message});
+      }
+      if (message.includes("not found") || message.includes("does not exist")) {
+        return res.status(404).json({error: message});
+      }
+      return res.status(500).json({error: message});
+    }
 
-    const {rows} = await googleSheets.readSheetRows(spreadsheetId);
-    if (!rows || rows.length === 0) {
-      return res.status(400).json({error: "Google Sheet contains no data rows in Sheet1."});
+    const {rows, isEmpty} = sheetData;
+    if (isEmpty || !rows || rows.length === 0) {
+      return res.status(400).json({
+        error: "Google Sheet contains no data rows in Sheet1. Please add data and try again.",
+      });
     }
 
     const results = [];
@@ -930,6 +1002,8 @@ app.post("/api/data-sources/google-sheets/analyze", async (req, res) => {
 
     return res.json({
       success: true,
+      title: `Analyzed ${results.length} rows`,
+      message: `Successfully analyzed ${results.length} of ${rows.length} rows`,
       totalRows: rows.length,
       processedRows: results.length,
       results,
@@ -937,7 +1011,7 @@ app.post("/api/data-sources/google-sheets/analyze", async (req, res) => {
     });
   } catch (error) {
     console.error("[Google Sheets Analysis Error]:", error);
-    return res.status(500).json({error: "Failed to analyze Google Sheet: " + error.message});
+    return res.status(500).json({error: "An unexpected error occurred while analyzing the Google Sheet"});
   }
 });
 

@@ -64,7 +64,6 @@
     }
   }
 
-  console.log('[Vertex AI Proxy Shim] Initialized. Intercepting for Cloud AI API URLs');
 
   
   window.WebSocket = function(url, protocols) {
@@ -72,7 +71,6 @@
 
     if (inputUrl && isValidUrl(inputUrl)) {
       
-      console.log('[Vertex AI Proxy Shim] Intercepted Vertex WebSocket request:', inputUrl);
       const targetUrl = encodeURIComponent(inputUrl);
       const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
       const host = window.location.host;
@@ -95,7 +93,6 @@
     const normalizedUrl = (typeof inputUrl === 'string') ? inputUrl.split('?')[0] : null;
     // Check if the URL matches the patterns of Vertex AI APIs.
     if (normalizedUrl && isValidUrl(normalizedUrl)) {
-      console.log('[Vertex AI Proxy Shim] Intercepted Vertex API request:', normalizedUrl);
       // Prepare the request details to send to the local Node.js backend.
       const requestDetails = {
         originalUrl: normalizedUrl,
@@ -112,13 +109,15 @@
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            // Add a random header to identify these proxied requests on the Node.js backend.
             'X-App-Proxy': 'xBU_vKjWSgzN4VcrHU5FYzuM50OvlA1o',
+            // Firebase ID token — set by AuthContext after login; required by /api-proxy
+            ...(window.__nodalxFirebaseToken
+              ? { 'Authorization': 'Bearer ' + window.__nodalxFirebaseToken }
+              : {}),
           },
           body: JSON.stringify(requestDetails),
         };
 
-        console.log('[Vertex AI Proxy Shim] Fetching from local Node.js backend: /api-proxy');
         const proxyResponse = await fetch('/api-proxy', proxyFetchOptions);
 
         if (proxyResponse.status === 401) {

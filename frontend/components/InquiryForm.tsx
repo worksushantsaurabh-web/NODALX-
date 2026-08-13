@@ -1,5 +1,9 @@
 import React, { useState, useRef } from 'react';
 import { Send, Sparkles, CheckCircle2, AlertCircle, Clock } from 'lucide-react';
+import { Analytics } from '../lib/analytics';
+import { useFeedback } from '../contexts/FeedbackContext';
+
+const APPSCRIPT_WEBHOOK_URL = import.meta.env.VITE_APPSCRIPT_WEBHOOK_URL || '';
 
 export default function InquiryForm() {
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -7,9 +11,19 @@ export default function InquiryForm() {
   const [referenceNumber, setReferenceNumber] = useState('');
   const [error, setError] = useState<string | null>(null);
   const formRef = useRef<HTMLFormElement>(null);
+  const formStarted = useRef(false);
+  const { showSurvey } = useFeedback();
+
+  const handleFormFocus = () => {
+    if (!formStarted.current) {
+      formStarted.current = true;
+      Analytics.formStart();
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    Analytics.formSubmit();
     setIsSubmitting(true);
     setError(null);
     
@@ -27,26 +41,43 @@ export default function InquiryForm() {
     };
 
     try {
-      const response = await fetch('/api/inquiries', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(payload),
-      });
+      let response: Response;
+
+      if (APPSCRIPT_WEBHOOK_URL) {
+        response = await fetch(APPSCRIPT_WEBHOOK_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'text/plain' },
+          body: JSON.stringify(payload),
+        });
+      } else {
+        response = await fetch('/api/inquiries', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+      }
 
       if (!response.ok) {
         throw new Error(`Server responded with status: ${response.status}`);
       }
 
+      const data = await response.json();
+      if (data && data.success === false) {
+        throw new Error(data.error || data.message || 'Submission failed');
+      }
+
       // Success
+      Analytics.formSuccess();
+      showSurvey({ question: 'How easy was that?', context: 'form_submission', delayMs: 2000 });
       if (payload.service) {
         localStorage.setItem('fp_user_service', payload.service);
       }
       setReferenceNumber(`FP-${Math.floor(10000 + Math.random() * 90000)}`);
       setIsSubmitted(true);
 
-    } catch (err) {
+    } catch (err: any) {
+      const msg = err?.message || 'Unknown error';
+      Analytics.formError(msg);
       console.error('Inquiry submission error:', err);
       setError('We could not submit your inquiry. Please try again in a moment.');
     } finally {
@@ -129,7 +160,7 @@ export default function InquiryForm() {
                 </button>
               </div>
             ) : (
-              <form ref={formRef} id="inquiry-form" onSubmit={handleSubmit} className="space-y-6 animate-fade-in">
+              <form ref={formRef} id="inquiry-form" onSubmit={handleSubmit} onFocus={handleFormFocus} className="space-y-6 animate-fade-in">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   {/* Full Name */}
                   <div className="space-y-2">
@@ -228,6 +259,7 @@ export default function InquiryForm() {
                       <option value="custom-integration">Custom CRM Integration</option>
                       <option value="consulting">Strategy & Consulting</option>
                     </select>
+                    <p className="text-xs text-slate-400 dark:text-slate-500 mt-1.5">We'll tailor the setup based on your selected workflow.</p>
                 </div>
               </div>
 

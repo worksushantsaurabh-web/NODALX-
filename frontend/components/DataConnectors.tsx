@@ -82,7 +82,7 @@ export default function DataConnectors() {
   const fetchDataSources = async () => {
     if (!user) return;
     try {
-      const response = await api.get('/api/data-sources');
+      const response = await api.get('/api/connectors');
       if (Array.isArray(response)) {
         const sheets = response.find(s => s.id === 'google-sheets');
         if (sheets && sheets.connected && sheets.config?.spreadsheetId) {
@@ -251,7 +251,7 @@ export default function DataConnectors() {
     setIsVerifyingSheet(true);
     setError(null);
     try {
-      const response = await api.post<{ success: boolean; title?: string }>('/api/data-sources/google-sheets/verify', { spreadsheetId: cleanId });
+      const response = await api.post<{ success: boolean; title?: string }>('/api/connectors/google-sheets/verify', { spreadsheetId: cleanId });
       if (response && response.success) {
         setSheetConnected(true);
         setSheetName(response.title || 'Google Sheet');
@@ -292,7 +292,7 @@ export default function DataConnectors() {
         totalRows: number;
         processedRows: number;
         results: AnalysisResult[];
-      }>('/api/data-sources/google-sheets/analyze', {});
+      }>('/api/connectors/google-sheets/analyze', {});
 
       if (response && response.results) {
         setResults(response.results);
@@ -402,41 +402,41 @@ export default function DataConnectors() {
     });
 
     return (
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-        <div className="bg-white dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-2xl p-4 shadow-sm flex items-center gap-4">
-          <div className="h-10 w-10 rounded-full bg-teal-50 dark:bg-teal-900/30 flex items-center justify-center">
-            <FileSpreadsheet className="h-5 w-5 text-teal-600 dark:text-teal-400" />
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-5 mb-8">
+        <div className="glass-card rounded-2xl p-5 hover-lift flex items-center gap-4">
+          <div className="h-12 w-12 rounded-xl bg-teal-500/10 dark:bg-teal-500/15 flex items-center justify-center">
+            <FileSpreadsheet className="h-6 w-6 text-teal-600 dark:text-teal-400" />
           </div>
           <div>
-            <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">Total Analyzed</p>
-            <p className="text-xl font-bold text-slate-900 dark:text-white">{resultsMeta.processedRows}</p>
+            <p className="text-xs text-slate-500 dark:text-slate-400 font-medium tracking-wide">Total Analyzed</p>
+            <p className="text-2xl font-extrabold text-slate-900 dark:text-white tabular-nums">{resultsMeta.processedRows}</p>
           </div>
         </div>
-        <div className="bg-white dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-2xl p-4 shadow-sm flex items-center gap-4">
-          <div className="h-10 w-10 rounded-full bg-red-50 dark:bg-red-900/30 flex items-center justify-center">
-            <Clock className="h-5 w-5 text-red-600 dark:text-red-400" />
+        <div className="glass-card rounded-2xl p-5 hover-lift flex items-center gap-4">
+          <div className="h-12 w-12 rounded-xl bg-rose-500/10 dark:bg-rose-500/15 flex items-center justify-center">
+            <Clock className="h-6 w-6 text-rose-600 dark:text-rose-400" />
           </div>
           <div>
-            <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">High Urgency</p>
-            <p className="text-xl font-bold text-slate-900 dark:text-white">{highUrgency}</p>
+            <p className="text-xs text-slate-500 dark:text-slate-400 font-medium tracking-wide">High Urgency</p>
+            <p className="text-2xl font-extrabold text-slate-900 dark:text-white tabular-nums">{highUrgency}</p>
           </div>
         </div>
-        <div className="bg-white dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-2xl p-4 shadow-sm flex items-center gap-4">
-          <div className="h-10 w-10 rounded-full bg-blue-50 dark:bg-blue-900/30 flex items-center justify-center">
-            <BarChart3 className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+        <div className="glass-card rounded-2xl p-5 hover-lift flex items-center gap-4">
+          <div className="h-12 w-12 rounded-xl bg-blue-500/10 dark:bg-blue-500/15 flex items-center justify-center">
+            <BarChart3 className="h-6 w-6 text-blue-600 dark:text-blue-400" />
           </div>
           <div>
-            <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">Avg Fit Score</p>
-            <p className="text-xl font-bold text-slate-900 dark:text-white">{avgFitScore}/100</p>
+            <p className="text-xs text-slate-500 dark:text-slate-400 font-medium tracking-wide">Avg Fit Score</p>
+            <p className="text-2xl font-extrabold text-slate-900 dark:text-white tabular-nums">{avgFitScore}/100</p>
           </div>
         </div>
-        <div className="bg-white dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-2xl p-4 shadow-sm flex items-center gap-4">
-          <div className="h-10 w-10 rounded-full bg-purple-50 dark:bg-purple-900/30 flex items-center justify-center">
-            <Target className="h-5 w-5 text-purple-600 dark:text-purple-400" />
+        <div className="glass-card rounded-2xl p-5 hover-lift flex items-center gap-4">
+          <div className="h-12 w-12 rounded-xl bg-purple-500/10 dark:bg-purple-500/15 flex items-center justify-center">
+            <Target className="h-6 w-6 text-purple-600 dark:text-purple-400" />
           </div>
           <div>
-            <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">Top Intent</p>
-            <p className="text-xl font-bold text-slate-900 dark:text-white capitalize truncate">{topIntent}</p>
+            <p className="text-xs text-slate-500 dark:text-slate-400 font-medium tracking-wide">Top Intent</p>
+            <p className="text-2xl font-extrabold text-slate-900 dark:text-white capitalize truncate">{topIntent}</p>
           </div>
         </div>
       </div>
@@ -446,41 +446,47 @@ export default function DataConnectors() {
   return (
     <div className="max-w-6xl mx-auto space-y-8 animate-fade-in pb-12">
       {/* Header */}
-      <div className="space-y-3">
-        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-teal-50 dark:bg-teal-500/10 border border-teal-200 dark:border-teal-500/20">
+      <div className="space-y-4">
+        <div className="inline-flex items-center gap-2.5 px-4 py-1.5 rounded-full glass-card-subtle">
           <Upload className="h-4 w-4 text-teal-600 dark:text-teal-400" />
-          <span className="text-xs font-semibold text-teal-700 dark:text-teal-400 tracking-wider">CONNECTORS</span>
+          <span className="text-xs font-bold text-teal-700 dark:text-teal-400 tracking-[0.15em] uppercase">Connectors</span>
         </div>
-        <h1 className="text-3xl font-bold text-slate-900 dark:text-white tracking-tight">Data Connectors</h1>
-        <p className="text-slate-600 dark:text-slate-400 text-lg max-w-2xl">
+        <h1 className="text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight">Data Connectors</h1>
+        <p className="text-slate-600 dark:text-slate-400 text-lg max-w-2xl leading-relaxed">
           Upload your existing data or connect your tools to analyze with AI.
         </p>
       </div>
 
       {error && (
-        <div className="p-4 bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/20 rounded-xl flex items-start gap-3">
-          <AlertCircle className="h-5 w-5 text-red-600 dark:text-red-400 shrink-0 mt-0.5" />
-          <p className="text-sm text-red-700 dark:text-red-400">{error}</p>
+        <div className="glass-card p-5 border-rose-200/60 dark:border-rose-500/20 rounded-xl flex items-start gap-4 bg-rose-50/50 dark:bg-rose-500/10">
+          <div className="w-10 h-10 rounded-xl bg-rose-500/10 flex items-center justify-center flex-shrink-0">
+            <AlertCircle className="h-5 w-5 text-rose-600 dark:text-rose-400" />
+          </div>
+          <p className="text-sm font-medium text-rose-700 dark:text-rose-400 pt-2.5">{error}</p>
         </div>
       )}
 
       {!results ? (
-        <div className="bg-white dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-2xl shadow-sm overflow-hidden p-6 md:p-8 space-y-6">
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-100 dark:border-slate-800 pb-6">
-            <div>
-              <h2 className="text-xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
-                <Sheet className="h-6 w-6 text-emerald-500" />
-                Google Sheets AI Intelligence Engine
-              </h2>
-              <p className="text-slate-500 dark:text-slate-400 text-sm mt-1">
-                Classify lead rows, calculate intent & fit scores, and write results directly back to your Google Sheet.
-              </p>
+        <div className="glass-card rounded-2xl overflow-hidden p-7 md:p-8 space-y-7">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-5 border-b border-slate-200/60 dark:border-white/5 pb-7">
+            <div className="flex items-start gap-4">
+              <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-emerald-500/15 to-teal-500/15 dark:from-emerald-500/20 dark:to-teal-500/20 flex items-center justify-center flex-shrink-0">
+                <Sheet className="h-7 w-7 text-emerald-600 dark:text-emerald-400" />
+              </div>
+              <div>
+                <h2 className="text-xl font-bold text-slate-900 dark:text-white tracking-tight">
+                  Google Sheets AI Intelligence Engine
+                </h2>
+                <p className="text-slate-500 dark:text-slate-400 text-sm mt-1.5 leading-relaxed">
+                  Classify lead rows, calculate intent & fit scores, and write results directly back to your Google Sheet.
+                </p>
+              </div>
             </div>
-            
+
             <button
               onClick={runGoogleSheetsAnalysis}
               disabled={isAnalyzing}
-              className="px-6 py-3 bg-gradient-to-r from-teal-600 to-emerald-600 hover:from-teal-700 hover:to-emerald-700 text-white font-bold rounded-xl shadow-lg shadow-teal-600/20 disabled:opacity-50 flex items-center justify-center gap-2 transition-all hover:scale-[1.02] shrink-0"
+              className="group px-6 py-3.5 bg-gradient-to-r from-teal-600 to-emerald-600 hover:from-teal-700 hover:to-emerald-700 text-white font-bold rounded-xl shadow-lg shadow-teal-600/20 hover:shadow-teal-600/30 disabled:opacity-50 flex items-center justify-center gap-2.5 transition-all duration-200 hover:-translate-y-0.5 shrink-0"
             >
               {isAnalyzing ? (
                 <>
@@ -490,7 +496,7 @@ export default function DataConnectors() {
               ) : (
                 <>
                   <Sparkles className="h-5 w-5" />
-                  Run AI Analysis on Connected Sheet
+                  Run AI Analysis
                 </>
               )}
             </button>
@@ -686,55 +692,65 @@ export default function DataConnectors() {
 
       {/* Integrations Grid */}
       <div className="pt-8">
-        <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-4">Live Connectors & Automations</h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-5 tracking-tight">Live Connectors & Automations</h3>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
           {/* Google Sheets Card */}
-          <div onClick={() => setShowSheetsModal(true)} className="relative overflow-hidden cursor-pointer bg-gradient-to-br from-slate-50 to-white dark:from-slate-900 dark:to-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl p-6 group hover:border-teal-500/50 transition-colors">
-            <div className="absolute top-4 right-4">
-              {sheetConnected ? (
-                <span className="px-2.5 py-1 bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400 text-xs font-bold rounded-full flex items-center gap-1">
-                  <Check className="w-3 h-3" /> CONNECTED
-                </span>
-              ) : (
-                <span className="px-2.5 py-1 bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400 text-xs font-bold rounded-full">
-                  SETUP
-                </span>
-              )}
+          <button onClick={() => setShowSheetsModal(true)} className="group relative text-left glass-card rounded-2xl p-6 hover-lift overflow-hidden">
+            <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/5 via-transparent to-teal-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+            <div className="relative">
+              <div className="absolute top-0 right-0">
+                {sheetConnected ? (
+                  <span className="px-3 py-1.5 bg-emerald-100/80 dark:bg-emerald-500/20 text-emerald-700 dark:text-emerald-400 text-xs font-bold rounded-full flex items-center gap-1.5 shadow-sm">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                    Connected
+                  </span>
+                ) : (
+                  <span className="px-3 py-1.5 bg-slate-100 dark:bg-white/10 text-slate-600 dark:text-slate-400 text-xs font-bold rounded-full group-hover:bg-emerald-100 group-hover:text-emerald-700 dark:group-hover:bg-emerald-500/20 dark:group-hover:text-emerald-400 transition-colors duration-200">
+                    Setup
+                  </span>
+                )}
+              </div>
+              <div className="h-14 w-14 rounded-xl bg-emerald-500/10 dark:bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 flex items-center justify-center mb-5 transition-transform duration-300 group-hover:scale-110">
+                <Sheet className="h-7 w-7" />
+              </div>
+              <h4 className="text-lg font-bold text-slate-900 dark:text-white mb-2 tracking-tight group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors duration-200">
+                Google Sheets Sync
+              </h4>
+              <p className="text-slate-600 dark:text-slate-400 text-sm leading-relaxed">
+                Connect your Google Sheet to receive classified inquiries automatically in real-time.
+              </p>
             </div>
-            <div className="h-12 w-12 rounded-xl bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-400 flex items-center justify-center mb-4">
-              <Sheet className="h-6 w-6" />
-            </div>
-            <h4 className="text-lg font-bold text-slate-900 dark:text-white mb-2 group-hover:text-teal-600 dark:group-hover:text-teal-400 transition-colors">
-              Google Sheets Sync
-            </h4>
-            <p className="text-slate-600 dark:text-slate-400 text-sm">
-              Connect your Google Sheet to receive classified inquiries automatically in real-time.
-            </p>
-          </div>
+            {sheetConnected && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-gradient-to-r from-emerald-500 via-teal-500 to-emerald-500" />}
+          </button>
 
           {/* Slack Notifications Card */}
-          <div onClick={() => setShowSlackModal(true)} className="relative overflow-hidden cursor-pointer bg-gradient-to-br from-slate-50 to-white dark:from-slate-900 dark:to-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl p-6 group hover:border-teal-500/50 transition-colors">
-            <div className="absolute top-4 right-4">
-              {slackConnected ? (
-                <span className="px-2.5 py-1 bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400 text-xs font-bold rounded-full flex items-center gap-1">
-                  <Check className="w-3 h-3" /> ACTIVE
-                </span>
-              ) : (
-                <span className="px-2.5 py-1 bg-teal-100 text-teal-800 dark:bg-teal-900/30 dark:text-teal-400 text-xs font-bold rounded-full">
-                  SETUP ALERTS
-                </span>
-              )}
+          <button onClick={() => setShowSlackModal(true)} className="group relative text-left glass-card rounded-2xl p-6 hover-lift overflow-hidden">
+            <div className="absolute inset-0 bg-gradient-to-br from-purple-500/5 via-transparent to-violet-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+            <div className="relative">
+              <div className="absolute top-0 right-0">
+                {slackConnected ? (
+                  <span className="px-3 py-1.5 bg-emerald-100/80 dark:bg-emerald-500/20 text-emerald-700 dark:text-emerald-400 text-xs font-bold rounded-full flex items-center gap-1.5 shadow-sm">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                    Active
+                  </span>
+                ) : (
+                  <span className="px-3 py-1.5 bg-slate-100 dark:bg-white/10 text-slate-600 dark:text-slate-400 text-xs font-bold rounded-full group-hover:bg-purple-100 group-hover:text-purple-700 dark:group-hover:bg-purple-500/20 dark:group-hover:text-purple-400 transition-colors duration-200">
+                    Setup Alerts
+                  </span>
+                )}
+              </div>
+              <div className="h-14 w-14 rounded-xl bg-purple-500/10 dark:bg-purple-500/15 text-purple-600 dark:text-purple-400 flex items-center justify-center mb-5 transition-transform duration-300 group-hover:scale-110">
+                <Webhook className="h-7 w-7" />
+              </div>
+              <h4 className="text-lg font-bold text-slate-900 dark:text-white mb-2 tracking-tight group-hover:text-purple-600 dark:group-hover:text-purple-400 transition-colors duration-200">
+                Slack Alerts & Notifications
+              </h4>
+              <p className="text-slate-600 dark:text-slate-400 text-sm leading-relaxed">
+                Receive real-time Slack channel notifications whenever a new high-intent lead is captured.
+              </p>
             </div>
-            <div className="h-12 w-12 rounded-xl bg-purple-50 dark:bg-purple-900/20 text-purple-600 dark:text-purple-400 flex items-center justify-center mb-4">
-              <Webhook className="h-6 w-6" />
-            </div>
-            <h4 className="text-lg font-bold text-slate-900 dark:text-white mb-2 group-hover:text-teal-600 dark:group-hover:text-teal-400 transition-colors">
-              Slack Alerts & Notifications
-            </h4>
-            <p className="text-slate-600 dark:text-slate-400 text-sm">
-              Receive real-time Slack channel notifications whenever a new high-intent lead is captured.
-            </p>
-          </div>
+            {slackConnected && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-gradient-to-r from-purple-500 via-violet-500 to-purple-500" />}
+          </button>
         </div>
       </div>
       

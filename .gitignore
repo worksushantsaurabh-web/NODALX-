@@ -78,4 +78,13 @@ frontend/node_modules/
 functions/node_modules/
 backend/venv/
 frontend/dist/
+client_secret.json
+backend/client_secret.json
 
+# Firebase Admin Service Account Keys (NEVER commit these)
+*-service-account.json
+*-firebase-adminsdk-*.json
+firebase-service-account.json
+backend/firebase-service-account.json
+backend/*-service-account.json
+functions/*-service-account.json
