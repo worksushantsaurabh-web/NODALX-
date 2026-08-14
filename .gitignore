@@ -89,3 +89,7 @@ backend/firebase-service-account.json
 backend/*-service-account.json
 functions/*-service-account.json
 AWSCLIV2.pkg
+
+# Large binary files (not needed in repo)
+AWSCLIV2.pkg
+*.pkg
