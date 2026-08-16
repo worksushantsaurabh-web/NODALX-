@@ -19,7 +19,7 @@ export interface StatCardProps {
 const trendStyles = {
   up:      { cls: 'bg-emerald-100/80 dark:bg-emerald-500/15 text-emerald-700 dark:text-emerald-400', Icon: ArrowUpRight },
   down:    { cls: 'bg-rose-100/80 dark:bg-rose-500/15 text-rose-700 dark:text-rose-400',             Icon: ArrowDownRight },
-  neutral: { cls: 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400',               Icon: Minus },
+  neutral: { cls: 'bg-neutral-100 dark:bg-neutral-800 text-neutral-500 dark:text-neutral-400',               Icon: Minus },
 };
 
 export function StatCard({ label, value, icon, iconBg, trend, loading = false, className, style }: StatCardProps) {
@@ -50,10 +50,10 @@ export function StatCard({ label, value, icon, iconBg, trend, loading = false, c
               </div>
             )}
           </div>
-          <p className="text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight tabular-nums mb-1">
+          <p className="text-3xl font-extrabold text-neutral-900 dark:text-white tracking-tight tabular-nums mb-1">
             {value}
           </p>
-          <p className="text-slate-500 dark:text-slate-400 text-sm font-medium tracking-wide">{label}</p>
+          <p className="text-neutral-500 dark:text-neutral-400 text-sm font-medium tracking-wide">{label}</p>
         </>
       )}
     </div>

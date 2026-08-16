@@ -13,7 +13,7 @@ interface CardSectionProps {
 
 function CardRoot({ className, children }: CardProps) {
   return (
-    <div className={cn('border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 rounded-xl overflow-hidden', className)}>
+    <div className={cn('border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-950 rounded-xl overflow-hidden', className)}>
       {children}
     </div>
   );
@@ -21,7 +21,7 @@ function CardRoot({ className, children }: CardProps) {
 
 function CardHeader({ className, children }: CardSectionProps) {
   return (
-    <div className={cn('px-5 py-4 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between', className)}>
+    <div className={cn('px-5 py-4 border-b border-neutral-100 dark:border-neutral-800 flex items-center justify-between', className)}>
       {children}
     </div>
   );
@@ -37,7 +37,7 @@ function CardBody({ className, children }: CardSectionProps) {
 
 function CardFooter({ className, children }: CardSectionProps) {
   return (
-    <div className={cn('px-5 py-4 border-t border-slate-100 dark:border-slate-800', className)}>
+    <div className={cn('px-5 py-4 border-t border-neutral-100 dark:border-neutral-800', className)}>
       {children}
     </div>
   );
@@ -45,6 +45,6 @@ function CardFooter({ className, children }: CardSectionProps) {
 
 export const Card = Object.assign(CardRoot, {
   Header: CardHeader,
-  Body:   CardBody,
+  Body: CardBody,
   Footer: CardFooter,
 });

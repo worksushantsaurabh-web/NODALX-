@@ -62,6 +62,7 @@ export default function FeedbackWidget() {
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!message.trim()) return;
+    if (!db) { setDone(true); return; }
     setSubmitting(true);
     try {
       await addDoc(collection(db, 'feedback'), {
@@ -89,13 +90,13 @@ export default function FeedbackWidget() {
     <div ref={panelRef} className="fixed bottom-4 right-4 z-40 flex flex-col items-end gap-2">
       {/* Expandable panel */}
       {open && (
-        <div className="w-80 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-xl overflow-hidden animate-slide-up">
+        <div className="w-80 bg-white dark:bg-neutral-900 rounded-xl border border-neutral-200 dark:border-neutral-800 shadow-xl overflow-hidden animate-slide-up">
           {/* Header */}
-          <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100 dark:border-slate-800">
-            <p className="text-sm font-semibold text-slate-900 dark:text-white">What's on your mind?</p>
+          <div className="flex items-center justify-between px-4 py-3 border-b border-neutral-100 dark:border-neutral-800">
+            <p className="text-sm font-semibold text-neutral-900 dark:text-white">What's on your mind?</p>
             <button
               onClick={handleClose}
-              className="p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 rounded-md hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+              className="p-1 text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-200 rounded-md hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors"
               aria-label="Close"
             >
               <X className="w-4 h-4" />
@@ -108,8 +109,8 @@ export default function FeedbackWidget() {
                 <Check className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
               </div>
               <div>
-                <p className="text-sm font-semibold text-slate-900 dark:text-white">Sent! Thanks.</p>
-                <p className="text-xs text-slate-400 mt-1">We read every piece of feedback.</p>
+                <p className="text-sm font-semibold text-neutral-900 dark:text-white">Sent! Thanks.</p>
+                <p className="text-xs text-neutral-400 mt-1">We read every piece of feedback.</p>
               </div>
             </div>
           ) : (
@@ -123,8 +124,8 @@ export default function FeedbackWidget() {
                     onClick={() => setCategory(cat.id)}
                     className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold border transition-colors ${
                       category === cat.id
-                        ? 'bg-teal-50 dark:bg-teal-900/30 border-teal-300 dark:border-teal-700 text-teal-700 dark:text-teal-400'
-                        : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400 hover:border-slate-300 dark:hover:border-slate-600'
+                        ? 'bg-neutral-100 dark:bg-neutral-800 border-neutral-400 dark:border-neutral-600 text-black dark:text-white'
+                        : 'bg-white dark:bg-neutral-800 border-neutral-200 dark:border-neutral-700 text-neutral-500 dark:text-neutral-400 hover:border-neutral-300 dark:hover:border-neutral-600'
                     }`}
                   >
                     <cat.Icon className="w-3 h-3" />
@@ -140,7 +141,7 @@ export default function FeedbackWidget() {
                 placeholder={activeCat.placeholder}
                 required
                 rows={3}
-                className="w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-sm text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 transition-colors resize-none"
+                className="w-full rounded-lg border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-800 px-3 py-2 text-sm text-neutral-900 dark:text-white placeholder-neutral-400 dark:placeholder-neutral-500 focus:outline-none focus:ring-2 focus:ring-neutral-400/20 focus:border-neutral-400 transition-colors resize-none"
               />
 
               {/* Email */}
@@ -150,20 +151,20 @@ export default function FeedbackWidget() {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="your@email.com (optional)"
-                  className="w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-sm text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 transition-colors"
+                  className="w-full rounded-lg border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-800 px-3 py-2 text-sm text-neutral-900 dark:text-white placeholder-neutral-400 dark:placeholder-neutral-500 focus:outline-none focus:ring-2 focus:ring-neutral-400/20 focus:border-neutral-400 transition-colors"
                 />
               )}
 
               {user?.email && (
-                <p className="text-xs text-slate-400">
-                  Sending as <span className="font-medium text-slate-500 dark:text-slate-300">{user.email}</span>
+                <p className="text-xs text-neutral-400">
+                  Sending as <span className="font-medium text-neutral-500 dark:text-neutral-300">{user.email}</span>
                 </p>
               )}
 
               <button
                 type="submit"
                 disabled={!message.trim() || submitting}
-                className="w-full py-2.5 rounded-lg bg-teal-600 hover:bg-teal-700 text-white text-sm font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-full py-2.5 rounded-lg bg-black hover:bg-neutral-800 dark:bg-white dark:hover:bg-neutral-200 dark:text-black text-white text-sm font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {submitting ? 'Sending…' : 'Send feedback'}
               </button>
@@ -177,8 +178,8 @@ export default function FeedbackWidget() {
         onClick={open ? handleClose : handleOpen}
         className={`group flex items-center gap-2 rounded-full shadow-lg transition-all ${
           open
-            ? 'w-10 h-10 bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300'
-            : 'pl-3 pr-4 h-10 bg-teal-600 hover:bg-teal-700 text-white'
+            ? 'w-10 h-10 bg-neutral-200 dark:bg-neutral-700 text-neutral-600 dark:text-neutral-300'
+            : 'pl-3 pr-4 h-10 bg-black hover:bg-neutral-800 dark:bg-white dark:hover:bg-neutral-200 dark:text-black text-white'
         }`}
         aria-label="Open feedback"
       >

@@ -9,15 +9,15 @@ const stats = [
 
 export default function TrustStrip() {
   return (
-    <section className="border-y border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50">
+    <section className="border-y border-neutral-200/50 dark:border-neutral-800/50 glass-subtle">
       <div className="max-w-5xl mx-auto px-4 sm:px-6 md:px-12 py-10">
-        <div className="grid grid-cols-2 lg:grid-cols-4 divide-x divide-slate-200 dark:divide-slate-800">
+        <div className="grid grid-cols-2 lg:grid-cols-4 divide-x divide-neutral-200 dark:divide-neutral-800">
           {stats.map((stat) => (
             <div key={stat.label} className="flex flex-col items-center text-center px-6 first:pl-0 last:pr-0 gap-1">
-              <span className="text-2xl sm:text-3xl font-bold text-teal-600 dark:text-teal-400 tracking-tight">
+              <span className="text-2xl sm:text-3xl font-bold text-black dark:text-white tracking-tight">
                 {stat.value}
               </span>
-              <span className="text-xs text-slate-500 dark:text-slate-400">{stat.label}</span>
+              <span className="text-xs text-neutral-500 dark:text-neutral-400">{stat.label}</span>
             </div>
           ))}
         </div>

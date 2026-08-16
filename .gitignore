@@ -93,3 +93,9 @@ AWSCLIV2.pkg
 # Large binary files (not needed in repo)
 AWSCLIV2.pkg
 *.pkg
+
+# Archived/deprecated files
+_archive/
+
+# Obsidian vault config (editor, not source code)
+.obsidian/

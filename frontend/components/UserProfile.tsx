@@ -34,8 +34,8 @@ const TIMEZONES = [
 ];
 
 const TIER_LABELS: Record<string, { label: string; color: string; bg: string }> = {
-  free: { label: 'Free', color: 'text-slate-600 dark:text-slate-300', bg: 'bg-slate-100 dark:bg-white/10' },
-  pro: { label: 'Pro', color: 'text-teal-700 dark:text-teal-300', bg: 'bg-teal-500/10' },
+  free: { label: 'Free', color: 'text-neutral-600 dark:text-neutral-300', bg: 'bg-neutral-100 dark:bg-white/10' },
+  pro: { label: 'Pro', color: 'text-black dark:text-white', bg: 'bg-neutral-100 dark:bg-neutral-800' },
   enterprise: { label: 'Enterprise', color: 'text-indigo-700 dark:text-indigo-300', bg: 'bg-indigo-500/10' },
 };
 
@@ -116,8 +116,8 @@ export default function UserProfilePage() {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-20">
-        <Loader2 className="h-6 w-6 animate-spin text-teal-600" />
-        <span className="ml-3 text-sm text-slate-500">Loading profile…</span>
+        <Loader2 className="h-6 w-6 animate-spin text-black dark:text-white" />
+        <span className="ml-3 text-sm text-neutral-500">Loading profile…</span>
       </div>
     );
   }
@@ -126,9 +126,9 @@ export default function UserProfilePage() {
     <div className="space-y-8 animate-fade-in pb-16">
       {/* Page header */}
       <div>
-        <p className="text-sm font-semibold uppercase tracking-[0.18em] text-teal-600 dark:text-teal-400">Account</p>
-        <h1 className="mt-2 text-3xl font-bold tracking-tight text-slate-950 dark:text-white">Your profile</h1>
-        <p className="mt-2 text-slate-500 dark:text-slate-400">Manage your account settings, preferences, and subscription.</p>
+        <p className="text-sm font-semibold uppercase tracking-[0.18em] text-black dark:text-white">Account</p>
+        <h1 className="mt-2 text-3xl font-bold tracking-tight text-neutral-950 dark:text-white">Your profile</h1>
+        <p className="mt-2 text-neutral-500 dark:text-neutral-400">Manage your account settings, preferences, and subscription.</p>
       </div>
 
       {error && (
@@ -149,83 +149,83 @@ export default function UserProfilePage() {
         <div className="space-y-6">
 
           {/* Identity card */}
-          <div className="rounded-2xl border border-slate-200 bg-white p-6 dark:border-white/10 dark:bg-white/5">
-            <h2 className="mb-6 flex items-center gap-2.5 text-lg font-bold text-slate-950 dark:text-white">
-              <UserIcon className="h-5 w-5 text-teal-600 dark:text-teal-400" /> Personal info
+          <div className="rounded-2xl border border-neutral-200 bg-white p-6 dark:border-white/10 dark:bg-white/5">
+            <h2 className="mb-6 flex items-center gap-2.5 text-lg font-bold text-neutral-950 dark:text-white">
+              <UserIcon className="h-5 w-5 text-black dark:text-white" /> Personal info
             </h2>
 
             <div className="flex flex-col gap-6 sm:flex-row sm:items-start">
               {/* Avatar */}
               <div className="group relative flex-shrink-0">
-                <div className="flex h-20 w-20 items-center justify-center overflow-hidden rounded-2xl bg-gradient-to-br from-teal-500 to-cyan-500 text-2xl font-bold text-white shadow-lg shadow-teal-500/20">
+                <div className="flex h-20 w-20 items-center justify-center overflow-hidden rounded-2xl bg-gradient-to-br from-neutral-800 to-neutral-600 dark:from-neutral-200 dark:to-neutral-400 text-2xl font-bold text-white shadow-lg shadow-neutral-500/20">
                   {user?.photoURL ? (
                     <img src={user.photoURL} alt="" className="h-full w-full object-cover" referrerPolicy="no-referrer" />
                   ) : (
                     (displayName || 'U').charAt(0).toUpperCase()
                   )}
                 </div>
-                <div className="absolute -bottom-1 -right-1 flex h-7 w-7 items-center justify-center rounded-full border-2 border-white bg-slate-900 text-white dark:border-slate-950">
+                <div className="absolute -bottom-1 -right-1 flex h-7 w-7 items-center justify-center rounded-full border-2 border-white bg-neutral-900 text-white dark:border-neutral-950">
                   <Camera className="h-3 w-3" />
                 </div>
               </div>
 
               <div className="flex-1 space-y-4">
                 <div>
-                  <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-400">Display name</label>
+                  <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-neutral-400">Display name</label>
                   <input
                     type="text"
                     value={displayName}
                     onChange={e => setDisplayName(e.target.value)}
-                    className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm font-medium text-slate-900 outline-none transition focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20 dark:border-white/10 dark:bg-white/5 dark:text-white"
+                    className="w-full rounded-xl border border-neutral-200 bg-neutral-50 px-4 py-2.5 text-sm font-medium text-neutral-900 outline-none transition focus:border-neutral-400 focus:ring-2 focus:ring-neutral-400/20 dark:border-white/10 dark:bg-white/5 dark:text-white"
                     placeholder="Your name"
                   />
                 </div>
                 <div>
-                  <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-400">Email</label>
-                  <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50/60 px-4 py-2.5 dark:border-white/10 dark:bg-white/[0.03]">
-                    <Mail className="h-4 w-4 text-slate-400" />
-                    <span className="text-sm text-slate-500 dark:text-slate-400">{user?.email || profile?.email || '—'}</span>
+                  <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-neutral-400">Email</label>
+                  <div className="flex items-center gap-2 rounded-xl border border-neutral-200 bg-neutral-50/60 px-4 py-2.5 dark:border-white/10 dark:bg-white/[0.03]">
+                    <Mail className="h-4 w-4 text-neutral-400" />
+                    <span className="text-sm text-neutral-500 dark:text-neutral-400">{user?.email || profile?.email || '—'}</span>
                   </div>
-                  <p className="mt-1 text-xs text-slate-400">Email is managed by your sign-in provider.</p>
+                  <p className="mt-1 text-xs text-neutral-400">Email is managed by your sign-in provider.</p>
                 </div>
               </div>
             </div>
           </div>
 
           {/* Workspace card */}
-          <div className="rounded-2xl border border-slate-200 bg-white p-6 dark:border-white/10 dark:bg-white/5">
-            <h2 className="mb-6 flex items-center gap-2.5 text-lg font-bold text-slate-950 dark:text-white">
-              <Building2 className="h-5 w-5 text-teal-600 dark:text-teal-400" /> Workspace
+          <div className="rounded-2xl border border-neutral-200 bg-white p-6 dark:border-white/10 dark:bg-white/5">
+            <h2 className="mb-6 flex items-center gap-2.5 text-lg font-bold text-neutral-950 dark:text-white">
+              <Building2 className="h-5 w-5 text-black dark:text-white" /> Workspace
             </h2>
             <div className="grid gap-4 sm:grid-cols-2">
               <div>
-                <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-400">Workspace name</label>
+                <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-neutral-400">Workspace name</label>
                 <input
                   type="text"
                   value={workspace}
                   onChange={e => setWorkspace(e.target.value)}
-                  className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm font-medium text-slate-900 outline-none transition focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20 dark:border-white/10 dark:bg-white/5 dark:text-white"
+                  className="w-full rounded-xl border border-neutral-200 bg-neutral-50 px-4 py-2.5 text-sm font-medium text-neutral-900 outline-none transition focus:border-neutral-400 focus:ring-2 focus:ring-neutral-400/20 dark:border-white/10 dark:bg-white/5 dark:text-white"
                   placeholder="My Workspace"
                 />
               </div>
               <div>
-                <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-400">Your role</label>
+                <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-neutral-400">Your role</label>
                 <input
                   type="text"
                   value={role}
                   onChange={e => setRole(e.target.value)}
-                  className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm font-medium text-slate-900 outline-none transition focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20 dark:border-white/10 dark:bg-white/5 dark:text-white"
+                  className="w-full rounded-xl border border-neutral-200 bg-neutral-50 px-4 py-2.5 text-sm font-medium text-neutral-900 outline-none transition focus:border-neutral-400 focus:ring-2 focus:ring-neutral-400/20 dark:border-white/10 dark:bg-white/5 dark:text-white"
                   placeholder="Founder"
                 />
               </div>
               <div className="sm:col-span-2">
-                <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-400">
+                <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-neutral-400">
                   <Globe className="mr-1 inline h-3.5 w-3.5" /> Timezone
                 </label>
                 <select
                   value={timezone}
                   onChange={e => setTimezone(e.target.value)}
-                  className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm font-medium text-slate-900 outline-none transition focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20 dark:border-white/10 dark:bg-white/5 dark:text-white"
+                  className="w-full rounded-xl border border-neutral-200 bg-neutral-50 px-4 py-2.5 text-sm font-medium text-neutral-900 outline-none transition focus:border-neutral-400 focus:ring-2 focus:ring-neutral-400/20 dark:border-white/10 dark:bg-white/5 dark:text-white"
                 >
                   {TIMEZONES.map(tz => (
                     <option key={tz} value={tz}>{tz.replace(/_/g, ' ')}</option>
@@ -236,9 +236,9 @@ export default function UserProfilePage() {
           </div>
 
           {/* Notifications card */}
-          <div className="rounded-2xl border border-slate-200 bg-white p-6 dark:border-white/10 dark:bg-white/5">
-            <h2 className="mb-6 flex items-center gap-2.5 text-lg font-bold text-slate-950 dark:text-white">
-              <Bell className="h-5 w-5 text-teal-600 dark:text-teal-400" /> Notifications
+          <div className="rounded-2xl border border-neutral-200 bg-white p-6 dark:border-white/10 dark:bg-white/5">
+            <h2 className="mb-6 flex items-center gap-2.5 text-lg font-bold text-neutral-950 dark:text-white">
+              <Bell className="h-5 w-5 text-black dark:text-white" /> Notifications
             </h2>
             <div className="space-y-4">
               {([
@@ -246,13 +246,13 @@ export default function UserProfilePage() {
                 { key: 'weeklySummary' as const, label: 'Weekly summary', desc: 'Receive a digest of your inquiry activity each week.', icon: Clock },
                 { key: 'securityAlerts' as const, label: 'Security alerts', desc: 'Important security notifications for your account.', icon: Shield },
               ]).map(item => (
-                <label key={item.key} className="flex cursor-pointer items-start gap-4 rounded-xl p-3 transition hover:bg-slate-50 dark:hover:bg-white/5">
-                  <div className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-slate-100 dark:bg-white/10">
-                    <item.icon className="h-4 w-4 text-slate-500 dark:text-slate-400" />
+                <label key={item.key} className="flex cursor-pointer items-start gap-4 rounded-xl p-3 transition hover:bg-neutral-50 dark:hover:bg-white/5">
+                  <div className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-neutral-100 dark:bg-white/10">
+                    <item.icon className="h-4 w-4 text-neutral-500 dark:text-neutral-400" />
                   </div>
                   <div className="min-w-0 flex-1">
-                    <p className="text-sm font-semibold text-slate-900 dark:text-white">{item.label}</p>
-                    <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">{item.desc}</p>
+                    <p className="text-sm font-semibold text-neutral-900 dark:text-white">{item.label}</p>
+                    <p className="mt-0.5 text-xs text-neutral-500 dark:text-neutral-400">{item.desc}</p>
                   </div>
                   <div className="mt-1">
                     <button
@@ -260,8 +260,8 @@ export default function UserProfilePage() {
                       role="switch"
                       aria-checked={notifications[item.key]}
                       onClick={() => setNotifications(prev => ({ ...prev, [item.key]: !prev[item.key] }))}
-                      className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus-visible:ring-2 focus-visible:ring-teal-500 ${
-                        notifications[item.key] ? 'bg-teal-600' : 'bg-slate-300 dark:bg-white/20'
+                      className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus-visible:ring-2 focus-visible:ring-neutral-400 ${
+                        notifications[item.key] ? 'bg-black dark:bg-white' : 'bg-neutral-300 dark:bg-white/20'
                       }`}
                     >
                       <span
@@ -281,7 +281,7 @@ export default function UserProfilePage() {
             <button
               onClick={handleSave}
               disabled={isSaving}
-              className="inline-flex items-center gap-2.5 rounded-xl bg-teal-600 px-6 py-3 text-sm font-bold text-white shadow-lg shadow-teal-600/20 transition hover:bg-teal-700 disabled:opacity-50"
+              className="inline-flex items-center gap-2.5 rounded-xl bg-black dark:bg-white px-6 py-3 text-sm font-bold text-white shadow-lg shadow-neutral-900/10 transition hover:bg-neutral-800 dark:hover:bg-neutral-200 disabled:opacity-50"
             >
               {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
               {isSaving ? 'Saving…' : 'Save changes'}
@@ -292,9 +292,9 @@ export default function UserProfilePage() {
         {/* Right column — subscription & danger zone */}
         <div className="space-y-6">
           {/* Subscription card */}
-          <div className="rounded-2xl border border-slate-200 bg-white p-6 dark:border-white/10 dark:bg-white/5">
-            <h2 className="mb-5 flex items-center gap-2.5 text-lg font-bold text-slate-950 dark:text-white">
-              <Sparkles className="h-5 w-5 text-teal-600 dark:text-teal-400" /> Subscription
+          <div className="rounded-2xl border border-neutral-200 bg-white p-6 dark:border-white/10 dark:bg-white/5">
+            <h2 className="mb-5 flex items-center gap-2.5 text-lg font-bold text-neutral-950 dark:text-white">
+              <Sparkles className="h-5 w-5 text-black dark:text-white" /> Subscription
             </h2>
             <div className="space-y-5">
               <div className="flex items-center gap-3">
@@ -313,39 +313,39 @@ export default function UserProfilePage() {
               {/* Usage bar */}
               <div>
                 <div className="mb-2 flex items-center justify-between">
-                  <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">Executions this month</span>
-                  <span className="text-xs font-bold text-slate-700 dark:text-slate-200">{executionsUsed.toLocaleString()} / {executionsLimit.toLocaleString()}</span>
+                  <span className="text-xs font-semibold text-neutral-500 dark:text-neutral-400">Executions this month</span>
+                  <span className="text-xs font-bold text-neutral-700 dark:text-neutral-200">{executionsUsed.toLocaleString()} / {executionsLimit.toLocaleString()}</span>
                 </div>
-                <div className="h-2.5 w-full overflow-hidden rounded-full bg-slate-100 dark:bg-white/10">
+                <div className="h-2.5 w-full overflow-hidden rounded-full bg-neutral-100 dark:bg-white/10">
                   <div
                     className={`h-full rounded-full transition-all duration-500 ${
-                      usagePercent > 85 ? 'bg-rose-500' : usagePercent > 60 ? 'bg-amber-500' : 'bg-teal-500'
+                      usagePercent > 85 ? 'bg-rose-500' : usagePercent > 60 ? 'bg-amber-500' : 'bg-black dark:bg-white'
                     }`}
                     style={{ width: `${usagePercent}%` }}
                   />
                 </div>
-                <p className="mt-1.5 text-xs text-slate-400">{usagePercent}% of monthly limit used</p>
+                <p className="mt-1.5 text-xs text-neutral-400">{usagePercent}% of monthly limit used</p>
               </div>
 
               {profile?.subscription?.nextInvoiceDate && (
-                <p className="text-xs text-slate-400">
-                  Next invoice: <span className="font-semibold text-slate-600 dark:text-slate-300">{profile.subscription.nextInvoiceDate}</span>
+                <p className="text-xs text-neutral-400">
+                  Next invoice: <span className="font-semibold text-neutral-600 dark:text-neutral-300">{profile.subscription.nextInvoiceDate}</span>
                 </p>
               )}
             </div>
           </div>
 
           {/* Quick info card */}
-          <div className="rounded-2xl border border-slate-200 bg-white p-6 dark:border-white/10 dark:bg-white/5">
-            <h3 className="mb-4 text-sm font-bold text-slate-950 dark:text-white">Account details</h3>
+          <div className="rounded-2xl border border-neutral-200 bg-white p-6 dark:border-white/10 dark:bg-white/5">
+            <h3 className="mb-4 text-sm font-bold text-neutral-950 dark:text-white">Account details</h3>
             <dl className="space-y-3 text-sm">
               <div className="flex justify-between">
-                <dt className="text-slate-500 dark:text-slate-400">User ID</dt>
-                <dd className="font-mono text-xs text-slate-600 dark:text-slate-300">{user?.uid?.slice(0, 12)}…</dd>
+                <dt className="text-neutral-500 dark:text-neutral-400">User ID</dt>
+                <dd className="font-mono text-xs text-neutral-600 dark:text-neutral-300">{user?.uid?.slice(0, 12)}…</dd>
               </div>
               <div className="flex justify-between">
-                <dt className="text-slate-500 dark:text-slate-400">API keys</dt>
-                <dd className="font-semibold text-slate-700 dark:text-slate-200">{profile?.apiKeys?.length || 0}</dd>
+                <dt className="text-neutral-500 dark:text-neutral-400">API keys</dt>
+                <dd className="font-semibold text-neutral-700 dark:text-neutral-200">{profile?.apiKeys?.length || 0}</dd>
               </div>
             </dl>
           </div>

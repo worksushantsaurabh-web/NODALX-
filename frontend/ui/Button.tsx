@@ -2,16 +2,16 @@ import React from 'react';
 import { cn } from './cn';
 
 const variants = {
-  primary:     'bg-teal-600 hover:bg-teal-700 text-white disabled:opacity-50',
-  secondary:   'border border-slate-200 dark:border-slate-700 bg-white dark:bg-transparent text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800',
-  ghost:       'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800',
+  primary: 'bg-black text-white hover:bg-neutral-800 dark:bg-white dark:text-black dark:hover:bg-neutral-200 disabled:opacity-50',
+  secondary: 'border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-transparent text-neutral-900 dark:text-neutral-100 hover:bg-neutral-50 dark:hover:bg-neutral-900',
+  ghost: 'text-neutral-600 dark:text-neutral-400 hover:text-black dark:hover:text-white hover:bg-neutral-100 dark:hover:bg-neutral-900',
   destructive: 'bg-red-600 hover:bg-red-700 text-white disabled:opacity-50',
 };
 
 const sizes = {
   sm: 'text-xs px-3 py-1.5',
   md: 'text-sm px-5 py-2.5',
-  lg: 'text-base px-6 py-3',
+  lg: 'text-base px-7 py-3',
 };
 
 export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
@@ -27,7 +27,7 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
         ref={ref}
         disabled={disabled || loading}
         className={cn(
-          'rounded-lg font-semibold transition-colors inline-flex items-center justify-center gap-2 disabled:cursor-not-allowed',
+          'rounded-lg font-medium transition-all duration-150 inline-flex items-center justify-center gap-2 disabled:cursor-not-allowed',
           variants[variant],
           sizes[size],
           loading && 'opacity-70',

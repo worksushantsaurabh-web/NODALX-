@@ -69,14 +69,14 @@ export default function AccessKeyRedemption({ onRedemptionSuccess }: Props) {
   }
 
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-6 dark:border-white/10 dark:bg-white/5">
+    <div className="rounded-2xl border border-neutral-200 bg-white p-6 dark:border-white/10 dark:bg-white/5">
       <div className="mb-5 flex items-center gap-3">
-        <div className="rounded-xl bg-teal-500/10 p-2.5">
-          <Sparkles className="h-5 w-5 text-teal-600 dark:text-teal-400" />
+        <div className="rounded-xl bg-neutral-100 dark:bg-neutral-800 p-2.5">
+          <Sparkles className="h-5 w-5 text-black dark:text-white" />
         </div>
         <div>
-          <h3 className="font-bold text-slate-900 dark:text-white">Redeem Access Key</h3>
-          <p className="text-sm text-slate-500 dark:text-slate-400">
+          <h3 className="font-bold text-neutral-900 dark:text-white">Redeem Access Key</h3>
+          <p className="text-sm text-neutral-500 dark:text-neutral-400">
             Enter your access key to unlock full plan features.
           </p>
         </div>
@@ -84,7 +84,7 @@ export default function AccessKeyRedemption({ onRedemptionSuccess }: Props) {
 
       <form onSubmit={handleSubmit} className="space-y-4">
         <div className="relative">
-          <Key className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400 dark:text-slate-500" />
+          <Key className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-neutral-400 dark:text-neutral-500" />
           <input
             type="text"
             value={keyValue}
@@ -94,7 +94,7 @@ export default function AccessKeyRedemption({ onRedemptionSuccess }: Props) {
             }}
             placeholder="Paste your access key here…"
             disabled={status === 'loading'}
-            className="w-full rounded-xl border border-slate-200 bg-slate-50 py-3 pl-10 pr-4 text-sm text-slate-900 placeholder-slate-400 outline-none transition focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20 disabled:opacity-60 dark:border-white/10 dark:bg-white/5 dark:text-white dark:placeholder-slate-500 dark:focus:border-teal-400"
+            className="w-full rounded-xl border border-neutral-200 bg-neutral-50 py-3 pl-10 pr-4 text-sm text-neutral-900 placeholder-neutral-400 outline-none transition focus:border-neutral-400 focus:ring-2 focus:ring-neutral-400/20 disabled:opacity-60 dark:border-white/10 dark:bg-white/5 dark:text-white dark:placeholder-neutral-500 dark:focus:border-neutral-500"
           />
         </div>
 
@@ -108,7 +108,7 @@ export default function AccessKeyRedemption({ onRedemptionSuccess }: Props) {
         <button
           type="submit"
           disabled={status === 'loading' || !keyValue.trim()}
-          className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-teal-600 px-4 py-3 text-sm font-bold text-white transition hover:bg-teal-700 disabled:cursor-not-allowed disabled:opacity-60"
+          className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-black dark:bg-white px-4 py-3 text-sm font-bold text-white transition hover:bg-neutral-800 dark:hover:bg-neutral-200 text-white dark:text-black disabled:cursor-not-allowed disabled:opacity-60"
         >
           {status === 'loading' ? (
             <>

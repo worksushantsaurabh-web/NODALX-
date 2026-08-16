@@ -219,14 +219,14 @@ export default function NotificationSettings() {
   return (
     <div className="glass-card rounded-2xl overflow-hidden">
       {/* Header */}
-      <div className="px-7 py-6 border-b border-slate-200/60 dark:border-white/5 bg-slate-50/30 dark:bg-white/[0.02]">
+      <div className="px-7 py-6 border-b border-neutral-200/60 dark:border-white/5 bg-neutral-50/30 dark:bg-white/[0.02]">
         <div className="flex items-center gap-4">
           <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-purple-500/15 to-violet-500/15 dark:from-purple-500/20 dark:to-violet-500/20 flex items-center justify-center">
             <Bell className="w-6 h-6 text-purple-600 dark:text-purple-400" />
           </div>
           <div>
-            <h3 className="text-lg font-bold text-slate-900 dark:text-white tracking-tight">Notification Settings</h3>
-            <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5">
+            <h3 className="text-lg font-bold text-neutral-900 dark:text-white tracking-tight">Notification Settings</h3>
+            <p className="text-sm text-neutral-500 dark:text-neutral-400 mt-0.5">
               Configure how you receive alerts for new leads
             </p>
           </div>
@@ -259,12 +259,12 @@ export default function NotificationSettings() {
         <div className="space-y-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-lg bg-slate-100 dark:bg-white/5 flex items-center justify-center">
-                <Webhook className="w-4.5 h-4.5 text-slate-600 dark:text-slate-400" />
+              <div className="w-9 h-9 rounded-lg bg-neutral-100 dark:bg-white/5 flex items-center justify-center">
+                <Webhook className="w-4.5 h-4.5 text-neutral-600 dark:text-neutral-400" />
               </div>
               <div>
-                <h4 className="text-sm font-bold text-slate-900 dark:text-white">Slack Notifications</h4>
-                <p className="text-xs text-slate-500 dark:text-slate-400">
+                <h4 className="text-sm font-bold text-neutral-900 dark:text-white">Slack Notifications</h4>
+                <p className="text-xs text-neutral-500 dark:text-neutral-400">
                   Receive real-time alerts in your Slack channel
                 </p>
               </div>
@@ -277,11 +277,11 @@ export default function NotificationSettings() {
           </div>
 
           <div>
-            <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-2">
+            <label className="block text-xs font-bold text-neutral-700 dark:text-neutral-300 uppercase tracking-wider mb-2">
               Slack Webhook URL
             </label>
             <div className="relative">
-              <span className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+              <span className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-neutral-400">
                 <Webhook className="w-4 h-4" />
               </span>
               <input
@@ -289,20 +289,20 @@ export default function NotificationSettings() {
                 value={slackWebhookUrl}
                 onChange={(e) => setSlackWebhookUrl(e.target.value)}
                 placeholder="https://hooks.slack.com/services/T00000000/B00000000/XXXXXXXX"
-                className="w-full pl-10 pr-4 py-3 bg-white dark:bg-black/20 border border-slate-200 dark:border-white/10 rounded-xl text-sm text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-purple-500/30 focus:border-purple-500/50 transition-all"
+                className="w-full pl-10 pr-4 py-3 bg-white dark:bg-black/20 border border-neutral-200 dark:border-white/10 rounded-xl text-sm text-neutral-900 dark:text-white placeholder-neutral-400 focus:outline-none focus:ring-2 focus:ring-purple-500/30 focus:border-purple-500/50 transition-all"
               />
             </div>
-            <p className="text-xs text-slate-400 dark:text-slate-500 mt-2">
+            <p className="text-xs text-neutral-400 dark:text-neutral-500 mt-2">
               Create an Incoming Webhook in your Slack workspace settings to get this URL.
             </p>
           </div>
 
           {/* Slack Setup Instructions */}
-          <div className="p-4 bg-slate-50/80 dark:bg-slate-800/40 rounded-xl border border-slate-200/60 dark:border-slate-700/40">
-            <p className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-2">
+          <div className="p-4 bg-neutral-50/80 dark:bg-neutral-800/40 rounded-xl border border-neutral-200/60 dark:border-neutral-700/40">
+            <p className="text-xs font-bold text-neutral-700 dark:text-neutral-300 uppercase tracking-wider mb-2">
               How to set up Slack webhooks:
             </p>
-            <ol className="space-y-1.5 text-xs text-slate-500 dark:text-slate-400 list-decimal list-inside">
+            <ol className="space-y-1.5 text-xs text-neutral-500 dark:text-neutral-400 list-decimal list-inside">
               <li>Go to your Slack workspace settings</li>
               <li>Navigate to "Apps" &rarr; "Manage" &rarr; "Custom Integrations"</li>
               <li>Click "Incoming Webhooks" and create a new webhook</li>
@@ -312,17 +312,17 @@ export default function NotificationSettings() {
         </div>
 
         {/* Divider */}
-        <div className="border-t border-slate-200 dark:border-white/10"></div>
+        <div className="border-t border-neutral-200 dark:border-white/10"></div>
 
         {/* Email Alerts Section */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-lg bg-slate-100 dark:bg-white/5 flex items-center justify-center">
-              <Mail className="w-4.5 h-4.5 text-slate-600 dark:text-slate-400" />
+            <div className="w-9 h-9 rounded-lg bg-neutral-100 dark:bg-white/5 flex items-center justify-center">
+              <Mail className="w-4.5 h-4.5 text-neutral-600 dark:text-neutral-400" />
             </div>
             <div>
-              <h4 className="text-sm font-bold text-slate-900 dark:text-white">Email Alerts</h4>
-              <p className="text-xs text-slate-500 dark:text-slate-400">
+              <h4 className="text-sm font-bold text-neutral-900 dark:text-white">Email Alerts</h4>
+              <p className="text-xs text-neutral-500 dark:text-neutral-400">
                 Receive email notifications for high-priority leads
               </p>
             </div>
@@ -334,10 +334,10 @@ export default function NotificationSettings() {
             role="switch"
             aria-checked={emailAlerts}
             onClick={() => setEmailAlerts(!emailAlerts)}
-            className={`relative inline-flex h-7 w-12 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-purple-500/30 focus:ring-offset-2 focus:ring-offset-white dark:focus:ring-offset-slate-900 ${
+            className={`relative inline-flex h-7 w-12 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-purple-500/30 focus:ring-offset-2 focus:ring-offset-white dark:focus:ring-offset-neutral-900 ${
               emailAlerts
                 ? 'bg-purple-600'
-                : 'bg-slate-300 dark:bg-slate-700'
+                : 'bg-neutral-300 dark:bg-neutral-700'
             }`}
           >
             <span
@@ -349,7 +349,7 @@ export default function NotificationSettings() {
         </div>
 
         {/* Action Buttons */}
-        <div className="pt-6 border-t border-slate-200/60 dark:border-white/5 flex flex-col sm:flex-row gap-4">
+        <div className="pt-6 border-t border-neutral-200/60 dark:border-white/5 flex flex-col sm:flex-row gap-4">
           <Button type="submit" variant="primary" disabled={isSaving} loading={isSaving}>
             {!isSaving && <Save className="w-4 h-4" />}
             {isSaving ? 'Saving...' : 'Save Settings'}
@@ -370,7 +370,7 @@ export default function NotificationSettings() {
 
         {/* Test Alert Info */}
         {isSlackConfigured && (
-          <p className="text-sm text-slate-500 dark:text-slate-400 leading-relaxed">
+          <p className="text-sm text-neutral-500 dark:text-neutral-400 leading-relaxed">
             Send a test lead notification to verify your Slack integration is working correctly.
           </p>
         )}

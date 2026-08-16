@@ -19,7 +19,7 @@ export default function Home() {
   const handleGetStarted = () => setIsOnboardingOpen(true);
 
   return (
-    <div className="min-h-screen bg-white dark:bg-slate-950 text-slate-900 dark:text-slate-50 font-sans selection:bg-teal-100 selection:text-teal-900 dark:selection:bg-teal-900/30 dark:selection:text-teal-100 transition-colors duration-300 overflow-x-hidden w-full max-w-full">
+    <div className="min-h-screen bg-white dark:bg-black text-neutral-900 dark:text-neutral-50 font-sans selection:bg-neutral-200 selection:text-black dark:selection:bg-neutral-800 dark:selection:text-white transition-colors duration-200 overflow-x-hidden w-full max-w-full">
       <Navbar />
       <main>
         <Hero onGetStarted={handleGetStarted} />

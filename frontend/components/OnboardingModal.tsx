@@ -41,6 +41,10 @@ export default function OnboardingModal({ isOpen, onClose }: OnboardingModalProp
 
   const handleGoogleAuth = async () => {
     Analytics.onboardingGoogleClick();
+    if (!auth) {
+      console.warn('Firebase auth not available');
+      return;
+    }
     try {
       setIsLoading(true);
       const provider = new GoogleAuthProvider();
@@ -78,20 +82,20 @@ export default function OnboardingModal({ isOpen, onClose }: OnboardingModalProp
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6">
       <div
-        className="absolute inset-0 bg-slate-900/50 backdrop-blur-sm animate-fade-in"
+        className="absolute inset-0 bg-neutral-900/50 backdrop-blur-sm animate-fade-in"
         onClick={handleClose}
         aria-hidden="true"
       />
 
       <div
-        className="relative w-full max-w-sm bg-white dark:bg-slate-900 rounded-2xl shadow-2xl p-8 animate-scale-in z-10 border border-slate-100 dark:border-slate-800"
+        className="relative w-full max-w-sm bg-white dark:bg-neutral-900 rounded-2xl shadow-2xl p-8 animate-scale-in z-10 border border-neutral-100 dark:border-neutral-800"
         role="dialog"
         aria-modal="true"
         aria-labelledby="onboarding-title"
       >
         <button
           onClick={handleClose}
-          className="absolute top-4 right-4 p-1.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors"
+          className="absolute top-4 right-4 p-1.5 text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-200 hover:bg-neutral-100 dark:hover:bg-neutral-800 rounded-lg transition-colors"
           aria-label="Close"
         >
           <X className="w-4 h-4" />
@@ -99,10 +103,10 @@ export default function OnboardingModal({ isOpen, onClose }: OnboardingModalProp
 
         <div className="text-center mb-7">
           <NodalXLogo className="w-12 h-12 mx-auto mb-5" />
-          <h3 id="onboarding-title" className="text-xl font-bold text-slate-900 dark:text-white mb-2 tracking-tight">
+          <h3 id="onboarding-title" className="text-xl font-bold text-neutral-900 dark:text-white mb-2 tracking-tight">
             Get early access
           </h3>
-          <p className="text-slate-500 dark:text-slate-400 text-sm leading-relaxed">
+          <p className="text-neutral-500 dark:text-neutral-400 text-sm leading-relaxed">
             Sign in to generate your API key and set up your inquiry pipeline in under 2 minutes.
           </p>
         </div>
@@ -110,7 +114,7 @@ export default function OnboardingModal({ isOpen, onClose }: OnboardingModalProp
         <button
           onClick={handleGoogleAuth}
           disabled={isLoading}
-          className="w-full py-3 rounded-lg bg-slate-900 dark:bg-white hover:bg-slate-800 dark:hover:bg-slate-100 text-white dark:text-slate-900 font-semibold text-sm transition-colors flex items-center justify-center gap-3 disabled:opacity-70"
+          className="w-full py-3 rounded-lg bg-neutral-900 dark:bg-white hover:bg-neutral-800 dark:hover:bg-neutral-100 text-white dark:text-neutral-900 font-semibold text-sm transition-colors flex items-center justify-center gap-3 disabled:opacity-70"
         >
           {isLoading ? (
             <>
@@ -133,11 +137,11 @@ export default function OnboardingModal({ isOpen, onClose }: OnboardingModalProp
           )}
         </button>
 
-        <p className="text-center text-xs text-slate-400 mt-4">
+        <p className="text-center text-xs text-neutral-400 mt-4">
           By continuing, you agree to our{' '}
-          <a href="#/terms" target="_blank" rel="noopener noreferrer" className="underline hover:text-slate-600">Terms of Service</a>
+          <a href="#/terms" target="_blank" rel="noopener noreferrer" className="underline hover:text-neutral-600">Terms of Service</a>
           {' '}and{' '}
-          <a href="#/privacy" target="_blank" rel="noopener noreferrer" className="underline hover:text-slate-600">Privacy Policy</a>.
+          <a href="#/privacy" target="_blank" rel="noopener noreferrer" className="underline hover:text-neutral-600">Privacy Policy</a>.
         </p>
       </div>
     </div>
