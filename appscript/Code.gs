@@ -18,9 +18,12 @@
 // ═══════════════════════════════════════════════════════════════
 
 const CONFIG = {
+  // Your Google Sheet ID (from the URL between /d/ and /edit)
+  SPREADSHEET_ID: '1djfUM9Qe0BrVZGdqucu36knltLnycKc4gULz8Sh7Xdk',
+
   SHEET_NAME: 'NODALxAI_Inquiries',
   ALLOWED_ORIGIN: '*', // Change to your domain in production
-  OWNER_EMAIL: 'sushant.dravid999@gmail.com',
+  OWNER_EMAIL: 'thesushantsaurabh@gmail.com',
   SEND_OWNER_EMAIL: true,
   SEND_USER_CONFIRMATION: true,
 };
@@ -185,11 +188,15 @@ function generateSummary(data, intent, category) {
 function setupSheet() {
   let ss;
   try {
-    const files = DriveApp.getFilesByName(CONFIG.SHEET_NAME);
-    if (files.hasNext()) {
-      ss = SpreadsheetApp.open(files.next());
+    if (CONFIG.SPREADSHEET_ID) {
+      ss = SpreadsheetApp.openById(CONFIG.SPREADSHEET_ID);
     } else {
-      ss = SpreadsheetApp.create(CONFIG.SHEET_NAME);
+      const files = DriveApp.getFilesByName(CONFIG.SHEET_NAME);
+      if (files.hasNext()) {
+        ss = SpreadsheetApp.open(files.next());
+      } else {
+        ss = SpreadsheetApp.create(CONFIG.SHEET_NAME);
+      }
     }
   } catch (e) {
     ss = SpreadsheetApp.create(CONFIG.SHEET_NAME);
