@@ -51,23 +51,23 @@ export default function FAQ() {
   return (
     <Section id="faq" bg="muted" border innerClassName="max-w-3xl mx-auto px-4 sm:px-6 md:px-12">
       <SectionHeader label="FAQ" heading="Questions we actually get asked" />
-      <div className="divide-y divide-slate-200 dark:divide-slate-800">
+      <div className="divide-y divide-neutral-200 dark:divide-neutral-800">
         {faqs.map((faq, i) => (
           <div key={i}>
             <button
               onClick={() => setOpen(open === i ? null : i)}
-              className="w-full flex items-start justify-between gap-6 py-5 text-left"
+              className="w-full flex items-start justify-between gap-6 py-5 text-left group"
             >
-              <span className="text-sm font-semibold text-slate-900 dark:text-white leading-snug">
+              <span className="text-sm font-semibold text-black dark:text-white leading-snug group-hover:text-neutral-600 dark:group-hover:text-neutral-300 transition-colors">
                 {faq.q}
               </span>
-              <span className="shrink-0 mt-0.5 text-slate-400 dark:text-slate-500">
+              <span className="shrink-0 mt-0.5 text-neutral-400 dark:text-neutral-500">
                 {open === i ? <Minus className="w-4 h-4" /> : <Plus className="w-4 h-4" />}
               </span>
             </button>
             {open === i && (
               <div className="pb-5">
-                <p className="text-sm text-slate-700 dark:text-slate-400 leading-relaxed">{faq.a}</p>
+                <p className="text-sm text-neutral-600 dark:text-neutral-400 leading-relaxed">{faq.a}</p>
               </div>
             )}
           </div>

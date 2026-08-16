@@ -129,26 +129,26 @@ export default function GoogleSheetsModal({ isOpen, onClose, onSuccess }: Google
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6 min-h-screen">
       {/* Backdrop */}
       <div
-        className="absolute inset-0 bg-slate-950/50 dark:bg-slate-950/70 modal-backdrop animate-fade-in"
+        className="absolute inset-0 bg-neutral-950/50 dark:bg-neutral-950/70 modal-backdrop animate-fade-in"
         onClick={onClose}
         aria-hidden="true"
       ></div>
 
       {/* Modal */}
       <div
-        className="relative w-full max-w-[500px] bg-white/85 dark:bg-slate-900/85 backdrop-blur-2xl rounded-3xl shadow-2xl shadow-slate-900/15 dark:shadow-black/40 p-7 sm:p-8 animate-scale-in z-10 overflow-hidden border border-white/50 dark:border-white/10"
+        className="relative w-full max-w-[500px] bg-white/85 dark:bg-neutral-900/85 backdrop-blur-2xl rounded-3xl shadow-2xl shadow-neutral-900/15 dark:shadow-black/40 p-7 sm:p-8 animate-scale-in z-10 overflow-hidden border border-white/50 dark:border-white/10"
         role="dialog"
         aria-modal="true"
         aria-labelledby="google-sheets-modal-title"
       >
         {/* Decorative glass orbs */}
-        <div className="absolute -top-20 -right-20 w-48 h-48 rounded-full bg-gradient-to-br from-emerald-400/25 to-teal-400/25 blur-3xl pointer-events-none"></div>
+        <div className="absolute -top-20 -right-20 w-48 h-48 rounded-full bg-gradient-to-br from-neutral-400/10 to-neutral-300/10 blur-3xl pointer-events-none"></div>
         <div className="absolute -bottom-16 -left-16 w-40 h-40 rounded-full bg-gradient-to-tr from-green-400/20 to-emerald-400/20 blur-3xl pointer-events-none"></div>
 
         {/* Close Button */}
         <button
           onClick={onClose}
-          className="absolute top-4 right-4 p-2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100/80 dark:hover:bg-white/10 rounded-xl transition-all duration-200 z-20 backdrop-blur-sm"
+          className="absolute top-4 right-4 p-2 text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-200 hover:bg-neutral-100/80 dark:hover:bg-white/10 rounded-xl transition-all duration-200 z-20 backdrop-blur-sm"
           aria-label="Close modal"
         >
           <X className="w-5 h-5" />
@@ -159,10 +159,10 @@ export default function GoogleSheetsModal({ isOpen, onClose, onSuccess }: Google
           <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-emerald-500 to-green-600 flex items-center justify-center shadow-lg shadow-emerald-600/25 mx-auto mb-5 glass-shine">
             <FileSpreadsheet className="w-8 h-8 text-white" />
           </div>
-          <h3 id="google-sheets-modal-title" className="text-2xl font-extrabold text-slate-900 dark:text-white tracking-tight">
+          <h3 id="google-sheets-modal-title" className="text-2xl font-extrabold text-neutral-900 dark:text-white tracking-tight">
             Connect Google Sheet
           </h3>
-          <p className="text-slate-500 dark:text-slate-400 text-sm mt-2 leading-relaxed">
+          <p className="text-neutral-500 dark:text-neutral-400 text-sm mt-2 leading-relaxed">
             Link your spreadsheet to sync leads automatically
           </p>
         </div>
@@ -187,10 +187,10 @@ export default function GoogleSheetsModal({ isOpen, onClose, onSuccess }: Google
                   </div>
                 </div>
                 <div className="p-3 bg-white/60 dark:bg-black/20 rounded-xl border border-emerald-200/40 dark:border-emerald-500/10">
-                  <p className="text-sm font-semibold text-slate-900 dark:text-white truncate">
+                  <p className="text-sm font-semibold text-neutral-900 dark:text-white truncate">
                     {connectedSheet.title}
                   </p>
-                  <p className="text-xs text-slate-500 dark:text-slate-400 font-mono mt-1 truncate">
+                  <p className="text-xs text-neutral-500 dark:text-neutral-400 font-mono mt-1 truncate">
                     ID: {connectedSheet.spreadsheetId}
                   </p>
                 </div>
@@ -255,11 +255,11 @@ export default function GoogleSheetsModal({ isOpen, onClose, onSuccess }: Google
               />
 
               {/* Instructions */}
-              <div className="p-4 bg-slate-50/80 dark:bg-slate-800/40 backdrop-blur-sm rounded-xl border border-slate-200/60 dark:border-slate-700/40">
-                <p className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-2">
+              <div className="p-4 bg-neutral-50/80 dark:bg-neutral-800/40 backdrop-blur-sm rounded-xl border border-neutral-200/60 dark:border-neutral-700/40">
+                <p className="text-xs font-bold text-neutral-700 dark:text-neutral-300 uppercase tracking-wider mb-2">
                   Before connecting:
                 </p>
-                <ul className="space-y-1.5 text-xs text-slate-500 dark:text-slate-400">
+                <ul className="space-y-1.5 text-xs text-neutral-500 dark:text-neutral-400">
                   <li className="flex items-start gap-2">
                     <span className="text-emerald-500 mt-0.5">1.</span>
                     <span>Open your Google Sheet</span>

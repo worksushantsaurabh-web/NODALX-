@@ -1,14 +1,13 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { NodalXLogo } from './Navbar';
-import { Mail, Phone, ArrowUpRight, Heart, Send, Check, Sparkles, Activity, FileText, LayoutDashboard } from 'lucide-react';
+import { Mail, Phone, ArrowUpRight, Send, Check } from 'lucide-react';
 
 export default function Footer() {
   const currentYear = new Date().getFullYear();
   const navigate = useNavigate();
   const [email, setEmail] = useState('');
   const [subscribed, setSubscribed] = useState(false);
-  const [isHoveringTop, setIsHoveringTop] = useState(false);
 
   const scrollToTop = (e?: React.MouseEvent) => {
     if (e) e.preventDefault();
@@ -33,30 +32,29 @@ export default function Footer() {
   };
 
   return (
-    <footer className="bg-slate-900 text-slate-300 border-t border-slate-800">
-      {/* CTA Banner */}
-      <div className="border-b border-slate-800">
+    <footer className="bg-neutral-950 text-neutral-300 border-t border-neutral-800">
+      <div className="border-b border-neutral-800">
         <div className="max-w-7xl mx-auto px-6 md:px-12 py-14">
           <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-8">
             <div>
               <h3 className="text-2xl sm:text-3xl font-bold text-white mb-2 tracking-tight">
                 Ready to automate your inquiry pipeline?
               </h3>
-              <p className="text-slate-400 text-sm max-w-md leading-relaxed">
+              <p className="text-neutral-400 text-sm max-w-md leading-relaxed">
                 Qualify leads, draft personalized responses, and route deals — all in real-time.
               </p>
             </div>
             <div className="flex gap-3 shrink-0">
               <button
                 onClick={(e) => scrollToSection(e, 'how-it-works')}
-                className="px-5 py-2.5 rounded-lg bg-teal-600 hover:bg-teal-500 text-white font-semibold text-sm transition-colors flex items-center gap-2"
+                className="px-5 py-2.5 rounded-lg bg-white hover:bg-neutral-200 text-black font-medium text-sm transition-colors flex items-center gap-2"
               >
                 See How It Works
                 <ArrowUpRight className="w-4 h-4" />
               </button>
               <button
                 onClick={() => navigate('/dashboard')}
-                className="px-5 py-2.5 rounded-lg border border-slate-700 hover:border-slate-600 text-slate-300 hover:text-white font-semibold text-sm transition-colors"
+                className="px-5 py-2.5 rounded-lg border border-neutral-700 hover:border-neutral-500 text-neutral-300 hover:text-white font-medium text-sm transition-colors"
               >
                 Go to Dashboard
               </button>
@@ -65,35 +63,27 @@ export default function Footer() {
         </div>
       </div>
 
-      {/* Main Footer Body */}
       <div className="max-w-7xl mx-auto px-6 md:px-12 py-14">
         <div className="grid grid-cols-1 md:grid-cols-12 gap-10 md:gap-8 mb-12">
-          
-          {/* Brand & Description Column (5 cols) */}
           <div className="md:col-span-5 space-y-6">
-            <div
-              className="flex items-center gap-2.5 cursor-pointer"
-              onClick={scrollToTop}
-            >
+            <div className="flex items-center gap-2.5 cursor-pointer" onClick={scrollToTop}>
               <NodalXLogo className="w-8 h-8" />
               <span className="text-base font-bold tracking-tight text-white">NODALxAI</span>
             </div>
-            <p className="text-slate-400 text-sm leading-relaxed max-w-md">
+            <p className="text-neutral-400 text-sm leading-relaxed max-w-md">
               AI-powered business inquiry assistant. Capture inbound inquiries, qualify with advanced AI models, and automate response routing seamlessly.
             </p>
-
-            {/* Direct Contact Info */}
             <div className="space-y-2 pt-2">
               <a
                 href="mailto:nodalxai@gmail.com"
-                className="flex items-center gap-2 text-sm text-slate-400 hover:text-slate-200 transition-colors"
+                className="flex items-center gap-2 text-sm text-neutral-400 hover:text-white transition-colors"
               >
                 <Mail className="w-4 h-4 shrink-0" />
                 <span>nodalxai@gmail.com</span>
               </a>
               <a
                 href="tel:+918051037012"
-                className="flex items-center gap-2 text-sm text-slate-400 hover:text-slate-200 transition-colors"
+                className="flex items-center gap-2 text-sm text-neutral-400 hover:text-white transition-colors"
               >
                 <Phone className="w-4 h-4 shrink-0" />
                 <span>+91 80510 37012</span>
@@ -101,9 +91,8 @@ export default function Footer() {
             </div>
           </div>
 
-          {/* Product Section Navigation (4 cols) */}
           <div className="md:col-span-3 space-y-4">
-            <h4 className="text-xs font-bold text-white uppercase tracking-widest">Platform Features</h4>
+            <h4 className="text-xs font-bold text-white uppercase tracking-widest">Platform</h4>
             <ul className="space-y-3">
               {[
                 { label: 'How It Works', target: 'how-it-works' },
@@ -114,7 +103,7 @@ export default function Footer() {
                 <li key={item.label}>
                   <button
                     onClick={(e) => item.target ? scrollToSection(e, item.target) : navigate('/dashboard')}
-                    className="text-sm text-slate-400 hover:text-slate-200 transition-colors text-left"
+                    className="text-sm text-neutral-400 hover:text-white transition-colors text-left"
                   >
                     {item.label}
                   </button>
@@ -123,10 +112,9 @@ export default function Footer() {
             </ul>
           </div>
 
-          {/* Newsletter Box (4 cols) */}
           <div className="md:col-span-4 space-y-4">
             <h4 className="text-xs font-bold text-white uppercase tracking-widest">Newsletter</h4>
-            <p className="text-slate-400 text-xs leading-relaxed">
+            <p className="text-neutral-400 text-xs leading-relaxed">
               Get product updates and AI inquiry automation insights delivered to your inbox.
             </p>
             <form onSubmit={handleSubscribe} className="space-y-2">
@@ -136,15 +124,15 @@ export default function Footer() {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="your@email.com"
-                  className="flex-1 px-4 py-2.5 text-xs rounded-lg bg-slate-900 border border-slate-700/80 focus:border-teal-500/60 text-white placeholder-slate-500 outline-none transition-all focus:ring-1 focus:ring-teal-500/30"
+                  className="flex-1 px-4 py-2.5 text-xs rounded-lg bg-neutral-900 border border-neutral-800 focus:border-neutral-600 text-white placeholder-neutral-500 outline-none transition-all focus:ring-1 focus:ring-neutral-600"
                   required
                 />
                 <button
                   type="submit"
-                  className={`px-4 py-2.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 whitespace-nowrap ${
+                  className={`px-4 py-2.5 rounded-lg text-xs font-medium transition-all flex items-center gap-1.5 whitespace-nowrap ${
                     subscribed
-                      ? 'bg-emerald-600 text-white'
-                      : 'bg-teal-600 hover:bg-teal-700 text-white'
+                      ? 'bg-white text-black'
+                      : 'bg-white hover:bg-neutral-200 text-black'
                   }`}
                 >
                   {subscribed ? (
@@ -162,33 +150,25 @@ export default function Footer() {
               </div>
             </form>
           </div>
-
         </div>
 
-        {/* Divider */}
-        <div className="h-px bg-slate-800/80 mb-8"></div>
+        <div className="h-px bg-neutral-800 mb-8" />
 
-        {/* Bottom Copyright Bar */}
         <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
-          <p className="text-xs text-slate-500">
-            © {currentYear} <span className="font-semibold text-slate-400">NODALxAI</span>. All rights reserved.
+          <p className="text-xs text-neutral-500">
+            &copy; {currentYear} <span className="font-medium text-neutral-400">NODALxAI</span>. All rights reserved.
           </p>
-          <div className="flex items-center gap-4 text-xs text-slate-500">
-            <a href="#/changelog" className="hover:text-slate-300 transition-colors">Changelog</a>
-            <a href="#/privacy" className="hover:text-slate-300 transition-colors">Privacy Policy</a>
-            <a href="#/terms" className="hover:text-slate-300 transition-colors">Terms of Service</a>
-            <a href="mailto:nodalxai@gmail.com" className="hover:text-slate-300 transition-colors">Contact</a>
-          </div>
-          <div className="flex items-center gap-1.5 text-xs text-slate-500">
-            Made with <Heart className="w-3.5 h-3.5 text-rose-500 fill-rose-500" /> in <span className="font-medium text-slate-400">India</span>
+          <div className="flex items-center gap-4 text-xs text-neutral-500">
+            <a href="#/changelog" className="hover:text-white transition-colors">Changelog</a>
+            <a href="#/privacy" className="hover:text-white transition-colors">Privacy Policy</a>
+            <a href="#/terms" className="hover:text-white transition-colors">Terms of Service</a>
+            <a href="mailto:nodalxai@gmail.com" className="hover:text-white transition-colors">Contact</a>
           </div>
           <button
             onClick={scrollToTop}
-            onMouseEnter={() => setIsHoveringTop(true)}
-            onMouseLeave={() => setIsHoveringTop(false)}
-            className="flex items-center gap-1.5 text-xs text-slate-400 hover:text-teal-400 transition-colors group/top px-3 py-1.5 rounded-lg hover:bg-white/5"
+            className="flex items-center gap-1.5 text-xs text-neutral-400 hover:text-white transition-colors px-3 py-1.5 rounded-lg hover:bg-white/5"
           >
-            Back to top <span className={`transition-transform duration-200 ${isHoveringTop ? '-translate-y-1' : 'translate-y-0'}`}>↑</span>
+            Back to top <span className="group-hover:-translate-y-1">&uarr;</span>
           </button>
         </div>
       </div>

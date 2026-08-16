@@ -6,39 +6,16 @@ import { useNavigate } from 'react-router-dom';
 import ThemeToggle from './ThemeToggle';
 import SignInModal from './SignInModal';
 
-// nodalX brand logo – an "X" formed by connected nodes on a rounded square
 function NodalXLogo({ className = 'w-8 h-8' }: { className?: string }) {
   return (
     <svg className={className} viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg">
-      {/* Sleek, darker background with a more subtle gradient */}
-      <rect x="0" y="0" width="36" height="36" rx="10" fill="url(#nx-bg-modern)" />
-
-      {/* The "X" shape, bolder and more central */}
-      <path d="M10 10 L26 26 M26 10 L10 26" stroke="white" strokeWidth="2.5" strokeLinecap="round" opacity="0.8" />
-
-      {/* Accent nodes, slightly larger and brighter */}
-      <circle cx="10" cy="10" r="3" fill="white" />
-      <circle cx="26" cy="10" r="3" fill="white" />
-      <circle cx="10" cy="26" r="3" fill="white" />
-      <circle cx="26" cy="26" r="3" fill="white" />
-      
-      {/* A vibrant, glowing center point */}
-      <circle cx="18" cy="18" r="4.5" fill="white" opacity="0.2" />
-      <circle cx="18" cy="18" r="2.5" fill="url(#nx-center-glow)" />
-
-      <defs>
-        {/* A modern, darker teal gradient */}
-        <linearGradient id="nx-bg-modern" x1="0" y1="0" x2="36" y2="36" gradientUnits="userSpaceOnUse">
-          <stop stopColor="#083344" />
-          <stop offset="1" stopColor="#042f2e" />
-        </linearGradient>
-        {/* A bright, energetic teal glow for the center */}
-        <radialGradient id="nx-center-glow" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(18 18) rotate(45) scale(2.5)">
-          <stop stopColor="#67e8f9" />
-          <stop offset="0.7" stopColor="#14b8a6" />
-          <stop offset="1" stopColor="#0f766e" />
-        </radialGradient>
-      </defs>
+      <rect x="0" y="0" width="36" height="36" rx="10" fill="black" className="dark:fill-white" />
+      <path d="M10 10 L26 26 M26 10 L10 26" stroke="white" strokeWidth="2.5" strokeLinecap="round" className="dark:stroke-black" />
+      <circle cx="10" cy="10" r="3" fill="white" className="dark:fill-black" />
+      <circle cx="26" cy="10" r="3" fill="white" className="dark:fill-black" />
+      <circle cx="10" cy="26" r="3" fill="white" className="dark:fill-black" />
+      <circle cx="26" cy="26" r="3" fill="white" className="dark:fill-black" />
+      <circle cx="18" cy="18" r="2.5" fill="white" opacity="0.6" className="dark:fill-black" />
     </svg>
   );
 }
@@ -53,9 +30,7 @@ export default function Navbar() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    const handleScroll = () => {
-      setIsScrolled(window.scrollY > 10);
-    };
+    const handleScroll = () => setIsScrolled(window.scrollY > 10);
     window.addEventListener('scroll', handleScroll);
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
@@ -70,18 +45,17 @@ export default function Navbar() {
 
   return (
     <header
-      className={`fixed top-0 left-0 right-0 z-50 transition-all duration-200 ${
+      className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
         isScrolled
-          ? 'bg-white dark:bg-slate-950 border-b border-slate-200 dark:border-slate-800 py-3'
-          : 'bg-white dark:bg-slate-950 py-5'
+          ? 'glass py-3'
+          : 'bg-white/0 dark:bg-black/0 py-5'
       }`}
     >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 md:px-12 flex items-center justify-between">
-        {/* Logo & Theme Toggle */}
         <div className="flex items-center gap-1">
-          <div className="flex items-center gap-2.5 cursor-pointer" onClick={() => window.scrollTo(0,0)}>
+          <div className="flex items-center gap-2.5 cursor-pointer" onClick={() => window.scrollTo(0, 0)}>
             <NodalXLogo className="w-8 h-8" />
-            <span className="text-base font-bold tracking-tight text-slate-900 dark:text-white">
+            <span className="text-base font-bold tracking-tight text-black dark:text-white">
               NODALxAI
             </span>
           </div>
@@ -90,7 +64,6 @@ export default function Navbar() {
           </div>
         </div>
 
-        {/* Desktop Nav */}
         <nav className="hidden md:flex items-center gap-6 lg:gap-8">
           {[
             { label: 'How it works', id: 'how-it-works' },
@@ -100,7 +73,7 @@ export default function Navbar() {
             <button
               key={item.id}
               onClick={() => document.getElementById(item.id)?.scrollIntoView({ behavior: 'smooth' })}
-              className="text-sm font-medium text-slate-600 dark:text-slate-400 hover:text-teal-600 dark:hover:text-teal-400 transition-colors"
+              className="text-sm font-medium text-neutral-500 dark:text-neutral-400 hover:text-black dark:hover:text-white transition-colors"
             >
               {item.label}
             </button>
@@ -111,9 +84,8 @@ export default function Navbar() {
           </Button>
         </nav>
 
-        {/* Mobile Menu Toggle */}
         <button
-          className="md:hidden p-2 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors"
+          className="md:hidden p-2 text-neutral-600 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-900 rounded-xl transition-colors"
           onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
           aria-label="Toggle menu"
         >
@@ -121,9 +93,8 @@ export default function Navbar() {
         </button>
       </div>
 
-      {/* Mobile Nav */}
       {mobileMenuOpen && (
-        <div className="md:hidden absolute top-full left-0 right-0 bg-white dark:bg-slate-950 border-b border-slate-200 dark:border-slate-800 py-4 px-4 sm:px-6 flex flex-col gap-2">
+        <div className="md:hidden absolute top-full left-0 right-0 glass py-4 px-4 sm:px-6 flex flex-col gap-2">
           <Button
             variant="primary"
             className="w-full"

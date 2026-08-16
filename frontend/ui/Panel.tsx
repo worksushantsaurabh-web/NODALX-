@@ -13,9 +13,9 @@ export function Panel({ title, action, className, bodyClassName, children }: Pan
   return (
     <div className={cn('glass-card rounded-2xl overflow-hidden', className)}>
       {(title || action) && (
-        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 dark:border-white/5">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-neutral-100 dark:border-white/5">
           {title && (
-            <h3 className="text-sm font-bold text-slate-900 dark:text-white tracking-tight">{title}</h3>
+            <h3 className="text-sm font-bold text-neutral-900 dark:text-white tracking-tight">{title}</h3>
           )}
           {action && <div className="flex items-center gap-2">{action}</div>}
         </div>

@@ -2,8 +2,8 @@ import React from 'react';
 import { cn } from './cn';
 
 const bgMap = {
-  white: 'bg-white dark:bg-slate-950',
-  muted: 'bg-slate-100 dark:bg-slate-900/40',
+  white: 'bg-white dark:bg-black',
+  muted: 'bg-neutral-50 dark:bg-neutral-950',
 };
 
 export interface SectionProps {
@@ -22,7 +22,7 @@ export function Section({ id, bg = 'white', border = false, className, innerClas
       className={cn(
         'py-24 lg:py-28',
         bgMap[bg],
-        border && 'border-t border-slate-200 dark:border-slate-800',
+        border && 'border-t border-neutral-200 dark:border-neutral-800',
         className,
       )}
     >

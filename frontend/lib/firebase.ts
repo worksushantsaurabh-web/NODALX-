@@ -1,6 +1,6 @@
 import { initializeApp } from 'firebase/app';
-import { getAuth } from 'firebase/auth';
-import { getFirestore } from 'firebase/firestore';
+import { getAuth, type Auth } from 'firebase/auth';
+import { getFirestore, type Firestore } from 'firebase/firestore';
 import { getAnalytics, isSupported } from 'firebase/analytics';
 
 const firebaseConfig = {
@@ -13,13 +13,21 @@ const firebaseConfig = {
   measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID,
 };
 
-const app = initializeApp(firebaseConfig);
-export const auth = getAuth(app);
-export const db = getFirestore(app);
+let app: ReturnType<typeof initializeApp> | null = null;
+let auth: Auth | null = null;
+let db: Firestore | null = null;
 
-// Activate Firebase Analytics only in supported environments (not in SSR or blocked browsers)
-isSupported().then((supported) => {
-  if (supported) getAnalytics(app);
-});
+try {
+  app = initializeApp(firebaseConfig);
+  auth = getAuth(app);
+  db = getFirestore(app);
 
+  isSupported().then((supported) => {
+    if (supported && app) getAnalytics(app);
+  });
+} catch (e) {
+  console.warn('Firebase initialization failed — running without auth:', (e as Error).message);
+}
+
+export { auth, db };
 export default app;

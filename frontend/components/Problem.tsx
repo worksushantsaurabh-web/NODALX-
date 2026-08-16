@@ -1,5 +1,5 @@
 import React from 'react';
-import { Section, SectionHeader, Card } from '../ui';
+import { Section, SectionHeader } from '../ui';
 
 const problems = [
   {
@@ -26,14 +26,14 @@ export default function Problem() {
         label="The cost of slow follow-up"
         heading={`Qualified leads don't wait.\nYour inbox does.`}
       />
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-px bg-slate-200 dark:bg-slate-800 rounded-xl overflow-hidden border border-slate-200 dark:border-slate-800">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-px bg-neutral-200 dark:bg-neutral-800 rounded-xl overflow-hidden border border-neutral-200 dark:border-neutral-800">
         {problems.map((p) => (
-          <div key={p.stat} className="bg-white dark:bg-slate-950 p-8">
-            <p className="text-3xl font-bold text-teal-600 dark:text-teal-500 mb-3 tracking-tight">
+          <div key={p.stat} className="bg-white dark:bg-black p-8">
+            <p className="text-3xl font-bold text-black dark:text-white mb-3 tracking-tight">
               {p.stat}
             </p>
-            <p className="font-semibold text-slate-900 dark:text-white text-sm mb-2 leading-snug">{p.claim}</p>
-            <p className="text-sm text-slate-500 dark:text-slate-400 leading-relaxed">{p.detail}</p>
+            <p className="font-semibold text-neutral-900 dark:text-neutral-100 text-sm mb-2 leading-snug">{p.claim}</p>
+            <p className="text-sm text-neutral-500 dark:text-neutral-400 leading-relaxed">{p.detail}</p>
           </div>
         ))}
       </div>

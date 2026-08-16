@@ -67,26 +67,26 @@ export default function MicroSurvey({ config, onClose }: MicroSurveyProps) {
       onMouseEnter={clearAutoDismiss}
       onFocus={clearAutoDismiss}
     >
-      <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-xl p-5 animate-slide-up">
+      <div className="bg-white dark:bg-neutral-900 rounded-xl border border-neutral-200 dark:border-neutral-800 shadow-xl p-5 animate-slide-up">
         {submitted ? (
           <div className="flex flex-col items-center gap-2 py-2 text-center">
             <div className="w-8 h-8 rounded-full bg-emerald-50 dark:bg-emerald-900/30 flex items-center justify-center">
               <Star className="w-4 h-4 text-emerald-600 dark:text-emerald-400" fill="currentColor" />
             </div>
-            <p className="text-sm font-semibold text-slate-900 dark:text-white">Thanks — we read every message.</p>
+            <p className="text-sm font-semibold text-neutral-900 dark:text-white">Thanks — we read every message.</p>
           </div>
         ) : (
           <>
             <div className="flex items-start justify-between mb-4">
               <div>
-                <p className="text-[10px] font-semibold uppercase tracking-widest text-teal-600 dark:text-teal-500 mb-1">
+                <p className="text-[10px] font-semibold uppercase tracking-widest text-black dark:text-white dark:text-black dark:bg-white mb-1">
                   Quick question
                 </p>
-                <p className="text-sm font-semibold text-slate-900 dark:text-white">{config.question}</p>
+                <p className="text-sm font-semibold text-neutral-900 dark:text-white">{config.question}</p>
               </div>
               <button
                 onClick={onClose}
-                className="shrink-0 ml-3 p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 rounded-md hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                className="shrink-0 ml-3 p-1 text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-200 rounded-md hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors"
                 aria-label="Dismiss"
               >
                 <X className="w-4 h-4" />
@@ -110,7 +110,7 @@ export default function MicroSurvey({ config, onClose }: MicroSurveyProps) {
                     className={`w-6 h-6 transition-colors ${
                       n <= (hovered || rating)
                         ? 'text-amber-400'
-                        : 'text-slate-200 dark:text-slate-700'
+                        : 'text-neutral-200 dark:text-neutral-700'
                     }`}
                     fill={n <= (hovered || rating) ? 'currentColor' : 'none'}
                     strokeWidth={1.5}
@@ -118,7 +118,7 @@ export default function MicroSurvey({ config, onClose }: MicroSurveyProps) {
                 </button>
               ))}
               {rating > 0 && (
-                <span className="ml-2 text-xs text-slate-400 self-center">
+                <span className="ml-2 text-xs text-neutral-400 self-center">
                   {['', 'Not great', 'Could be better', 'OK', 'Good', 'Excellent'][rating]}
                 </span>
               )}
@@ -130,20 +130,20 @@ export default function MicroSurvey({ config, onClose }: MicroSurveyProps) {
               onChange={(e) => { clearAutoDismiss(); setComment(e.target.value); }}
               placeholder="Tell us more (optional)"
               rows={2}
-              className="w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-xs text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 transition-colors resize-none mb-3"
+              className="w-full rounded-lg border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-800 px-3 py-2 text-xs text-neutral-900 dark:text-white placeholder-neutral-400 dark:placeholder-neutral-500 focus:outline-none focus:ring-2 focus:ring-black dark:bg-white/20 focus:border-black dark:bg-white transition-colors resize-none mb-3"
             />
 
             <div className="flex items-center justify-between">
               <button
                 onClick={onClose}
-                className="text-xs text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors"
+                className="text-xs text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-300 transition-colors"
               >
                 Skip
               </button>
               <button
                 onClick={submit}
                 disabled={!rating || submitting}
-                className="px-4 py-2 rounded-lg bg-teal-600 hover:bg-teal-700 text-white text-xs font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                className="px-4 py-2 rounded-lg bg-black dark:text-white hover:bg-neutral-800 text-white text-xs font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {submitting ? 'Sending…' : 'Send'}
               </button>

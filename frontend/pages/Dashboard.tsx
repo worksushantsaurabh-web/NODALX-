@@ -86,11 +86,11 @@ function getStatusVariant(status: string): 'success' | 'warning' | 'neutral' {
 }
 
 function intentColor(intent?: string) {
-  if (!intent) return 'text-slate-600 dark:text-slate-400';
+  if (!intent) return 'text-neutral-600 dark:text-neutral-400';
   const lower = intent.toLowerCase();
   if (lower === 'high' || lower === 'purchase' || lower === 'partnership') return 'text-orange-600 dark:text-orange-400';
   if (lower === 'medium') return 'text-amber-600 dark:text-amber-400';
-  return 'text-slate-600 dark:text-slate-400';
+  return 'text-neutral-600 dark:text-neutral-400';
 }
 
 function getInitials(name: string) {
@@ -286,11 +286,11 @@ export default function Dashboard({ defaultTab = 'overview' }: { defaultTab?: st
       {/* Header */}
       <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
         <div>
-          <p className="text-sm font-semibold uppercase tracking-[0.18em] text-teal-600 dark:text-teal-400">Command Center</p>
-          <h1 className="mt-2 text-3xl font-bold tracking-tight text-slate-950 dark:text-white">Manage Your Pipeline</h1>
-          <p className="mt-3 max-w-2xl text-slate-500 dark:text-slate-400">Track incoming leads, monitor AI qualification status, and close deals faster.</p>
+          <p className="text-sm font-semibold uppercase tracking-[0.18em] text-black dark:text-white">Command Center</p>
+          <h1 className="mt-2 text-3xl font-bold tracking-tight text-neutral-950 dark:text-white">Manage Your Pipeline</h1>
+          <p className="mt-3 max-w-2xl text-neutral-500 dark:text-neutral-400">Track incoming leads, monitor AI qualification status, and close deals faster.</p>
         </div>
-        <button onClick={() => loadWorkspace(true)} disabled={isRefreshing} className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-sm transition hover:border-teal-400 dark:border-white/10 dark:bg-white/5 dark:text-slate-200">
+        <button onClick={() => loadWorkspace(true)} disabled={isRefreshing} className="inline-flex items-center justify-center gap-2 rounded-xl border border-neutral-200 bg-white px-4 py-2.5 text-sm font-semibold text-neutral-700 shadow-sm transition hover:border-neutral-400 dark:border-white/10 dark:bg-white/5 dark:text-neutral-200">
           <RefreshCw className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} /> Refresh live data
         </button>
       </div>
@@ -312,18 +312,18 @@ export default function Dashboard({ defaultTab = 'overview' }: { defaultTab?: st
       ) : !isPremium ? (
         <div className="space-y-4">
           <div className="relative glass-card rounded-2xl p-6 overflow-hidden">
-            <div className="absolute inset-0 bg-gradient-to-br from-teal-500/10 via-transparent to-cyan-500/10" />
+            <div className="absolute inset-0 bg-gradient-to-br from-neutral-500/5 via-transparent to-neutral-500/5" />
             <div className="relative flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
               <div className="flex gap-4">
-                <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-teal-500/20 to-cyan-500/20 flex items-center justify-center flex-shrink-0">
-                  <Sparkles className="h-6 w-6 text-teal-600 dark:text-teal-400" />
+                <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-neutral-200 to-neutral-100 dark:from-neutral-800 dark:to-neutral-700 flex items-center justify-center flex-shrink-0">
+                  <Sparkles className="h-6 w-6 text-black dark:text-white" />
                 </div>
                 <div>
-                  <p className="text-lg font-bold text-slate-900 dark:text-white tracking-tight">Upgrade to Full Access</p>
-                  <p className="mt-1 text-sm text-slate-600 dark:text-slate-400 leading-relaxed">Unlock bulk analysis, advanced AI scoring, and priority support.</p>
+                  <p className="text-lg font-bold text-neutral-900 dark:text-white tracking-tight">Upgrade to Full Access</p>
+                  <p className="mt-1 text-sm text-neutral-600 dark:text-neutral-400 leading-relaxed">Unlock bulk analysis, advanced AI scoring, and priority support.</p>
                 </div>
               </div>
-              <button onClick={() => openTab('onboarding')} className="inline-flex shrink-0 items-center gap-2 rounded-xl bg-gradient-to-r from-teal-600 to-teal-500 hover:from-teal-700 hover:to-teal-600 px-5 py-3 text-sm font-bold text-white shadow-lg shadow-teal-600/20 hover:shadow-teal-600/30 transition-all duration-200 hover:-translate-y-0.5 group">
+              <button onClick={() => openTab('onboarding')} className="inline-flex shrink-0 items-center gap-2 rounded-xl bg-black dark:bg-white hover:bg-neutral-800 dark:hover:bg-neutral-200 px-5 py-3 text-sm font-bold text-white dark:text-black shadow-lg shadow-neutral-900/10 hover:shadow-neutral-900/20 transition-all duration-200 hover:-translate-y-0.5 group">
                 Upgrade
                 <ArrowRight className="h-4 w-4 transition-transform duration-200 group-hover:translate-x-1" />
               </button>
@@ -364,23 +364,23 @@ export default function Dashboard({ defaultTab = 'overview' }: { defaultTab?: st
 
       {/* Recent Inquiries Table - Glassmorphism Design */}
       <div className="glass-card rounded-2xl overflow-hidden">
-        <div className="px-6 py-5 border-b border-slate-200/60 dark:border-white/5 flex items-center justify-between bg-slate-50/30 dark:bg-white/[0.02]">
+        <div className="px-6 py-5 border-b border-neutral-200/60 dark:border-white/5 flex items-center justify-between bg-neutral-50/30 dark:bg-white/[0.02]">
           <div>
-            <h3 className="text-lg font-bold text-slate-900 dark:text-white tracking-tight">Recent Inquiries</h3>
-            <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">Live records from your connected pipeline</p>
+            <h3 className="text-lg font-bold text-neutral-900 dark:text-white tracking-tight">Recent Inquiries</h3>
+            <p className="mt-1 text-sm text-neutral-500 dark:text-neutral-400">Live records from your connected pipeline</p>
           </div>
           <div className="flex items-center gap-3">
             <div className="hidden sm:flex items-center gap-2.5 px-4 py-2.5 glass-card-subtle rounded-xl text-sm">
-              <Search className="w-4 h-4 text-slate-400" />
+              <Search className="w-4 h-4 text-neutral-400" />
               <input
                 type="text"
                 placeholder="Search leads..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="bg-transparent outline-none text-slate-700 dark:text-slate-200 placeholder-slate-400 dark:placeholder-slate-500 w-36 font-medium"
+                className="bg-transparent outline-none text-neutral-700 dark:text-neutral-200 placeholder-neutral-400 dark:placeholder-neutral-500 w-36 font-medium"
               />
             </div>
-            <button onClick={() => setActiveTab('inquiries')} className="btn-glass flex items-center gap-2 text-xs font-bold text-slate-700 dark:text-slate-300 px-4 py-2.5 rounded-xl">
+            <button onClick={() => setActiveTab('inquiries')} className="btn-glass flex items-center gap-2 text-xs font-bold text-neutral-700 dark:text-neutral-300 px-4 py-2.5 rounded-xl">
               <Filter className="w-4 h-4" />
               View all
             </button>
@@ -392,7 +392,7 @@ export default function Dashboard({ defaultTab = 'overview' }: { defaultTab?: st
             {/* Skeleton Table Rows */}
             <div className="space-y-4">
               {[...Array(5)].map((_, i) => (
-                <div key={i} className="flex items-center justify-between p-4 rounded-xl bg-slate-50/50 dark:bg-white/[0.02] animate-fade-in" style={{ animationDelay: `${i * 0.1}s` }}>
+                <div key={i} className="flex items-center justify-between p-4 rounded-xl bg-neutral-50/50 dark:bg-white/[0.02] animate-fade-in" style={{ animationDelay: `${i * 0.1}s` }}>
                   <div className="flex items-center gap-4">
                     <div className="skeleton skeleton-circle w-10 h-10" />
                     <div className="space-y-2">
@@ -412,10 +412,10 @@ export default function Dashboard({ defaultTab = 'overview' }: { defaultTab?: st
           </div>
         ) : filteredInquiries.length === 0 ? (
           <div className="p-12 text-center">
-            <Sparkles className="mx-auto h-8 w-8 text-teal-500 mb-4" />
-            <h3 className="font-bold text-slate-900 dark:text-white mb-2">No inquiries yet</h3>
-            <p className="text-sm text-slate-500 dark:text-slate-400 max-w-md mx-auto mb-5">When your form or webhook receives an inquiry, it will appear here with AI classification.</p>
-            <button onClick={() => openTab('integration')} className="inline-flex items-center gap-2 rounded-xl bg-teal-600 px-4 py-2.5 text-sm font-bold text-white hover:bg-teal-700 transition">
+            <Sparkles className="mx-auto h-8 w-8 text-black dark:text-white mb-4" />
+            <h3 className="font-bold text-neutral-900 dark:text-white mb-2">No inquiries yet</h3>
+            <p className="text-sm text-neutral-500 dark:text-neutral-400 max-w-md mx-auto mb-5">When your form or webhook receives an inquiry, it will appear here with AI classification.</p>
+            <button onClick={() => openTab('integration')} className="inline-flex items-center gap-2 rounded-xl bg-black dark:bg-white text-white dark:text-black px-4 py-2.5 text-sm font-bold hover:bg-neutral-800 dark:hover:bg-neutral-200 transition">
               Connect pipeline <ArrowRight className="h-4 w-4" />
             </button>
           </div>
@@ -424,7 +424,7 @@ export default function Dashboard({ defaultTab = 'overview' }: { defaultTab?: st
             <div className="overflow-x-auto">
               <table className="w-full text-left border-collapse">
                 <thead>
-                  <tr className="bg-slate-50/50 dark:bg-white/[0.02] text-[11px] uppercase tracking-[0.08em] text-slate-500 dark:text-slate-400 font-bold border-b border-slate-200/60 dark:border-white/5">
+                  <tr className="bg-neutral-50/50 dark:bg-white/[0.02] text-[11px] uppercase tracking-[0.08em] text-neutral-500 dark:text-neutral-400 font-bold border-b border-neutral-200/60 dark:border-white/5">
                     <th className="px-6 py-4">Customer</th>
                     <th className="px-6 py-4">Intent</th>
                     <th className="px-6 py-4">Status</th>
@@ -432,17 +432,17 @@ export default function Dashboard({ defaultTab = 'overview' }: { defaultTab?: st
                     <th className="px-6 py-4 text-right">Action</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-100/80 dark:divide-white/5">
+                <tbody className="divide-y divide-neutral-100/80 dark:divide-white/5">
                   {filteredInquiries.slice(0, 8).map((inquiry, index) => (
-                    <tr key={inquiry.id} className="group bg-transparent hover:bg-slate-50/70 dark:hover:bg-white/[0.03] transition-all duration-200 animate-fade-in-up" style={{ animationDelay: `${index * 0.05}s` }}>
+                    <tr key={inquiry.id} className="group bg-transparent hover:bg-neutral-50/70 dark:hover:bg-white/[0.03] transition-all duration-200 animate-fade-in-up" style={{ animationDelay: `${index * 0.05}s` }}>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="flex items-center gap-3.5">
-                          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-teal-500 to-cyan-500 flex items-center justify-center text-xs font-bold text-white flex-shrink-0 shadow-sm group-hover:shadow-md transition-shadow duration-200">
+                          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-neutral-800 to-neutral-600 dark:from-neutral-200 dark:to-neutral-400 flex items-center justify-center text-xs font-bold text-white flex-shrink-0 shadow-sm group-hover:shadow-md transition-shadow duration-200">
                             {getInitials(inquiry.name)}
                           </div>
                           <div className="min-w-0">
-                            <div className="font-bold text-slate-900 dark:text-white text-sm truncate tracking-tight">{inquiry.name}</div>
-                            <div className="text-xs text-slate-500 dark:text-slate-400 font-medium truncate mt-0.5">{inquiry.company || inquiry.email}</div>
+                            <div className="font-bold text-neutral-900 dark:text-white text-sm truncate tracking-tight">{inquiry.name}</div>
+                            <div className="text-xs text-neutral-500 dark:text-neutral-400 font-medium truncate mt-0.5">{inquiry.company || inquiry.email}</div>
                           </div>
                         </div>
                       </td>
@@ -461,13 +461,13 @@ export default function Dashboard({ defaultTab = 'overview' }: { defaultTab?: st
                       <td className="px-6 py-4 whitespace-nowrap">
                         <Badge variant={getStatusVariant(inquiry.status)} size="md">{inquiry.status}</Badge>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-slate-500 dark:text-slate-400 tabular-nums">
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-neutral-500 dark:text-neutral-400 tabular-nums">
                         {timeAgo(inquiry.last_active)}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-right">
                         <button
                           onClick={() => setSelectedInquiry(inquiry)}
-                          className="inline-flex items-center gap-2 px-4 py-2 text-xs font-bold text-teal-700 dark:text-teal-300 bg-teal-50/80 dark:bg-teal-500/10 rounded-xl hover:bg-teal-100 dark:hover:bg-teal-500/20 transition-all duration-200 border border-teal-200/60 dark:border-teal-500/20 hover:border-teal-300 dark:hover:border-teal-500/40 hover-scale"
+                          className="inline-flex items-center gap-2 px-4 py-2 text-xs font-bold text-black dark:text-white bg-neutral-100 dark:bg-neutral-100 dark:bg-neutral-800 rounded-xl hover:bg-neutral-200 dark:hover:bg-neutral-700 transition-all duration-200 border border-neutral-200 dark:border-neutral-700 hover:border-neutral-400 dark:hover:border-neutral-500 hover-scale"
                           title="View Inquiry Details"
                         >
                           <Eye className="w-4 h-4" />
@@ -480,8 +480,8 @@ export default function Dashboard({ defaultTab = 'overview' }: { defaultTab?: st
               </table>
             </div>
             {inquiries.length > 8 && (
-              <div className="px-6 py-4 border-t border-slate-200/60 dark:border-white/5 bg-slate-50/30 dark:bg-white/[0.01] text-center">
-                <button onClick={() => setActiveTab('inquiries')} className="text-sm font-bold text-teal-600 dark:text-teal-400 hover:text-teal-700 dark:hover:text-teal-300 transition-colors duration-200 inline-flex items-center gap-1.5">
+              <div className="px-6 py-4 border-t border-neutral-200/60 dark:border-white/5 bg-neutral-50/30 dark:bg-white/[0.01] text-center">
+                <button onClick={() => setActiveTab('inquiries')} className="text-sm font-bold text-black dark:text-white hover:text-neutral-600 dark:hover:text-neutral-300 transition-colors duration-200 inline-flex items-center gap-1.5">
                   View all {inquiries.length} inquiries
                   <ChevronRight className="w-4 h-4" />
                 </button>
@@ -495,23 +495,23 @@ export default function Dashboard({ defaultTab = 'overview' }: { defaultTab?: st
       <div className="grid gap-6 xl:grid-cols-2">
         <div className="glass-card rounded-2xl p-6 hover-lift">
           <div className="flex items-center gap-4">
-            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-teal-500/15 to-cyan-500/15 dark:from-teal-500/20 dark:to-cyan-500/20 flex items-center justify-center">
-              <Bot className="h-6 w-6 text-teal-600 dark:text-teal-400" />
+            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-neutral-200 to-neutral-100 dark:from-neutral-800 dark:to-neutral-700 flex items-center justify-center">
+              <Bot className="h-6 w-6 text-black dark:text-white" />
             </div>
             <div>
-              <h2 className="text-lg font-bold text-slate-900 dark:text-white tracking-tight">AI Pipeline Status</h2>
-              <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5">The operating loop</p>
+              <h2 className="text-lg font-bold text-neutral-900 dark:text-white tracking-tight">AI Pipeline Status</h2>
+              <p className="text-sm text-neutral-500 dark:text-neutral-400 mt-0.5">The operating loop</p>
             </div>
           </div>
           <div className="mt-7 space-y-4">
             {['Capture the inquiry from your form or webhook', 'Analyze intent, urgency, and fit with AI', 'Route the next action to your team or CRM'].map((step, index) => (
               <div key={step} className="flex gap-4 items-start group">
-                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-slate-100/80 dark:bg-white/10 text-sm font-bold text-slate-700 dark:text-slate-300 group-hover:bg-teal-500/10 group-hover:text-teal-600 dark:group-hover:text-teal-400 transition-colors duration-200">{index + 1}</span>
-                <p className="pt-1.5 text-sm text-slate-600 dark:text-slate-300 leading-relaxed">{step}</p>
+                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-neutral-100/80 dark:bg-white/10 text-sm font-bold text-neutral-700 dark:text-neutral-300 group-hover:bg-neutral-100 dark:bg-neutral-800 group-hover:text-black dark:text-white dark:group-hover:text-white transition-colors duration-200">{index + 1}</span>
+                <p className="pt-1.5 text-sm text-neutral-600 dark:text-neutral-300 leading-relaxed">{step}</p>
               </div>
             ))}
           </div>
-          <button onClick={() => openTab('integration')} className="mt-8 inline-flex items-center gap-2 text-sm font-bold text-teal-600 dark:text-teal-400 hover:text-teal-700 dark:hover:text-teal-300 transition-colors duration-200 group">
+          <button onClick={() => openTab('integration')} className="mt-8 inline-flex items-center gap-2 text-sm font-bold text-black dark:text-white hover:text-neutral-600 dark:hover:text-neutral-300 transition-colors duration-200 group">
             Configure the loop
             <ArrowRight className="h-4 w-4 transition-transform duration-200 group-hover:translate-x-1" />
           </button>
@@ -520,29 +520,29 @@ export default function Dashboard({ defaultTab = 'overview' }: { defaultTab?: st
         {/* Active Automation Card - Enhanced */}
         <div className="group relative overflow-hidden glass-card rounded-2xl p-6 hover-lift">
           {/* Accent gradient border */}
-          <div className="absolute right-0 top-0 bottom-0 w-1 bg-gradient-to-b from-teal-400 via-emerald-500 to-teal-600" />
-          <div className="absolute inset-0 bg-gradient-to-br from-teal-500/5 via-transparent to-emerald-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+          <div className="absolute right-0 top-0 bottom-0 w-1 bg-gradient-to-b from-neutral-400 via-neutral-600 to-neutral-800" />
+          <div className="absolute inset-0 bg-gradient-to-br from-neutral-500/5 via-transparent to-neutral-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
 
           <div className="relative flex items-start justify-between gap-4">
             <div className="flex-1">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-lg bg-teal-500/10 dark:bg-teal-500/15 flex items-center justify-center">
-                  <Bot className="h-5 w-5 text-teal-600 dark:text-teal-400" />
+                <div className="w-10 h-10 rounded-lg bg-neutral-100 dark:bg-neutral-800 dark:bg-neutral-100 dark:bg-neutral-800 flex items-center justify-center">
+                  <Bot className="h-5 w-5 text-black dark:text-white" />
                 </div>
-                <h3 className="text-lg font-bold text-slate-900 dark:text-white tracking-tight">AI Lead Scoring Pipeline</h3>
+                <h3 className="text-lg font-bold text-neutral-900 dark:text-white tracking-tight">AI Lead Scoring Pipeline</h3>
               </div>
-              <p className="mt-3 text-sm text-slate-600 dark:text-slate-400 leading-relaxed">Classifies and routes incoming sales inquiries using advanced AI models.</p>
+              <p className="mt-3 text-sm text-neutral-600 dark:text-neutral-400 leading-relaxed">Classifies and routes incoming sales inquiries using advanced AI models.</p>
             </div>
             <span className="flex items-center gap-2 rounded-full bg-emerald-100/80 dark:bg-emerald-500/15 px-3.5 py-2 text-xs font-bold text-emerald-700 dark:text-emerald-400 shadow-sm">
               <span className="h-2 w-2 animate-pulse rounded-full bg-emerald-500" />
               Active
             </span>
           </div>
-          <div className="relative mt-6 flex items-center justify-between border-t border-slate-200/60 dark:border-white/5 pt-5 text-sm">
-            <span className="text-slate-500 dark:text-slate-400 font-medium">
-              Last inquiry: <span className="text-slate-700 dark:text-slate-300">{inquiries.length > 0 ? timeAgo(inquiries[0].last_active) : 'Waiting...'}</span>
+          <div className="relative mt-6 flex items-center justify-between border-t border-neutral-200/60 dark:border-white/5 pt-5 text-sm">
+            <span className="text-neutral-500 dark:text-neutral-400 font-medium">
+              Last inquiry: <span className="text-neutral-700 dark:text-neutral-300">{inquiries.length > 0 ? timeAgo(inquiries[0].last_active) : 'Waiting...'}</span>
             </span>
-            <span className="font-bold text-teal-600 dark:text-teal-400 tabular-nums">{inquiries.length} processed</span>
+            <span className="font-bold text-black dark:text-white tabular-nums">{inquiries.length} processed</span>
           </div>
         </div>
       </div>
@@ -551,15 +551,15 @@ export default function Dashboard({ defaultTab = 'overview' }: { defaultTab?: st
       <div className="glass-card rounded-2xl p-7">
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-4">
-            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-emerald-500/15 to-teal-500/15 dark:from-emerald-500/20 dark:to-teal-500/20 flex items-center justify-center">
+            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-neutral-200 to-neutral-100 dark:from-neutral-800 dark:to-neutral-700 flex items-center justify-center">
               <Settings2 className="h-6 w-6 text-emerald-600 dark:text-emerald-400" />
             </div>
             <div>
-              <h2 className="text-lg font-bold text-slate-900 dark:text-white tracking-tight">Data Sources</h2>
-              <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5">Connect your tools to sync leads automatically</p>
+              <h2 className="text-lg font-bold text-neutral-900 dark:text-white tracking-tight">Data Sources</h2>
+              <p className="text-sm text-neutral-500 dark:text-neutral-400 mt-0.5">Connect your tools to sync leads automatically</p>
             </div>
           </div>
-          <button onClick={() => openTab('connectors')} className="btn-glass text-sm font-bold text-teal-600 dark:text-teal-400 px-4 py-2 rounded-xl inline-flex items-center gap-1.5 hover:text-teal-700 dark:hover:text-teal-300">
+          <button onClick={() => openTab('connectors')} className="btn-glass text-sm font-bold text-black dark:text-white px-4 py-2 rounded-xl inline-flex items-center gap-1.5 hover:text-neutral-600 dark:hover:text-neutral-300">
             View all
             <ChevronRight className="w-4 h-4" />
           </button>
@@ -571,18 +571,18 @@ export default function Dashboard({ defaultTab = 'overview' }: { defaultTab?: st
             className="group relative text-left glass-card rounded-2xl p-5 hover-lift overflow-hidden"
           >
             {/* Subtle gradient overlay */}
-            <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/5 via-transparent to-teal-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+            <div className="absolute inset-0 bg-gradient-to-br from-neutral-500/5 via-transparent to-neutral-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
 
             <div className="relative flex items-start justify-between gap-4">
               <div className="flex items-center gap-4">
-                <div className={`h-12 w-12 rounded-xl flex items-center justify-center transition-all duration-300 group-hover:scale-110 ${googleSheetsConnected ? 'bg-emerald-500/15 dark:bg-emerald-400/15' : 'bg-slate-100 dark:bg-white/10'}`}>
-                  <Sheet className={`h-6 w-6 transition-colors duration-300 ${googleSheetsConnected ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-500 dark:text-slate-400 group-hover:text-emerald-600 dark:group-hover:text-emerald-400'}`} />
+                <div className={`h-12 w-12 rounded-xl flex items-center justify-center transition-all duration-300 group-hover:scale-110 ${googleSheetsConnected ? 'bg-emerald-500/15 dark:bg-emerald-400/15' : 'bg-neutral-100 dark:bg-white/10'}`}>
+                  <Sheet className={`h-6 w-6 transition-colors duration-300 ${googleSheetsConnected ? 'text-emerald-600 dark:text-emerald-400' : 'text-neutral-500 dark:text-neutral-400 group-hover:text-emerald-600 dark:group-hover:text-emerald-400'}`} />
                 </div>
                 <div>
-                  <h4 className="font-bold text-slate-900 dark:text-white text-base tracking-tight group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors duration-200">
+                  <h4 className="font-bold text-neutral-900 dark:text-white text-base tracking-tight group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors duration-200">
                     Google Sheets
                   </h4>
-                  <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5 leading-relaxed">
+                  <p className="text-sm text-neutral-500 dark:text-neutral-400 mt-0.5 leading-relaxed">
                     {googleSheetsConnected ? connectedSheetTitle : 'Sync leads automatically'}
                   </p>
                 </div>
@@ -593,10 +593,10 @@ export default function Dashboard({ defaultTab = 'overview' }: { defaultTab?: st
                     <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
                     Synced
                   </span>
-                  <span className="text-[10px] text-slate-400 dark:text-slate-500 font-medium">Click to manage</span>
+                  <span className="text-[10px] text-neutral-400 dark:text-neutral-500 font-medium">Click to manage</span>
                 </div>
               ) : (
-                <span className="px-3 py-1.5 bg-slate-100 dark:bg-white/10 text-slate-600 dark:text-slate-400 text-xs font-bold rounded-full group-hover:bg-emerald-100 group-hover:text-emerald-700 dark:group-hover:bg-emerald-500/20 dark:group-hover:text-emerald-400 transition-colors duration-200">
+                <span className="px-3 py-1.5 bg-neutral-100 dark:bg-white/10 text-neutral-600 dark:text-neutral-400 text-xs font-bold rounded-full group-hover:bg-emerald-100 group-hover:text-emerald-700 dark:group-hover:bg-emerald-500/20 dark:group-hover:text-emerald-400 transition-colors duration-200">
                   Connect
                 </span>
               )}
@@ -604,7 +604,7 @@ export default function Dashboard({ defaultTab = 'overview' }: { defaultTab?: st
 
             {/* Connection indicator line */}
             {googleSheetsConnected && (
-              <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-gradient-to-r from-emerald-500 via-teal-500 to-emerald-500" />
+              <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-gradient-to-r from-neutral-400 via-neutral-600 to-neutral-400" />
             )}
           </button>
 
@@ -614,23 +614,23 @@ export default function Dashboard({ defaultTab = 'overview' }: { defaultTab?: st
             className="group relative text-left glass-card rounded-2xl p-5 hover-lift overflow-hidden"
           >
             {/* Subtle gradient overlay */}
-            <div className="absolute inset-0 bg-gradient-to-br from-teal-500/5 via-transparent to-cyan-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+            <div className="absolute inset-0 bg-gradient-to-br from-neutral-500/5 via-transparent to-neutral-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
 
             <div className="relative flex items-start justify-between gap-4">
               <div className="flex items-center gap-4">
-                <div className="h-12 w-12 rounded-xl bg-teal-500/10 dark:bg-teal-400/10 flex items-center justify-center transition-all duration-300 group-hover:scale-110">
-                  <Zap className="h-6 w-6 text-teal-600 dark:text-teal-400" />
+                <div className="h-12 w-12 rounded-xl bg-neutral-100 dark:bg-neutral-800 flex items-center justify-center transition-all duration-300 group-hover:scale-110">
+                  <Zap className="h-6 w-6 text-black dark:text-white" />
                 </div>
                 <div>
-                  <h4 className="font-bold text-slate-900 dark:text-white text-base tracking-tight group-hover:text-teal-600 dark:group-hover:text-teal-400 transition-colors duration-200">
+                  <h4 className="font-bold text-neutral-900 dark:text-white text-base tracking-tight group-hover:text-black dark:text-white dark:group-hover:text-white transition-colors duration-200">
                     Webhooks & API
                   </h4>
-                  <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5 leading-relaxed">
+                  <p className="text-sm text-neutral-500 dark:text-neutral-400 mt-0.5 leading-relaxed">
                     Connect forms and tools
                   </p>
                 </div>
               </div>
-              <span className="px-3 py-1.5 bg-teal-100/80 dark:bg-teal-500/20 text-teal-700 dark:text-teal-400 text-xs font-bold rounded-full group-hover:bg-teal-200 dark:group-hover:bg-teal-500/30 transition-colors duration-200">
+              <span className="px-3 py-1.5 bg-neutral-100 dark:bg-neutral-800 text-neutral-700 dark:text-neutral-300 text-xs font-bold rounded-full group-hover:bg-neutral-200 dark:group-hover:bg-neutral-700 transition-colors duration-200">
                 Configure
               </span>
             </div>
@@ -643,48 +643,48 @@ export default function Dashboard({ defaultTab = 'overview' }: { defaultTab?: st
     </div>
   );
 
-  const renderInquiries = () => <div className="space-y-6"><PageHeading title="Inquiry queue" description="Review the business inquiries coming through your connected source." action={<button onClick={() => loadWorkspace(true)} className="inline-flex items-center gap-2 rounded-xl bg-teal-600 hover:bg-teal-700 px-4 py-2.5 text-sm font-bold text-white transition-colors"><RefreshCw className="h-4 w-4" /> Refresh</button>} /><InquiryQueue inquiries={inquiries} isLoading={isLoading} onSelectInquiry={(inquiry) => setSelectedInquiry(inquiry)} /></div>;
+  const renderInquiries = () => <div className="space-y-6"><PageHeading title="Inquiry queue" description="Review the business inquiries coming through your connected source." action={<button onClick={() => loadWorkspace(true)} className="inline-flex items-center gap-2 rounded-xl bg-black dark:bg-white text-white dark:text-black hover:bg-neutral-800 dark:hover:bg-neutral-200 px-4 py-2.5 text-sm font-bold text-white transition-colors"><RefreshCw className="h-4 w-4" /> Refresh</button>} /><InquiryQueue inquiries={inquiries} isLoading={isLoading} onSelectInquiry={(inquiry) => setSelectedInquiry(inquiry)} /></div>;
 
   const renderAutomations = () => (
     <div className="space-y-6">
       <PageHeading
         title="Automations"
         description="Keep the AI workflows that turn inquiries into action visible and accountable."
-        action={<button onClick={() => openTab('onboarding')} className="inline-flex items-center gap-2 rounded-xl bg-teal-600 hover:bg-teal-700 px-4 py-2.5 text-sm font-bold text-white transition-colors">Get your API key <ArrowRight className="h-4 w-4" /></button>}
+        action={<button onClick={() => openTab('onboarding')} className="inline-flex items-center gap-2 rounded-xl bg-black dark:bg-white text-white dark:text-black hover:bg-neutral-800 dark:hover:bg-neutral-200 px-4 py-2.5 text-sm font-bold text-white transition-colors">Get your API key <ArrowRight className="h-4 w-4" /></button>}
       />
       {!isPremium && (
-        <div className="flex flex-col gap-4 rounded-2xl border border-teal-300/60 bg-teal-50 p-5 dark:border-teal-500/20 dark:bg-teal-500/10 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex flex-col gap-4 rounded-2xl border border-neutral-300 bg-neutral-50 p-5 dark:border-neutral-700 dark:bg-neutral-900 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex gap-3">
-            <Sparkles className="mt-0.5 h-5 w-5 shrink-0 text-teal-600 dark:text-teal-400" />
+            <Sparkles className="mt-0.5 h-5 w-5 shrink-0 text-black dark:text-white" />
             <div>
-              <p className="font-semibold text-teal-900 dark:text-teal-200">Premium feature — Upgrade to Full Access</p>
-              <p className="mt-1 text-sm text-teal-800/80 dark:text-teal-200/70">Advanced automations are available on the full plan.</p>
+              <p className="font-semibold text-neutral-900 dark:text-neutral-200">Premium feature — Upgrade to Full Access</p>
+              <p className="mt-1 text-sm text-neutral-600 dark:text-neutral-400">Advanced automations are available on the full plan.</p>
             </div>
           </div>
-          <button onClick={() => openTab('onboarding')} className="inline-flex shrink-0 items-center gap-2 rounded-xl bg-teal-600 px-4 py-2 text-sm font-bold text-white hover:bg-teal-700 transition">
+          <button onClick={() => openTab('onboarding')} className="inline-flex shrink-0 items-center gap-2 rounded-xl bg-black dark:bg-white text-white dark:text-black px-4 py-2 text-sm font-bold hover:bg-neutral-800 dark:hover:bg-neutral-200 transition">
             Upgrade <ArrowRight className="h-4 w-4" />
           </button>
         </div>
       )}
       <div className="grid gap-4 md:grid-cols-2">
-        <div className="relative overflow-hidden rounded-2xl border border-teal-500/30 bg-white p-5 shadow-sm dark:border-teal-500/20 dark:bg-white/5">
-          <div className="absolute right-0 top-0 h-full w-1 bg-teal-500"></div>
+        <div className="relative overflow-hidden rounded-2xl border border-neutral-200 bg-white p-5 shadow-sm dark:border-neutral-700 dark:bg-white/5">
+          <div className="absolute right-0 top-0 h-full w-1 bg-black dark:bg-white"></div>
           <div className="flex items-start justify-between gap-3">
             <div>
               <div className="flex items-center gap-2">
-                <Bot className="h-5 w-5 text-teal-600 dark:text-teal-400" />
-                <h3 className="font-bold text-slate-950 dark:text-white">AI Lead Scoring Pipeline</h3>
+                <Bot className="h-5 w-5 text-black dark:text-white" />
+                <h3 className="font-bold text-neutral-950 dark:text-white">AI Lead Scoring Pipeline</h3>
               </div>
-              <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">Classifies and routes incoming sales inquiries using advanced AI models.</p>
+              <p className="mt-1 text-sm text-neutral-500 dark:text-neutral-400">Classifies and routes incoming sales inquiries using advanced AI models.</p>
             </div>
             <span className="flex items-center gap-1.5 rounded-full bg-emerald-500/10 px-2.5 py-1 text-xs font-bold text-emerald-700 dark:text-emerald-300">
               <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-500"></span>
               Active
             </span>
           </div>
-          <div className="mt-5 flex items-center justify-between border-t border-slate-100 pt-4 text-xs text-slate-500 dark:border-white/5 dark:text-slate-400">
+          <div className="mt-5 flex items-center justify-between border-t border-neutral-100 pt-4 text-xs text-neutral-500 dark:border-white/5 dark:text-neutral-400">
             <span>Last inquiry: {inquiries.length > 0 ? new Date(inquiries[0].last_active).toLocaleDateString() : 'Waiting for connection...'}</span>
-            <span className="font-medium text-teal-600 dark:text-teal-400">{inquiries.length} inquiries processed</span>
+            <span className="font-medium text-black dark:text-white">{inquiries.length} inquiries processed</span>
           </div>
         </div>
       </div>
@@ -703,26 +703,26 @@ export default function Dashboard({ defaultTab = 'overview' }: { defaultTab?: st
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-100 text-slate-900 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950 dark:text-white overflow-x-hidden w-full">
+    <div className="min-h-screen bg-white text-neutral-900 dark:bg-neutral-950 dark:text-white overflow-x-hidden w-full">
       {/* Mobile Drawer Overlay */}
       {mobileOpen && (
         <div
-          className="fixed inset-0 z-30 bg-slate-950/60 backdrop-blur-sm md:hidden animate-fade-in"
+          className="fixed inset-0 z-30 bg-neutral-950/60 backdrop-blur-sm md:hidden animate-fade-in"
           onClick={() => setMobileOpen(false)}
         />
       )}
 
-      <aside className={`fixed inset-y-0 left-0 z-40 w-72 border-r border-slate-200/80 bg-white/80 backdrop-blur-xl p-6 transition-transform duration-300 dark:border-white/5 dark:bg-slate-950/90 ${mobileOpen ? 'translate-x-0 shadow-2xl' : '-translate-x-full md:translate-x-0'}`}>
+      <aside className={`fixed inset-y-0 left-0 z-40 w-72 border-r border-neutral-200/80 bg-white/80 backdrop-blur-xl p-6 transition-transform duration-300 dark:border-white/5 dark:bg-neutral-950/90 ${mobileOpen ? 'translate-x-0 shadow-2xl' : '-translate-x-full md:translate-x-0'}`}>
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <NodalXLogo className="h-10 w-10" />
-            <span className="text-xl font-extrabold tracking-tight bg-gradient-to-r from-slate-900 to-slate-700 dark:from-white dark:to-slate-300 bg-clip-text text-transparent">NODALxAI</span>
+            <span className="text-xl font-extrabold tracking-tight bg-gradient-to-r from-neutral-900 to-neutral-700 dark:from-white dark:to-neutral-300 bg-clip-text text-transparent">NODALxAI</span>
           </div>
-          <button onClick={() => setMobileOpen(false)} className="md:hidden p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-white/10 transition-colors">
+          <button onClick={() => setMobileOpen(false)} className="md:hidden p-2 rounded-lg hover:bg-neutral-100 dark:hover:bg-white/10 transition-colors">
             <X className="h-5 w-5" />
           </button>
         </div>
-        <p className="mt-10 px-3 text-[11px] font-bold uppercase tracking-[0.2em] text-slate-400 dark:text-slate-500">Workspace</p>
+        <p className="mt-10 px-3 text-[11px] font-bold uppercase tracking-[0.2em] text-neutral-400 dark:text-neutral-500">Workspace</p>
         <nav className="mt-4 space-y-1.5">
           {tabLabels.map(tab => (
             <button
@@ -730,48 +730,48 @@ export default function Dashboard({ defaultTab = 'overview' }: { defaultTab?: st
               onClick={() => openTab(tab.id)}
               className={`group flex w-full items-center gap-3 rounded-xl px-4 py-3 text-left text-sm font-semibold transition-all duration-200 ${
                 activeTab === tab.id
-                  ? 'bg-teal-500/10 text-teal-700 dark:text-teal-300 shadow-sm'
-                  : 'text-slate-600 hover:bg-slate-100/80 dark:text-slate-400 dark:hover:bg-white/5 hover:text-slate-900 dark:hover:text-white'
+                  ? 'bg-neutral-100 dark:bg-neutral-800 text-black dark:text-white shadow-sm'
+                  : 'text-neutral-600 hover:bg-neutral-100/80 dark:text-neutral-400 dark:hover:bg-white/5 hover:text-neutral-900 dark:hover:text-white'
               }`}
             >
               <tab.icon className={`h-[18px] w-[18px] transition-transform duration-200 ${activeTab === tab.id ? '' : 'group-hover:scale-110'}`} />
               {tab.label}
               {activeTab === tab.id && (
-                <div className="ml-auto w-1.5 h-1.5 rounded-full bg-teal-500" />
+                <div className="ml-auto w-1.5 h-1.5 rounded-full bg-black dark:bg-white" />
               )}
             </button>
           ))}
         </nav>
-        <div className="absolute bottom-6 left-6 right-6 border-t border-slate-200/80 dark:border-white/5 pt-5 hidden md:block">
-          <button onClick={() => openTab('profile')} className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left transition-all duration-200 hover:bg-slate-100/80 dark:hover:bg-white/5 group">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-gradient-to-br from-teal-500 to-cyan-500 text-sm font-bold text-white shadow-sm group-hover:shadow-md transition-shadow duration-200">
+        <div className="absolute bottom-6 left-6 right-6 border-t border-neutral-200/80 dark:border-white/5 pt-5 hidden md:block">
+          <button onClick={() => openTab('profile')} className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left transition-all duration-200 hover:bg-neutral-100/80 dark:hover:bg-white/5 group">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-gradient-to-br from-neutral-800 to-neutral-600 dark:from-neutral-200 dark:to-neutral-400 text-sm font-bold text-white shadow-sm group-hover:shadow-md transition-shadow duration-200">
               {user?.photoURL ? <img src={user.photoURL} alt="" className="h-full w-full object-cover" referrerPolicy="no-referrer" /> : (user?.displayName || 'U').charAt(0).toUpperCase()}
             </div>
             <div className="min-w-0 flex-1">
-              <p className="truncate text-sm font-bold text-slate-800 dark:text-slate-200 tracking-tight">{user?.displayName || 'User'}</p>
-              <p className="truncate text-xs text-slate-500 dark:text-slate-400 font-medium">{user?.email}</p>
+              <p className="truncate text-sm font-bold text-neutral-800 dark:text-neutral-200 tracking-tight">{user?.displayName || 'User'}</p>
+              <p className="truncate text-xs text-neutral-500 dark:text-neutral-400 font-medium">{user?.email}</p>
             </div>
           </button>
         </div>
       </aside>
 
       <div className="md:pl-72">
-        <header className="sticky top-0 z-30 flex h-[72px] items-center justify-between border-b border-slate-200/60 bg-white/70 backdrop-blur-xl px-6 md:px-8 dark:border-white/5 dark:bg-slate-950/80">
-          <button onClick={() => setMobileOpen(true)} className="md:hidden p-2 -ml-2 rounded-lg hover:bg-slate-100 dark:hover:bg-white/10 transition-colors">
+        <header className="sticky top-0 z-30 flex h-[72px] items-center justify-between border-b border-neutral-200/60 bg-white/70 backdrop-blur-xl px-6 md:px-8 dark:border-white/5 dark:bg-neutral-950/80">
+          <button onClick={() => setMobileOpen(true)} className="md:hidden p-2 -ml-2 rounded-lg hover:bg-neutral-100 dark:hover:bg-white/10 transition-colors">
             <Menu className="h-5 w-5" />
           </button>
           <div className="hidden md:block">
-            <p className="text-sm font-medium text-slate-600 dark:text-slate-400">
+            <p className="text-sm font-medium text-neutral-600 dark:text-neutral-400">
               {user?.displayName ? `Welcome back, ${user.displayName.split(' ')[0]}` : 'Welcome to your workspace'}
             </p>
           </div>
           <div className="ml-auto flex items-center gap-5">
             <ThemeToggle />
-            <div className="hidden sm:flex items-center gap-3 px-4 py-2 rounded-xl bg-slate-100/60 dark:bg-white/5">
+            <div className="hidden sm:flex items-center gap-3 px-4 py-2 rounded-xl bg-neutral-100/60 dark:bg-white/5">
               <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-              <span className="text-sm font-medium text-slate-600 dark:text-slate-400">{user?.email}</span>
+              <span className="text-sm font-medium text-neutral-600 dark:text-neutral-400">{user?.email}</span>
             </div>
-            <button onClick={logout} className="p-2 text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 rounded-lg hover:bg-rose-50 dark:hover:bg-rose-500/10 transition-colors md:hidden">
+            <button onClick={logout} className="p-2 text-neutral-400 hover:text-rose-600 dark:hover:text-rose-400 rounded-lg hover:bg-rose-50 dark:hover:bg-rose-500/10 transition-colors md:hidden">
               <LogOut className="h-5 w-5" />
             </button>
           </div>
@@ -782,26 +782,26 @@ export default function Dashboard({ defaultTab = 'overview' }: { defaultTab?: st
 
       {/* Inquiry Detail Modal */}
       {selectedInquiry && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 backdrop-blur-sm p-4 animate-fade-in">
-          <div className="relative w-full max-w-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-neutral-950/60 backdrop-blur-sm p-4 animate-fade-in">
+          <div className="relative w-full max-w-xl bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
             {/* Header */}
-            <div className="p-6 border-b border-slate-100 dark:border-slate-800 flex items-start justify-between bg-slate-50/50 dark:bg-slate-950/50">
+            <div className="p-6 border-b border-neutral-100 dark:border-neutral-800 flex items-start justify-between bg-neutral-50/50 dark:bg-neutral-950/50">
               <div className="flex items-center gap-4">
-                <div className="w-12 h-12 rounded-full bg-gradient-to-br from-teal-500 to-cyan-500 flex items-center justify-center text-sm font-bold text-white shadow-md">
+                <div className="w-12 h-12 rounded-full bg-gradient-to-br from-neutral-800 to-neutral-600 dark:from-neutral-200 dark:to-neutral-400 flex items-center justify-center text-sm font-bold text-white shadow-md">
                   {getInitials(selectedInquiry.name)}
                 </div>
                 <div>
-                  <h3 className="text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                  <h3 className="text-lg font-bold text-neutral-900 dark:text-white flex items-center gap-2">
                     {selectedInquiry.name}
                   </h3>
-                  <p className="text-sm text-slate-500 dark:text-slate-400 font-medium">
+                  <p className="text-sm text-neutral-500 dark:text-neutral-400 font-medium">
                     {selectedInquiry.company ? `${selectedInquiry.company} • ` : ''}{selectedInquiry.email}
                   </p>
                 </div>
               </div>
               <button
                 onClick={() => setSelectedInquiry(null)}
-                className="p-2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 rounded-lg hover:bg-slate-100 dark:hover:bg-white/5 transition"
+                className="p-2 text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-300 rounded-lg hover:bg-neutral-100 dark:hover:bg-white/5 transition"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -811,27 +811,27 @@ export default function Dashboard({ defaultTab = 'overview' }: { defaultTab?: st
             <div className="p-6 overflow-y-auto space-y-6">
               {/* Classification Badges */}
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                <div className="p-3 rounded-xl bg-slate-50 dark:bg-white/5 border border-slate-100 dark:border-white/5">
-                  <span className="block text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1">Intent</span>
+                <div className="p-3 rounded-xl bg-neutral-50 dark:bg-white/5 border border-neutral-100 dark:border-white/5">
+                  <span className="block text-[11px] font-bold uppercase tracking-wider text-neutral-400 mb-1">Intent</span>
                   <span className={`text-sm font-bold capitalize flex items-center gap-1 ${intentColor(selectedInquiry.intent || selectedInquiry.urgency)}`}>
                     {(selectedInquiry.intent?.toLowerCase() === 'high' || selectedInquiry.urgency?.toLowerCase() === 'high') && <Flame className="w-3.5 h-3.5 text-orange-500" />}
                     {selectedInquiry.intent || 'General'}
                   </span>
                 </div>
-                <div className="p-3 rounded-xl bg-slate-50 dark:bg-white/5 border border-slate-100 dark:border-white/5">
-                  <span className="block text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1">Urgency</span>
-                  <span className="text-sm font-bold text-slate-900 dark:text-white capitalize">
+                <div className="p-3 rounded-xl bg-neutral-50 dark:bg-white/5 border border-neutral-100 dark:border-white/5">
+                  <span className="block text-[11px] font-bold uppercase tracking-wider text-neutral-400 mb-1">Urgency</span>
+                  <span className="text-sm font-bold text-neutral-900 dark:text-white capitalize">
                     {selectedInquiry.urgency || 'Normal'}
                   </span>
                 </div>
-                <div className="p-3 rounded-xl bg-slate-50 dark:bg-white/5 border border-slate-100 dark:border-white/5">
-                  <span className="block text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1">Fit Score</span>
-                  <span className="text-sm font-bold text-teal-600 dark:text-teal-400">
+                <div className="p-3 rounded-xl bg-neutral-50 dark:bg-white/5 border border-neutral-100 dark:border-white/5">
+                  <span className="block text-[11px] font-bold uppercase tracking-wider text-neutral-400 mb-1">Fit Score</span>
+                  <span className="text-sm font-bold text-black dark:text-white">
                     {selectedInquiry.fit_score ? `${selectedInquiry.fit_score}/10` : 'N/A'}
                   </span>
                 </div>
-                <div className="p-3 rounded-xl bg-slate-50 dark:bg-white/5 border border-slate-100 dark:border-white/5">
-                  <span className="block text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1">Status</span>
+                <div className="p-3 rounded-xl bg-neutral-50 dark:bg-white/5 border border-neutral-100 dark:border-white/5">
+                  <span className="block text-[11px] font-bold uppercase tracking-wider text-neutral-400 mb-1">Status</span>
                   <Badge variant={getStatusVariant(selectedInquiry.status)}>{selectedInquiry.status}</Badge>
                 </div>
               </div>
@@ -839,8 +839,8 @@ export default function Dashboard({ defaultTab = 'overview' }: { defaultTab?: st
               {/* Message */}
               {selectedInquiry.message && (
                 <div>
-                  <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-2">Original Inquiry</h4>
-                  <div className="p-4 rounded-xl bg-slate-50 dark:bg-white/5 border border-slate-200/80 dark:border-white/10 text-sm text-slate-700 dark:text-slate-300 leading-relaxed whitespace-pre-wrap">
+                  <h4 className="text-xs font-bold uppercase tracking-wider text-neutral-400 mb-2">Original Inquiry</h4>
+                  <div className="p-4 rounded-xl bg-neutral-50 dark:bg-white/5 border border-neutral-200/80 dark:border-white/10 text-sm text-neutral-700 dark:text-neutral-300 leading-relaxed whitespace-pre-wrap">
                     "{selectedInquiry.message}"
                   </div>
                 </div>
@@ -849,11 +849,11 @@ export default function Dashboard({ defaultTab = 'overview' }: { defaultTab?: st
               {/* AI Summary */}
               {selectedInquiry.summary && (
                 <div>
-                  <h4 className="text-xs font-bold uppercase tracking-wider text-teal-600 dark:text-teal-400 mb-2 flex items-center gap-1.5">
+                  <h4 className="text-xs font-bold uppercase tracking-wider text-black dark:text-white mb-2 flex items-center gap-1.5">
                     <Sparkles className="w-3.5 h-3.5" />
                     AI Summary
                   </h4>
-                  <div className="p-4 rounded-xl bg-teal-50/50 dark:bg-teal-950/20 border border-teal-100 dark:border-teal-900/30 text-sm text-slate-700 dark:text-slate-300 leading-relaxed">
+                  <div className="p-4 rounded-xl bg-neutral-50 dark:bg-neutral-900/50 border border-neutral-200 dark:border-neutral-700 text-sm text-neutral-700 dark:text-neutral-300 leading-relaxed">
                     {selectedInquiry.summary}
                   </div>
                 </div>
@@ -866,7 +866,7 @@ export default function Dashboard({ defaultTab = 'overview' }: { defaultTab?: st
                     <Bot className="w-3.5 h-3.5" />
                     Recommended Action
                   </h4>
-                  <div className="p-4 rounded-xl bg-blue-50/50 dark:bg-blue-950/20 border border-blue-100 dark:border-blue-900/30 text-sm text-slate-700 dark:text-slate-300 leading-relaxed">
+                  <div className="p-4 rounded-xl bg-blue-50/50 dark:bg-blue-950/20 border border-blue-100 dark:border-blue-900/30 text-sm text-neutral-700 dark:text-neutral-300 leading-relaxed">
                     {selectedInquiry.suggested_action}
                   </div>
                 </div>
@@ -875,7 +875,7 @@ export default function Dashboard({ defaultTab = 'overview' }: { defaultTab?: st
 
               {/* Quick Status Triage */}
               <div>
-                <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-2">Triage Status</h4>
+                <h4 className="text-xs font-bold uppercase tracking-wider text-neutral-400 mb-2">Triage Status</h4>
                 <div className="flex flex-wrap gap-2">
                   {['Qualified', 'Contacted', 'Pending', 'Spam'].map((st) => (
                     <button
@@ -883,8 +883,8 @@ export default function Dashboard({ defaultTab = 'overview' }: { defaultTab?: st
                       onClick={() => updateInquiryStatus(selectedInquiry.id, st)}
                       className={`px-3 py-1.5 rounded-lg text-xs font-bold transition border ${
                         selectedInquiry.status === st
-                          ? 'bg-teal-600 text-white border-teal-600 shadow-sm'
-                          : 'bg-slate-50 dark:bg-white/5 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-white/10 hover:bg-slate-100 dark:hover:bg-white/10'
+                          ? 'bg-black dark:bg-white text-white dark:text-black border-black dark:border-white shadow-sm'
+                          : 'bg-neutral-50 dark:bg-white/5 text-neutral-600 dark:text-neutral-300 border-neutral-200 dark:border-white/10 hover:bg-neutral-100 dark:hover:bg-white/10'
                       }`}
                     >
                       {st === selectedInquiry.status ? `✓ ${st}` : st}
@@ -894,10 +894,10 @@ export default function Dashboard({ defaultTab = 'overview' }: { defaultTab?: st
               </div>
 
               {/* Footer Action Buttons */}
-              <div className="p-4 border-t border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/50 flex items-center justify-between gap-3">
+              <div className="p-4 border-t border-neutral-100 dark:border-neutral-800 bg-neutral-50/50 dark:bg-neutral-950/50 flex items-center justify-between gap-3">
                 <button
                   onClick={() => copyEmailToClipboard(selectedInquiry.email)}
-                  className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-200/60 dark:hover:bg-white/10 rounded-lg transition border border-slate-200 dark:border-white/10"
+                  className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold text-neutral-700 dark:text-neutral-300 hover:bg-neutral-200/60 dark:hover:bg-white/10 rounded-lg transition border border-neutral-200 dark:border-white/10"
                 >
                   {copiedEmail ? <Check className="w-4 h-4 text-emerald-500" /> : <Copy className="w-4 h-4" />}
                   {copiedEmail ? 'Copied!' : 'Copy Email'}
@@ -906,7 +906,7 @@ export default function Dashboard({ defaultTab = 'overview' }: { defaultTab?: st
                 <div className="flex items-center gap-2">
                   <a
                     href={`mailto:${selectedInquiry.email}?subject=Re: Inquiry from ${encodeURIComponent(selectedInquiry.name)}`}
-                    className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-bold text-white bg-teal-600 hover:bg-teal-700 rounded-lg shadow-sm transition"
+                    className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-bold text-white bg-black dark:bg-white text-white dark:text-black hover:bg-neutral-800 dark:hover:bg-neutral-200 rounded-lg shadow-sm transition"
                   >
                     <Mail className="w-4 h-4" />
                     Reply via Email
@@ -929,19 +929,19 @@ export default function Dashboard({ defaultTab = 'overview' }: { defaultTab?: st
 }
 
 function PageHeading({ title, description, action }: { title: string; description: string; action?: React.ReactNode }) {
-  return <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between"><div><p className="text-sm font-semibold uppercase tracking-[0.18em] text-teal-600 dark:text-teal-400">NodalX operations</p><h1 className="mt-2 text-3xl font-bold tracking-tight text-slate-950 dark:text-white">{title}</h1><p className="mt-2 text-slate-500 dark:text-slate-400">{description}</p></div>{action}</div>;
+  return <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between"><div><p className="text-sm font-semibold uppercase tracking-[0.18em] text-black dark:text-white">NodalX operations</p><h1 className="mt-2 text-3xl font-bold tracking-tight text-neutral-950 dark:text-white">{title}</h1><p className="mt-2 text-neutral-500 dark:text-neutral-400">{description}</p></div>{action}</div>;
 }
 
 function InquiryQueue({ inquiries, isLoading, onViewAll, onSelectInquiry }: { inquiries: Inquiry[]; isLoading: boolean; onViewAll?: () => void; onSelectInquiry?: (inquiry: Inquiry) => void }) {
   return (
     <section className="glass-card rounded-2xl overflow-hidden">
-      <div className="flex items-center justify-between border-b border-slate-200/60 dark:border-white/5 p-6 bg-slate-50/30 dark:bg-white/[0.02]">
+      <div className="flex items-center justify-between border-b border-neutral-200/60 dark:border-white/5 p-6 bg-neutral-50/30 dark:bg-white/[0.02]">
         <div>
-          <h2 className="text-lg font-bold text-slate-900 dark:text-white tracking-tight">Recent inquiries</h2>
-          <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">Live records from your connected workflow</p>
+          <h2 className="text-lg font-bold text-neutral-900 dark:text-white tracking-tight">Recent inquiries</h2>
+          <p className="mt-1 text-sm text-neutral-500 dark:text-neutral-400">Live records from your connected workflow</p>
         </div>
         {onViewAll && (
-          <button onClick={onViewAll} className="btn-glass inline-flex items-center gap-1.5 text-sm font-bold text-teal-600 dark:text-teal-400 px-4 py-2 rounded-xl hover:text-teal-700 dark:hover:text-teal-300 transition-colors">
+          <button onClick={onViewAll} className="btn-glass inline-flex items-center gap-1.5 text-sm font-bold text-black dark:text-white px-4 py-2 rounded-xl hover:text-neutral-600 dark:hover:text-neutral-300 transition-colors">
             View queue <ChevronRight className="h-4 w-4" />
           </button>
         )}
@@ -949,7 +949,7 @@ function InquiryQueue({ inquiries, isLoading, onViewAll, onSelectInquiry }: { in
       {isLoading ? (
         <div className="p-6 space-y-4">
           {[...Array(4)].map((_, i) => (
-            <div key={i} className="flex items-center justify-between p-4 rounded-xl bg-slate-50/50 dark:bg-white/[0.02]" style={{ animationDelay: `${i * 0.1}s` }}>
+            <div key={i} className="flex items-center justify-between p-4 rounded-xl bg-neutral-50/50 dark:bg-white/[0.02]" style={{ animationDelay: `${i * 0.1}s` }}>
               <div className="flex items-center gap-4">
                 <div className="skeleton skeleton-circle w-10 h-10" />
                 <div className="space-y-2">
@@ -967,25 +967,25 @@ function InquiryQueue({ inquiries, isLoading, onViewAll, onSelectInquiry }: { in
       ) : inquiries.length === 0 ? (
         <EmptyState title="No inquiries yet" description="When your form or webhook receives an inquiry, it will appear here for triage." />
       ) : (
-        <div className="divide-y divide-slate-100/80 dark:divide-white/5">
+        <div className="divide-y divide-neutral-100/80 dark:divide-white/5">
           {inquiries.map((inquiry, index) => (
-            <div key={inquiry.id} className="group flex flex-col gap-3 p-5 sm:flex-row sm:items-center sm:justify-between hover:bg-slate-50/70 dark:hover:bg-white/[0.03] transition-all duration-200 animate-fade-in" style={{ animationDelay: `${index * 0.05}s` }}>
+            <div key={inquiry.id} className="group flex flex-col gap-3 p-5 sm:flex-row sm:items-center sm:justify-between hover:bg-neutral-50/70 dark:hover:bg-white/[0.03] transition-all duration-200 animate-fade-in" style={{ animationDelay: `${index * 0.05}s` }}>
               <div className="min-w-0 flex items-center gap-4">
-                <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-teal-500 to-cyan-500 flex items-center justify-center text-sm font-bold text-white flex-shrink-0 shadow-sm group-hover:shadow-md transition-shadow duration-200">
+                <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-neutral-800 to-neutral-600 dark:from-neutral-200 dark:to-neutral-400 flex items-center justify-center text-sm font-bold text-white flex-shrink-0 shadow-sm group-hover:shadow-md transition-shadow duration-200">
                   {getInitials(inquiry.name)}
                 </div>
                 <div>
-                  <p className="truncate font-bold text-slate-900 dark:text-white tracking-tight">{inquiry.name}</p>
-                  <p className="truncate text-sm text-slate-500 dark:text-slate-400 mt-0.5 font-medium">{inquiry.company || inquiry.email}</p>
+                  <p className="truncate font-bold text-neutral-900 dark:text-white tracking-tight">{inquiry.name}</p>
+                  <p className="truncate text-sm text-neutral-500 dark:text-neutral-400 mt-0.5 font-medium">{inquiry.company || inquiry.email}</p>
                 </div>
               </div>
               <div className="flex items-center gap-4">
                 <Badge variant={getStatusVariant(inquiry.status)} size="md">{inquiry.status}</Badge>
-                <span className="hidden text-sm text-slate-500 dark:text-slate-400 font-medium tabular-nums sm:block">{timeAgo(inquiry.last_active)}</span>
+                <span className="hidden text-sm text-neutral-500 dark:text-neutral-400 font-medium tabular-nums sm:block">{timeAgo(inquiry.last_active)}</span>
                 {onSelectInquiry && (
                   <button
                     onClick={() => onSelectInquiry(inquiry)}
-                    className="inline-flex items-center gap-2 px-4 py-2 text-xs font-bold text-teal-700 dark:text-teal-300 bg-teal-50/80 dark:bg-teal-500/10 rounded-xl hover:bg-teal-100 dark:hover:bg-teal-500/20 transition-all duration-200 border border-teal-200/60 dark:border-teal-500/20 hover-scale"
+                    className="inline-flex items-center gap-2 px-4 py-2 text-xs font-bold text-black dark:text-white bg-neutral-100 dark:bg-neutral-100 dark:bg-neutral-800 rounded-xl hover:bg-neutral-200 dark:hover:bg-neutral-700 transition-all duration-200 border border-neutral-200 dark:border-neutral-700 hover-scale"
                   >
                     <Eye className="w-4 h-4" />
                     View
@@ -1002,16 +1002,16 @@ function InquiryQueue({ inquiries, isLoading, onViewAll, onSelectInquiry }: { in
 
 function EmptyState({ title, description, action, actionLabel }: { title: string; description: string; action?: () => void; actionLabel?: string }) {
   return (
-    <div className="relative rounded-2xl border border-dashed border-slate-300/80 dark:border-white/10 p-12 text-center overflow-hidden">
-      <div className="absolute inset-0 bg-gradient-to-br from-teal-500/5 via-transparent to-cyan-500/5" />
+    <div className="relative rounded-2xl border border-dashed border-neutral-300/80 dark:border-white/10 p-12 text-center overflow-hidden">
+      <div className="absolute inset-0 bg-gradient-to-br from-neutral-500/5 via-transparent to-neutral-500/5" />
       <div className="relative">
-        <div className="w-16 h-16 mx-auto rounded-2xl bg-teal-500/10 dark:bg-teal-500/15 flex items-center justify-center mb-5">
-          <Sparkles className="h-8 w-8 text-teal-500" />
+        <div className="w-16 h-16 mx-auto rounded-2xl bg-neutral-100 dark:bg-neutral-800 dark:bg-neutral-100 dark:bg-neutral-800 flex items-center justify-center mb-5">
+          <Sparkles className="h-8 w-8 text-black dark:text-white" />
         </div>
-        <h3 className="text-lg font-bold text-slate-900 dark:text-white tracking-tight">{title}</h3>
-        <p className="mx-auto mt-3 max-w-md text-sm text-slate-500 dark:text-slate-400 leading-relaxed">{description}</p>
+        <h3 className="text-lg font-bold text-neutral-900 dark:text-white tracking-tight">{title}</h3>
+        <p className="mx-auto mt-3 max-w-md text-sm text-neutral-500 dark:text-neutral-400 leading-relaxed">{description}</p>
         {action && actionLabel && (
-          <button onClick={action} className="mt-6 inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-teal-600 to-teal-500 hover:from-teal-700 hover:to-teal-600 px-5 py-3 text-sm font-bold text-white shadow-lg shadow-teal-600/20 hover:shadow-teal-600/30 transition-all duration-200 hover:-translate-y-0.5">
+          <button onClick={action} className="mt-6 inline-flex items-center gap-2 rounded-xl bg-black dark:bg-white hover:bg-neutral-800 dark:hover:bg-neutral-200 px-5 py-3 text-sm font-bold text-white dark:text-black shadow-lg shadow-neutral-900/10 hover:shadow-neutral-900/20 transition-all duration-200 hover:-translate-y-0.5">
             {actionLabel}
             <ArrowRight className="h-4 w-4" />
           </button>
