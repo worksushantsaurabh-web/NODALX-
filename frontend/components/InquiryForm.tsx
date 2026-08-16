@@ -40,29 +40,32 @@ export default function InquiryForm() {
     };
 
     try {
-      let response: Response;
-
       if (APPSCRIPT_WEBHOOK_URL) {
-        response = await fetch(APPSCRIPT_WEBHOOK_URL, {
+        // Apps Script POST: use no-cors to bypass Google's redirect CORS issue
+        // The request still reaches the server and executes doPost
+        await fetch(APPSCRIPT_WEBHOOK_URL, {
           method: 'POST',
           headers: { 'Content-Type': 'text/plain' },
           body: JSON.stringify(payload),
+          mode: 'no-cors',
+          redirect: 'follow',
         });
+        // no-cors gives opaque response (can't read body), but POST executes server-side
       } else {
-        response = await fetch('/api/inquiries', {
+        const response = await fetch('/api/inquiries', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload),
         });
-      }
 
-      if (!response.ok) {
-        throw new Error(`Server responded with status: ${response.status}`);
-      }
+        if (!response.ok) {
+          throw new Error(`Server responded with status: ${response.status}`);
+        }
 
-      const data = await response.json();
-      if (data && data.success === false) {
-        throw new Error(data.error || data.message || 'Submission failed');
+        const data = await response.json();
+        if (data && data.success === false) {
+          throw new Error(data.error || data.message || 'Submission failed');
+        }
       }
 
       Analytics.formSuccess();
