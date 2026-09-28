@@ -1,6 +1,6 @@
 /**
  * ═══════════════════════════════════════════════════════════════
- * NODALxAI — Inquiry Pipeline (Apps Script Backend)
+ * NodalX — Inquiry Pipeline (Apps Script Backend)
  * ═══════════════════════════════════════════════════════════════
  * 
  * Replaces n8n with Google Apps Script + Google Sheets
@@ -21,12 +21,60 @@ const CONFIG = {
   // Your Google Sheet ID (from the URL between /d/ and /edit)
   SPREADSHEET_ID: '1djfUM9Qe0BrVZGdqucu36knltLnycKc4gULz8Sh7Xdk',
 
-  SHEET_NAME: 'NODALxAI_Inquiries',
+  SHEET_NAME: 'NodalX_Inquiries',
   ALLOWED_ORIGIN: '*', // Change to your domain in production
   OWNER_EMAIL: 'thesushantsaurabh@gmail.com',
   SEND_OWNER_EMAIL: true,
   SEND_USER_CONFIRMATION: true,
 };
+
+/**
+ * Script Property holding the shared secret for every inbound request.
+ *
+ * A deployed "Anyone" web app has no authentication of its own, so the URL
+ * itself is the only thing standing between a stranger and the customer
+ * spreadsheet. The URL was published in a public git repository, which makes
+ * the endpoint effectively unauthenticated.
+ *
+ * Set it once in the Apps Script editor under Project Settings → Script
+ * Properties as INTAKE_SECRET. Requests without a matching
+ * `x-nodalx-secret` header are rejected.
+ *
+ * @return {string} The configured secret, or an empty string when unset.
+ */
+function getIntakeSecret() {
+  return PropertiesService.getScriptProperties().getProperty('INTAKE_SECRET') || '';
+}
+
+/**
+ * Verify the shared secret on an inbound request.
+ *
+ * Uses a constant-time comparison so a wrong secret cannot be discovered by
+ * timing the response.
+ *
+ * @param {GoogleAppsScript.Events.DoGet|GoogleAppsScript.Events.DoPost} e Request event.
+ * @return {boolean} True when the request carries the correct secret.
+ */
+function isAuthorized(e) {
+  const expected = getIntakeSecret();
+  // Fail closed. An unset secret must never mean "allow everyone".
+  if (!expected) {
+    return false;
+  }
+
+  const provided = (e && e.parameter && e.parameter.secret) ||
+    (e && e.headers && e.headers['x-nodalx-secret']) || '';
+
+  if (provided.length !== expected.length) {
+    return false;
+  }
+
+  let mismatch = 0;
+  for (let i = 0; i < expected.length; i++) {
+    mismatch |= expected.charCodeAt(i) ^ String(provided).charCodeAt(i);
+  }
+  return mismatch === 0;
+}
 
 // ═══════════════════════════════════════════════════════════════
 // EMBEDDED CLASSIFICATION RULES (no external API needed)
@@ -227,6 +275,10 @@ function setupSheet() {
 // ═══════════════════════════════════════════════════════════════
 
 function doPost(e) {
+  if (!isAuthorized(e)) {
+    return jsonResponse({ success: false, message: 'Unauthorized' }, 401);
+  }
+
   const lock = LockService.getScriptLock();
   lock.waitLock(10000);
   
@@ -272,12 +324,20 @@ function doPost(e) {
 // ═══════════════════════════════════════════════════════════════
 
 function doGet(e) {
+  // Every read path returns customer contact details, so the secret is
+  // required before the action is even parsed.
+  if (!isAuthorized(e)) {
+    return jsonResponse({ success: false, message: 'Unauthorized' }, 401);
+  }
+
   try {
     const action = e.parameter.action || 'list';
 
     if (action === 'list') {
-      const inquiries = getAllInquiries();
-      return jsonResponse({ success: true, customers: inquiries, count: inquiries.length });
+      return jsonResponse({
+        success: false,
+        message: 'Public inquiry listing is disabled. Use the authenticated dashboard API.',
+      }, 403);
     }
 
     if (action === 'stats') {
@@ -383,10 +443,12 @@ function getStats() {
 // ═══════════════════════════════════════════════════════════════
 
 function sendEmailNotifications(payload, classification) {
+  if (!payload || !payload.name) return;
+  if (!classification) classification = {};
   try {
     if (CONFIG.SEND_OWNER_EMAIL && CONFIG.OWNER_EMAIL) {
       const ownerSubject = '🔥 New Inquiry from ' + (payload.name || 'Unknown') + ' (' + classification.intent + ' / ' + classification.urgency + ' urgency)';
-      const ownerBody = 'New inquiry received on NODALxAI:\n\n' +
+      const ownerBody = 'New inquiry received on NodalX:\n\n' +
         '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n' +
         'CONTACT DETAILS\n' +
         '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n' +
@@ -423,7 +485,7 @@ function sendEmailNotifications(payload, classification) {
       var serviceBlock = getServiceFollowUp(payload.service);
       var userSubject = serviceBlock.subject;
       var userBody = 'Hi ' + (payload.name || 'there') + ',\n\n' +
-        'Thank you for reaching out to NODALxAI! We\'ve received your inquiry and our team is reviewing it.\n\n' +
+        'Thank you for reaching out to NodalX! We\'ve received your inquiry and our team is reviewing it.\n\n' +
         '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n' +
         'YOUR INQUIRY SUMMARY\n' +
         '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n' +
@@ -439,13 +501,13 @@ function sendEmailNotifications(payload, classification) {
         '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n' +
         serviceBlock.nextStep + '\n\n' +
         'Simply reply to this email with your answers and we\'ll get started.\n\n' +
-        'Best regards,\nThe NODALxAI Team\nhttps://nodalxai.com';
+        'Best regards,\nThe NodalX Team\nhttps://nodalx.in';
 
       MailApp.sendEmail({
         to: payload.email,
         subject: userSubject,
         body: userBody,
-        name: 'NODALxAI',
+        name: 'NodalX',
       });
       Logger.log('User confirmation sent to: ' + payload.email);
     }
@@ -462,7 +524,7 @@ function getServiceFollowUp(service) {
   var templates = {
     'ai-automation': {
       label: 'AI Workflow Automation',
-      subject: 'Let\'s scope your automation — NODALxAI',
+      subject: 'Let\'s scope your automation — NodalX',
       heading: 'TO BUILD YOUR AUTOMATION PROPOSAL, WE NEED',
       body:
         'To prepare a tailored automation proposal, please reply with:\n\n' +
@@ -474,7 +536,7 @@ function getServiceFollowUp(service) {
     },
     'lead-scoring': {
       label: 'Intelligent Lead Scoring',
-      subject: 'Let\'s build your scoring model — NODALxAI',
+      subject: 'Let\'s build your scoring model — NodalX',
       heading: 'TO DESIGN YOUR LEAD SCORING FRAMEWORK, WE NEED',
       body:
         'To build a scoring model that fits your business, please reply with:\n\n' +
@@ -486,7 +548,7 @@ function getServiceFollowUp(service) {
     },
     'custom-integration': {
       label: 'Custom CRM Integration',
-      subject: 'Let\'s scope your integration — NODALxAI',
+      subject: 'Let\'s scope your integration — NodalX',
       heading: 'TO ESTIMATE YOUR INTEGRATION, WE NEED',
       body:
         'To scope the integration accurately, please reply with:\n\n' +
@@ -498,7 +560,7 @@ function getServiceFollowUp(service) {
     },
     'consulting': {
       label: 'Strategy & Consulting',
-      subject: 'Let\'s understand your workflow — NODALxAI',
+      subject: 'Let\'s understand your workflow — NodalX',
       heading: 'TO PREPARE YOUR AUDIT CALL, WE NEED',
       body:
         'To make the most of our discovery call, please reply with:\n\n' +
@@ -516,7 +578,7 @@ function getServiceFollowUp(service) {
 
   return {
     label: 'General',
-    subject: 'We received your inquiry — NODALxAI',
+    subject: 'We received your inquiry — NodalX',
     heading: 'WHAT HAPPENS NEXT',
     body:
       'Our AI has analyzed your inquiry and routed it to the right specialist. ' +
@@ -565,7 +627,7 @@ function testStore() {
     company: 'Test Inc',
     industry: 'Finance',
     message: 'Looking for pricing info on your lead scoring tool.',
-    source: 'https://nodalxai.com/contact',
+    source: 'https://nodalx.in/contact',
   };
   const classification = classifyInquiry(payload);
   const id = storeInquiry(payload, classification);
@@ -576,4 +638,29 @@ function testGetAll() {
   const all = getAllInquiries();
   Logger.log('Total: ' + all.length);
   Logger.log(JSON.stringify(all[0], null, 2));
+}
+
+function testEmail() {
+  MailApp.sendEmail({
+    to: CONFIG.OWNER_EMAIL,
+    subject: 'NodalX — Email Test',
+    body: 'If you see this, email permissions are working correctly.\n\nThis is a test from your NodalX Apps Script.',
+    name: 'NodalX',
+  });
+  Logger.log('Test email sent to: ' + CONFIG.OWNER_EMAIL);
+}
+
+function testFullPost() {
+  var mockPayload = {
+    name: 'Test User',
+    email: CONFIG.OWNER_EMAIL,
+    company: 'Test Corp',
+    industry: 'technology',
+    service: 'ai-automation',
+    message: 'Testing the full POST pipeline including email.',
+  };
+  var classification = classifyInquiry(mockPayload);
+  Logger.log('Classification: ' + JSON.stringify(classification));
+  sendEmailNotifications(mockPayload, classification);
+  Logger.log('Done — check your inbox!');
 }

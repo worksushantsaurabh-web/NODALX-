@@ -11,7 +11,7 @@ const steps = [
   {
     id: 2,
     title: 'AI analyzes the request',
-    description: 'NODALxAI categorizes intent, urgency, and budget.',
+    description: 'NodalX categorizes intent, urgency, and budget.',
     icon: Sparkles,
   },
   {
@@ -39,10 +39,10 @@ export default function ProcessTimeline() {
 
       <div className="max-w-7xl mx-auto px-6 md:px-12 relative z-10">
         <div className="text-center max-w-2xl mx-auto mb-16 lg:mb-24 animate-fade-in-up">
-          <h2 className="text-sm font-bold tracking-widest text-black dark:text-white dark:text-black dark:bg-white uppercase mb-3">
+          <h2 className="text-sm font-bold tracking-widest text-black    uppercase mb-3">
             The Workflow
           </h2>
-          <h3 className="text-3xl md:text-4xl font-extrabold text-neutral-900 dark:text-white tracking-tight">
+          <h3 className="text-3xl md:text-4xl font-extrabold text-neutral-900  tracking-tight">
             What Happens Next?
           </h3>
         </div>
@@ -52,7 +52,7 @@ export default function ProcessTimeline() {
             <React.Fragment key={step.id}>
               {/* Step Card */}
               <div 
-                className="flex-1 w-full max-w-sm lg:max-w-none bg-white/80 backdrop-blur-xl rounded-3xl p-8 border border-neutral-200/60 shadow-sm hover:shadow-2xl hover:shadow-black dark:text-white/10 transition-all duration-500 group relative animate-fade-in-up"
+                className="flex-1 w-full max-w-sm lg:max-w-none bg-white/80  rounded-3xl p-8 border border-neutral-200/60 shadow-sm hover:shadow-2xl hover:shadow-black  transition-all duration-500 group relative animate-fade-in-up"
                 style={{ animationDelay: `${index * 0.15}s` }}
               >
                 {/* Hover Gradient Overlay */}
@@ -60,7 +60,7 @@ export default function ProcessTimeline() {
                 
                 <div className="relative z-10 flex flex-col h-full">
                   <div className="flex items-center justify-between mb-6">
-                    <div className="w-12 h-12 rounded-2xl bg-neutral-50 border border-neutral-100 text-black dark:text-white flex items-center justify-center group-hover:scale-110 group-hover:bg-black dark:text-white group-hover:text-white transition-all duration-500 shadow-sm">
+                    <div className="w-12 h-12 rounded-2xl bg-neutral-50 border border-neutral-100 text-black  flex items-center justify-center group-hover:scale-110 group-hover:bg-black  group-hover:text-white transition-all duration-500 shadow-sm">
                       <step.icon strokeWidth={1.5} className="w-6 h-6" />
                     </div>
                     <span className="text-sm font-bold text-neutral-300 group-hover:text-neutral-200 transition-colors">
@@ -69,13 +69,13 @@ export default function ProcessTimeline() {
                   </div>
                   
                   <div className="mt-auto">
-                    <div className="text-xs font-bold text-black dark:text-white uppercase tracking-wider mb-2">
+                    <div className="text-xs font-bold text-black  uppercase tracking-wider mb-2">
                       Step {step.id}
                     </div>
                     <h4 className="text-lg font-bold text-neutral-900 leading-snug mb-2">
                       {step.title}
                     </h4>
-                    <p className="text-sm text-neutral-500 leading-relaxed">
+                    <p className="text-sm text-text-tertiary leading-relaxed">
                       {step.description}
                     </p>
                   </div>

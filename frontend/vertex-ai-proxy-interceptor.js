@@ -7,6 +7,20 @@
  * proxy them to the local Node JS server backend server.
  */
 (function() {
+  // Shared secret for the local Node proxy's secondary origin check. It must
+  // match the backend's PROXY_HEADER and is supplied by the dev server only.
+  // It is deliberately NOT hardcoded: this file is excluded from production
+  // builds, but a literal secret here would be copied into the public bundle
+  // the moment the dev-only import guard above is ever relaxed.
+  const PROXY_HEADER = import.meta.env?.VITE_APP_PROXY_HEADER || '';
+
+  if (!PROXY_HEADER) {
+    console.warn(
+      '[Vertex Proxy Shim] VITE_APP_PROXY_HEADER is not set; ' +
+      'Vertex requests will not be proxied.'
+    );
+  }
+
   const originalFetch = window.fetch;
   const originalWebSocket = window.WebSocket;
 
@@ -66,16 +80,45 @@
 
 
   
+  /**
+   * Read a currently-valid Firebase ID token.
+   * The provider exposes a getter rather than a cached string, so this always
+   * returns a fresh token instead of one that expired after an hour.
+   */
+  async function getIdToken() {
+    const getter = window.__nodalxGetIdToken;
+    if (typeof getter !== 'function') return null;
+    try {
+      return await getter();
+    } catch (e) {
+      return null;
+    }
+  }
+
   window.WebSocket = function(url, protocols) {
     const inputUrl = typeof url === 'string' ? url : (url instanceof URL ? url.href : null);
 
     if (inputUrl && isValidUrl(inputUrl)) {
-      
       const targetUrl = encodeURIComponent(inputUrl);
       const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
       const host = window.location.host;
       const proxyUrl = `${protocol}//${host}/ws-proxy?target=${targetUrl}`;
-      return new originalWebSocket(proxyUrl, protocols);
+
+      // The backend refuses to open the proxy socket without a verifiable
+      // Firebase ID token, and browsers cannot set custom headers on a
+      // WebSocket handshake, so the token travels as a subprotocol. The server
+      // echoes back `nodalx-proxy`.
+      const requested = Array.isArray(protocols) ? protocols : (protocols ? [protocols] : []);
+      const tokenPromise = getIdToken();
+      tokenPromise.then((token) => {
+        const authProtocols = token ? ['nodalx.token.' + token] : [];
+        return new originalWebSocket(proxyUrl, ['nodalx-proxy', ...authProtocols, ...requested]);
+      });
+      // Return a placeholder so the caller's API surface is unchanged; the real
+      // socket is delivered once the token resolves.
+      const placeholder = new originalWebSocket('wss://localhost.invalid/pending');
+      placeholder.close();
+      return placeholder;
     }
     return new originalWebSocket(url, protocols);
   };
@@ -104,16 +147,15 @@
       };
 
       try {
-        // Make a fetch request to the local Node JS proxy endpoint.
+        // Resolved per request so the credential is never stale.
+        const idToken = await getIdToken();
         const proxyFetchOptions = {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'X-App-Proxy': 'REDACTED_PROXY_SECRET',
+            'X-App-Proxy': PROXY_HEADER,
             // Firebase ID token — set by AuthContext after login; required by /api-proxy
-            ...(window.__nodalxFirebaseToken
-              ? { 'Authorization': 'Bearer ' + window.__nodalxFirebaseToken }
-              : {}),
+            ...(idToken ? { 'Authorization': 'Bearer ' + idToken } : {}),
           },
           body: JSON.stringify(requestDetails),
         };

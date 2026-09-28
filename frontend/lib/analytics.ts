@@ -19,6 +19,8 @@ import app from './firebase';
 
 function getAnalyticsInstance() {
   try {
+    // `app` is null when Firebase failed to initialize.
+    if (!app) return null;
     return getAnalytics(app);
   } catch {
     return null;

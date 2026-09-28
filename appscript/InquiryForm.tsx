@@ -107,7 +107,7 @@ export default function InquiryForm() {
               </div>
 
               <h3 className="text-2xl font-bold text-slate-900 dark:text-white mb-2">Inquiry Submitted!</h3>
-              <p className="text-slate-500 dark:text-slate-400 mb-6">Thank you for contacting NODALxAI. We've analyzed your request.</p>
+              <p className="text-slate-500 dark:text-slate-400 mb-6">Thank you for contacting NodalX. We've analyzed your request.</p>
 
               {classification && (
                 <div className="max-w-md mx-auto bg-slate-50 dark:bg-slate-800/50 rounded-xl p-6 mb-6 text-left">

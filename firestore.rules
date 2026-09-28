@@ -10,12 +10,21 @@ service cloud.firestore {
 
     // Rule 1: Users collection
     // - Readable only by the signed-in user
-    // - Creatable only by the user with a "tier" field of "free"
-    // - Not updatable by the client
+    // - Creatable only by the user, and only with a "tier" of "free"
+    // - Not updatable or deletable by the client
+    //
+    // SECURITY: the tier must be pinned to "free" on create. A client that could
+    // create its own doc with tier == "full" would satisfy the premiumContent read
+    // rule below and grant itself paid access for free. Paid tiers are only ever
+    // granted server-side by the redemption flow (Admin SDK bypasses these rules).
     match /users/{userId} {
       allow read: if request.auth != null && request.auth.uid == userId;
-      allow create: if request.auth != null && request.auth.uid == userId && request.resource.data.tier == 'free';
+      allow create: if request.auth != null
+                    && request.auth.uid == userId
+                    && request.resource.data.uid == request.auth.uid
+                    && request.resource.data.tier == 'free';
       allow update: if false; // Disallow direct client updates
+      allow delete: if false; // Disallow direct client deletes
     }
     
     // Rule 2: User Flows collection (user-scoped)
@@ -44,8 +53,12 @@ service cloud.firestore {
 
     // Rule 6: PremiumContent collection
     // - Readable only by users with a "tier" of "full"
+    // - The exists() guard makes this fail closed for users with no document yet
+    //   instead of erroring out on a missing parent.
     match /premiumContent/{contentId} {
-      allow read: if request.auth != null && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.tier == 'full';
+      allow read: if request.auth != null
+                   && exists(/databases/$(database)/documents/users/$(request.auth.uid))
+                   && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.tier == 'full';
       allow write: if false; // Or set your own write rules if needed
     }
 
@@ -55,8 +68,11 @@ service cloud.firestore {
     }
 
     // Allow inquiries to be created by authenticated users only
+    // Inquiries are written exclusively by the Admin SDK from the intake API,
+    // which authenticates the tenant with X-API-Key. Letting a signed-in client
+    // create rows directly would bypass key scoping, so only the server writes.
     match /inquiries/{inquiryId} {
-      allow create: if request.auth != null;
+      allow read, write: if false;
     }
 
     // Rate limits collection - backend only (no client access)

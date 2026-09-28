@@ -10,8 +10,10 @@ import { GoogleAuth } from 'google-auth-library';
 import fetch from 'node-fetch';
 import rateLimit from 'express-rate-limit';
 import { WebSocketServer, WebSocket } from 'ws';
+import crypto from 'node:crypto';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { createRequire } from 'node:module';
 
 import cors from 'cors';
 import { initializeApp, applicationDefault } from 'firebase-admin/app';
@@ -22,6 +24,13 @@ import { Client as HubSpotClient } from '@hubspot/api-client';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+
+// The canonical tier vocabulary lives with the Functions backend, which is the
+// component that owns Firestore and the rules. It is CommonJS, so it is loaded
+// through createRequire rather than duplicated: two independent copies of this
+// logic is exactly what caused paying customers to be denied paid access.
+const requireCjs = createRequire(import.meta.url);
+const {toPlan} = requireCjs('../functions/lib/tier.js');
 
 dotenv.config({ path: path.join(__dirname, '.env.local') });
 
@@ -47,8 +56,20 @@ if (!hubspotClient) {
 
 
 const app = express();
+const ALLOWED_ORIGINS = [
+  'http://localhost:5173',
+  'http://127.0.0.1:5173',
+  process.env.FRONTEND_URL,
+].filter(Boolean);
+
 app.use(cors({
-  origin: 'http://localhost:5173',
+  origin: (origin, callback) => {
+    if (!origin || ALLOWED_ORIGINS.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
   credentials: true
 }));
 app.use(express.json({limit: process?.env?.API_PAYLOAD_MAX_SIZE || "7mb"}));
@@ -290,10 +311,31 @@ app.post('/api-proxy', async (req, res) => {
     // 4. Prepare headers for the API call
     const apiHeaders = getRequestHeaders(accessToken);
 
+    // The caller-supplied headers are merged first and the credential headers
+    // are applied last, so a client cannot override Authorization or
+    // X-Goog-User-Project and decide which bearer token is presented upstream or
+    // which project the request is billed to. Only safe, non-credential headers
+    // from the caller are honoured.
+    const SAFE_FORWARDED_HEADERS = new Set([
+      'content-type',
+      'accept',
+      'accept-language',
+      'x-goog-api-client',
+      'x-server-timeout',
+    ]);
+    const forwardedHeaders = {};
+    if (headers && typeof headers === 'object' && !Array.isArray(headers)) {
+      for (const [name, value] of Object.entries(headers)) {
+        if (typeof value === 'string' && SAFE_FORWARDED_HEADERS.has(name.toLowerCase())) {
+          forwardedHeaders[name] = value;
+        }
+      }
+    }
+
     const apiFetchOptions = {
       method: method || 'POST',
-      headers: {...apiHeaders, ...headers},
-      body: body ? body : undefined,
+      headers: {...forwardedHeaders, ...apiHeaders},
+      body: body ? (typeof body === 'string' ? body : JSON.stringify(body)) : undefined,
     };
 
     // 5. Make the call to the API
@@ -369,14 +411,24 @@ app.post('/api-proxy', async (req, res) => {
   } catch (error) {
     console.error(`[Node Proxy] Error proxying request for ${apiClient.name}`);
     console.error(error)
-    res.status(500).json({ error: error });
+    res.status(500).json({ error: error.message || 'Internal proxy error' });
   }
 });
 
-app.post('/api/inquiries', async (req, res) => {
+// The local intake route mirrors the deployed Cloud Run function, so it carries
+// the same per-tenant ceiling. This is per-instance in-memory state, which is
+// enough to stop a runaway integration loop during development.
+const inquiryLimiter = rateLimit({ windowMs: 60 * 1000, max: 120, standardHeaders: true, legacyHeaders: false });
+app.post('/api/inquiries', inquiryLimiter, async (req, res) => {
   const { name, email, company, message } = req.body || {};
+  let userId;
+  try {
+    userId = await getUserId(req);
+  } catch {
+    return res.status(401).json({ error: 'Firebase authentication is required for this local endpoint.' });
+  }
 
-  if (!name || !email || !company || !message) {
+  if ([name, email, company, message].some(value => typeof value !== 'string' || !value.trim())) {
     return res.status(400).json({ error: 'Name, email, company, and message are required.' });
   }
 
@@ -387,6 +439,10 @@ app.post('/api/inquiries', async (req, res) => {
       email: email.trim().toLowerCase(),
       company: company.trim(),
       message: message.trim(),
+      customerId: userId,
+      status: 'Pending',
+      processingStatus: 'not_configured',
+      last_active: new Date().toISOString(),
       createdAt: FieldValue.serverTimestamp(),
     });
 
@@ -397,16 +453,45 @@ app.post('/api/inquiries', async (req, res) => {
   }
 });
 
-app.post('/api/flows/test', (req, res) => {
-  return res.json({ success: true, received: req.body });
+const contactLimiter = rateLimit({ windowMs: 60 * 1000, max: 5, standardHeaders: true, legacyHeaders: false });
+app.post('/api/contact', contactLimiter, async (req, res) => {
+  const ownerId = process.env.NODALX_OWNER_UID;
+  if (!ownerId) return res.status(503).json({ error: 'Contact intake is not configured.' });
+  const { name, email, company, message, phone, industry, service } = req.body || {};
+  if ([name, email, company, message].some(value => typeof value !== 'string' || !value.trim())) {
+    return res.status(400).json({ error: 'Name, email, company, and message are required.' });
+  }
+  try {
+    const inquiryRef = await firestore.collection('inquiries').add({
+      name: name.trim(), email: email.trim().toLowerCase(), company: company.trim(),
+      message: message.trim(), phone: typeof phone === 'string' ? phone.trim() : '',
+      industry: typeof industry === 'string' ? industry.trim() : '',
+      service: typeof service === 'string' ? service.trim() : '',
+      customerId: ownerId, source: 'site_contact', status: 'Pending',
+      createdAt: FieldValue.serverTimestamp(),
+    });
+    return res.status(201).json({ accepted: true, id: inquiryRef.id });
+  } catch (error) {
+    console.error('[Contact Intake] Failed:', error);
+    return res.status(500).json({ error: 'The inquiry could not be saved.' });
+  }
 });
+
+// NOTE: the former POST /api/flows/test endpoint was removed. It took no
+// authentication and reflected the request body verbatim, which made it an
+// unauthenticated request reflector (and a 7MB amplification primitive through
+// the /api/** Hosting rewrite). Nothing in the frontend called it.
 
 app.get('/api/customers', async (req, res) => {
   try {
     const userId = await requireUserId(req, res);
     if (!userId) return;
 
-    const snapshot = await firestore.collection('inquiries').orderBy('createdAt', 'desc').limit(100).get();
+    const snapshot = await firestore.collection('inquiries')
+      .where('customerId', '==', userId)
+      .orderBy('createdAt', 'desc')
+      .limit(100)
+      .get();
     const customers = snapshot.docs.map(doc => {
       const data = doc.data();
       const createdAt = data.createdAt instanceof Timestamp
@@ -416,7 +501,19 @@ app.get('/api/customers', async (req, res) => {
         id: doc.id,
         name: data.name || 'Unnamed',
         email: data.email || '',
-        status: 'New',
+        status: data.status || 'Pending',
+        company: data.company || '',
+        message: data.message || '',
+        phone: data.phone || '',
+        industry: data.industry || '',
+        service: data.service || '',
+        intent: data.intent || '',
+        urgency: data.urgency || '',
+        fit_score: data.fit_score ?? '',
+        category: data.category || '',
+        summary: data.summary || '',
+        suggested_action: data.suggested_action || '',
+        processing_status: data.processingStatus || 'unknown',
         last_active: createdAt,
       };
     });
@@ -425,6 +522,27 @@ app.get('/api/customers', async (req, res) => {
   } catch (error) {
     console.error('[Customers] Failed to load customers:', error);
     return res.status(500).json({ error: 'Failed to load customers.' });
+  }
+});
+
+app.patch('/api/inquiries/:id/status', async (req, res) => {
+  try {
+    const userId = await requireUserId(req, res);
+    if (!userId) return;
+    const allowedStatuses = new Set(['Qualified', 'Contacted', 'Pending', 'Spam']);
+    const { status } = req.body || {};
+    if (!allowedStatuses.has(status)) return res.status(400).json({ error: 'Invalid status.' });
+
+    const inquiryRef = firestore.collection('inquiries').doc(req.params.id);
+    const inquiry = await inquiryRef.get();
+    if (!inquiry.exists || (inquiry.data()?.customerId !== userId && inquiry.data()?.ownerId !== userId)) {
+      return res.status(404).json({ error: 'Inquiry not found.' });
+    }
+    await inquiryRef.update({ status, updatedAt: FieldValue.serverTimestamp() });
+    return res.json({ success: true, status });
+  } catch (error) {
+    console.error('[Inquiries] Failed to update status:', error);
+    return res.status(500).json({ error: 'Failed to update inquiry status.' });
   }
 });
 
@@ -467,8 +585,6 @@ function getDefaultDataSources() {
   return [
     { id: 'google-sheets', name: 'Google Sheets', connected: false, config: {} },
     { id: 'webhooks', name: 'Webhooks', connected: false, config: { url: '/api/inquiries' } },
-    { id: 'postgres', name: 'PostgreSQL', connected: false, config: {} },
-    { id: 'firebase', name: 'Firebase', connected: false, config: {} },
   ];
 }
 
@@ -488,7 +604,9 @@ function getDefaultProfile(uid, user) {
       securityAlerts: true,
     },
     subscription: {
-      tier: 'free',
+      // Plan label only. The paid entitlement lives in users/{uid}.tier and is
+      // normalized to 'free' | 'full' so it can gate Firestore rules.
+      tier: 'starter',
       status: 'active',
       executionsUsed: 0,
       executionsLimit: 1000,
@@ -636,19 +754,41 @@ app.put('/api/user/profile', async (req, res) => {
   try {
     const userId = await requireUserId(req, res);
     if (!userId) return;
-    const updates = req.body;
     const profileRef = profileDocument(userId);
     const currentSnapshot = await profileRef.get();
     const currentProfile = currentSnapshot.exists ? currentSnapshot.data() : getDefaultProfile(userId, {});
-    const { uid, email, apiKeys, subscription, notifications, ...safeUpdates } = updates;
+
+    // SECURITY: field-level allow-list, matching the Functions backend. A rest
+    // spread of the request body would let the caller write billing-owned fields,
+    // and `subscription` is read as the plan by the onboarding routes, so
+    // accepting it here is a self-service upgrade path.
+    const EDITABLE_PROFILE_FIELDS = ['displayName', 'photoURL', 'workspace', 'role', 'timezone'];
+    const body = req.body && typeof req.body === 'object' && !Array.isArray(req.body) ? req.body : {};
+    const safeUpdates = {};
+    for (const field of EDITABLE_PROFILE_FIELDS) {
+      if (typeof body[field] === 'string' && body[field].trim()) {
+        safeUpdates[field] = body[field].trim();
+      }
+    }
+
+    const safeNotifications = {};
+    const requestedNotifications =
+      body.notifications && typeof body.notifications === 'object' ? body.notifications : {};
+    for (const key of ['flowFailure', 'weeklySummary', 'securityAlerts']) {
+      if (typeof requestedNotifications[key] === 'boolean') {
+        safeNotifications[key] = requestedNotifications[key];
+      }
+    }
+
     await profileRef.set({
       ...currentProfile,
       ...safeUpdates,
       uid: userId,
       email: currentProfile.email || '',
       apiKeys: currentProfile.apiKeys || [],
-      subscription: { ...currentProfile.subscription, ...subscription },
-      notifications: { ...currentProfile.notifications, ...notifications },
+      // subscription is server-owned: preserved verbatim, never taken from the body.
+      subscription: currentProfile.subscription || getDefaultProfile(userId, {}).subscription,
+      notifications: { ...(currentProfile.notifications || {}), ...safeNotifications },
       updatedAt: FieldValue.serverTimestamp(),
     }, { merge: true });
     res.json(serializeDocument(await profileRef.get()));
@@ -765,16 +905,17 @@ app.post('/api/connectors/google-sheets/analyze', async (req, res) => {
     const userId = await requireUserId(req, res);
     if (!userId) return;
 
-    const { spreadsheetId: reqSpreadsheetId } = req.body;
-    let spreadsheetId = reqSpreadsheetId;
-
-    if (!spreadsheetId) {
-      const sourceRef = dataSourceCollection(userId).doc('google-sheets');
-      const sourceDoc = await sourceRef.get();
-      if (sourceDoc.exists && sourceDoc.data()?.config?.spreadsheetId) {
-        spreadsheetId = sourceDoc.data().config.spreadsheetId;
-      }
-    }
+    // SECURITY: the spreadsheet is always the caller's own connected sheet.
+    // The Sheets service account is shared across every tenant, so honouring a
+    // request-body spreadsheetId here would let any authenticated user read
+    // another customer's sheet by guessing its ID. The Functions twin already
+    // reads only the stored connector; this now matches it.
+    const sourceRef = dataSourceCollection(userId).doc('google-sheets');
+    const sourceDoc = await sourceRef.get();
+    const spreadsheetId =
+      sourceDoc.exists && sourceDoc.data()?.config?.spreadsheetId
+        ? sourceDoc.data().config.spreadsheetId
+        : null;
 
     if (!spreadsheetId) {
       return res.status(400).json({
@@ -880,7 +1021,7 @@ app.post('/api/integrations/notifications/test', async (req, res) => {
     }
 
     const testPayload = {
-      text: '🎉 *NODALxAI Test Alert*: Your Slack integration is connected successfully!',
+      text: '🎉 *NodalX Test Alert*: Your Slack integration is connected successfully!',
     };
 
     const slackResponse = await fetch(trimmedUrl, {
@@ -911,6 +1052,15 @@ app.post('/api/integrations/notifications/test', async (req, res) => {
 
 // ==================== HubSpot CRM Integration ====================
 
+/**
+ * Report whether the shared HubSpot portal is reachable.
+ *
+ * SECURITY: this intentionally returns counts and connectivity only. It used to
+ * list the first 10 contacts of the single shared HubSpot portal to any signed-in
+ * user, which handed every app user other customers' names and emails. There is
+ * no per-tenant HubSpot scoping in this deployment, so a diagnostic must not
+ * enumerate the shared CRM.
+ */
 app.get('/api/hubspot/test', async (req, res) => {
   try {
     const userId = await requireUserId(req, res);
@@ -918,25 +1068,17 @@ app.get('/api/hubspot/test', async (req, res) => {
 
     if (!requireHubSpot(res)) return;
 
-    const contactsResponse = await hubspotClient.crm.contacts.basicApi.getPage(10);
+    const contactsResponse = await hubspotClient.crm.contacts.basicApi.getPage(1);
 
     return res.json({
       success: true,
-      total: contactsResponse.total,
-      contacts: contactsResponse.results.map(contact => ({
-        id: contact.id,
-        email: contact.properties.email,
-        firstName: contact.properties.firstname,
-        lastName: contact.properties.lastname,
-        createdAt: contact.createdAt,
-      })),
+      connected: true,
+      // Count only. Contact records are intentionally not returned.
+      totalContacts: contactsResponse.total,
     });
   } catch (error) {
-    console.error('[HubSpot] Error fetching contacts:', error);
-    return res.status(500).json({
-      error: 'Failed to fetch HubSpot contacts.',
-      message: error.message,
-    });
+    console.error('[HubSpot] Error checking connection:', error);
+    return res.status(500).json({ error: 'Failed to reach HubSpot.' });
   }
 });
 
@@ -947,10 +1089,18 @@ app.post('/api/hubspot/contact', async (req, res) => {
 
     if (!requireHubSpot(res)) return;
 
-    const { email, firstName, lastName } = req.body;
+    const { email, firstName, lastName } = req.body || {};
 
-    if (!email) {
-      return res.status(400).json({ error: 'Email is required.' });
+    // Type-check before use: a non-string value reaches .trim() and throws,
+    // surfacing as an opaque 500.
+    if (typeof email !== 'string' || !email.trim()) {
+      return res.status(400).json({ error: 'Email is required and must be a string.' });
+    }
+    if (firstName !== undefined && typeof firstName !== 'string') {
+      return res.status(400).json({ error: 'firstName must be a string.' });
+    }
+    if (lastName !== undefined && typeof lastName !== 'string') {
+      return res.status(400).json({ error: 'lastName must be a string.' });
     }
 
     const contactResponse = await hubspotClient.crm.contacts.basicApi.create({
@@ -976,16 +1126,17 @@ app.post('/api/hubspot/contact', async (req, res) => {
   } catch (error) {
     console.error('[HubSpot] Error creating contact:', error);
 
+    // The upstream message is not forwarded: a 409 body contains the existing
+    // contact's properties, which in this shared-portal setup belong to whoever
+    // created them first, not necessarily to the caller.
     if (error.code === 409 || error.message?.includes('already exists')) {
       return res.status(409).json({
         error: 'Contact already exists in HubSpot.',
-        message: error.message,
       });
     }
 
     return res.status(500).json({
       error: 'Failed to create HubSpot contact.',
-      message: error.message,
     });
   }
 });
@@ -1012,11 +1163,16 @@ app.get('/api/onboarding/status', async (req, res) => {
       return res.json({ hasApiKey: false });
     }
 
+    // The plan is server-owned state on users/{uid}. Reading it from the profile
+    // subscription would let a client set its own plan label.
+    const userSnapshot = await db.collection('users').doc(userId).get();
+    const userData = userSnapshot.exists ? userSnapshot.data() : null;
+
     return res.json({
       hasApiKey: true,
       apiKey: activeKey.key,
       businessName: activeKey.businessName || 'My Company',
-      plan: profile.subscription?.tier || 'starter',
+      plan: toPlan(userData && userData.plan ? userData.plan : profile.subscription?.tier),
       totalInquiries: activeKey.totalInquiries || 0,
       lastUsedAt: activeKey.lastUsedAt || null,
     });
@@ -1031,40 +1187,66 @@ app.post('/api/onboarding/generate-key', async (req, res) => {
     const userId = await requireUserId(req, res);
     if (!userId) return;
 
-    const { businessName = 'My Company' } = req.body;
-
-    const randomBytes = Array.from({ length: 24 }, () =>
-      Math.floor(Math.random() * 256).toString(16).padStart(2, '0')
-    ).join('');
-    const apiKey = `nxk_live_${randomBytes}`;
-
-    const profileRef = profileDocument(userId);
-    const profileSnapshot = await profileRef.get();
-    if (!profileSnapshot.exists) {
-      await profileRef.set(getDefaultProfile(userId, {}));
+    const body = req.body && typeof req.body === 'object' ? req.body : {};
+    // A default only covers an absent key; a null or non-string value would
+    // otherwise reach .trim() and throw a 500 after the key was already written.
+    if (
+      body.businessName !== undefined &&
+      (typeof body.businessName !== 'string' || !body.businessName.trim())
+    ) {
+      return res.status(400).json({ error: 'businessName must be a non-empty string.' });
     }
-    const existingProfile = (await profileRef.get()).data();
+    const businessName = typeof body.businessName === 'string' ? body.businessName.trim() : 'My Company';
+
+    // CSPRNG. Math.random() is not a cryptographic generator: its internal state
+    // is recoverable from observed output, which makes issued keys predictable
+    // to an attacker who can count or time issuance. The Functions backend
+    // already used crypto.randomBytes.
+    const apiKey = `nxk_live_${crypto.randomBytes(24).toString('hex')}`;
 
     const newKeyEntry = {
       key: apiKey,
-      businessName: businessName.trim(),
+      businessName,
       active: true,
       totalInquiries: 0,
       lastUsedAt: null,
       createdAt: new Date().toISOString(),
     };
 
-    const existingKeys = (existingProfile.apiKeys || []).map(k => ({ ...k, active: false }));
+    // Transactional so two concurrent requests cannot both read the same key
+    // array and have the second write silently discard the first key.
+    const profileRef = profileDocument(userId);
+    const userRef = db.collection('users').doc(userId);
+    const profile = await db.runTransaction(async (transaction) => {
+      const [profileSnap, userSnap] = await Promise.all([
+        transaction.get(profileRef),
+        transaction.get(userRef),
+      ]);
+      const existingProfile = profileSnap.exists
+        ? profileSnap.data()
+        : getDefaultProfile(userId, {});
 
-    await profileRef.update({
-      apiKeys: [...existingKeys, newKeyEntry],
-      updatedAt: FieldValue.serverTimestamp(),
+      const existingKeys = (existingProfile.apiKeys || []).map((k) => ({ ...k, active: false }));
+      transaction.set(
+        profileRef,
+        {
+          ...(profileSnap.exists ? existingProfile : getDefaultProfile(userId, {})),
+          apiKeys: [...existingKeys, newKeyEntry],
+          updatedAt: FieldValue.serverTimestamp(),
+        },
+        { merge: true }
+      );
+
+      // The plan is server-owned: read it from users/{uid}, never from the
+      // client-writable profile subscription.
+      const userData = userSnap.exists ? userSnap.data() : null;
+      return {plan: userData && userData.plan ? toPlan(userData.plan) : toPlan(existingProfile.subscription?.tier)};
     });
 
     return res.status(201).json({
       apiKey,
-      businessName: businessName.trim(),
-      plan: existingProfile.subscription?.tier || 'starter',
+      businessName,
+      plan: profile.plan,
       createdAt: newKeyEntry.createdAt,
     });
   } catch (error) {
@@ -1107,16 +1289,7 @@ app.put('/api/onboarding/business-name', async (req, res) => {
 // ==================== Webhooks ====================
 
 app.post('/api/webhook/:webhookId', (req, res) => {
-  const { webhookId } = req.params;
-  console.log(`[Webhook Received] ID: ${webhookId}`);
-  console.log('[Webhook Payload Body]:', JSON.stringify(req.body, null, 2));
-
-  res.status(200).json({
-    success: true,
-    message: 'Webhook received and processed successfully',
-    receivedAt: new Date().toISOString(),
-    webhookId
-  });
+  return res.status(501).json({ error: 'Use the Firebase Hosting webhook endpoint for authenticated ingestion.' });
 });
 
 const server = app.listen(PORT, API_BACKEND_HOST, () => {
@@ -1126,15 +1299,107 @@ const server = app.listen(PORT, API_BACKEND_HOST, () => {
 
 const wss = new WebSocketServer({ noServer: true });
 
+/**
+ * Reject a WebSocket upgrade request with a plain HTTP response.
+ * @param {import('net').Socket} socket The raw client socket.
+ * @param {number} code HTTP status code.
+ * @param {string} message Response body.
+ * @return {void}
+ */
+function rejectUpgrade(socket, code, message) {
+  if (!socket || socket.destroyed) return;
+  socket.write(
+    `HTTP/1.1 ${code} ${message}\r\nConnection: close\r\nContent-Length: 0\r\n\r\n`
+  );
+  socket.destroy();
+}
+
+/**
+ * Origins permitted to open the proxy socket.
+ *
+ * The proxy attaches this project's service-account credentials to whatever it
+ * forwards upstream, so an open socket is a billing and quota exposure. A
+ * browser cannot set custom headers on a WebSocket handshake, so origin is
+ * paired with a bearer token carried in a subprotocol (see
+ * authorizeWsUpgrade); both must pass.
+ * @return {Set<string>} Allowed origin strings.
+ */
+const ALLOWED_WS_ORIGINS = new Set(
+  [
+    process.env.APP_ORIGIN,
+    'http://localhost:5173',
+    'http://localhost:5174',
+    'http://localhost:5175',
+    'http://127.0.0.1:5173',
+    'http://127.0.0.1:5174',
+    'http://127.0.0.1:5175',
+  ]
+    .filter(Boolean)
+    .map((value) => String(value).replace(/\/$/, ''))
+);
+
+/** Subprotocol prefix carrying the caller's Firebase ID token. */
+const WS_TOKEN_PROTOCOL_PREFIX = 'nodalx.token.';
+
+/** Subprotocol echoed back so the browser handshake completes. */
+const WS_ACK_PROTOCOL = 'nodalx-proxy';
+
+/**
+ * Validate a WebSocket upgrade: allowed origin plus a verifiable ID token.
+ * @param {import('http').IncomingMessage} request The upgrade request.
+ * @return {Promise<{ok: boolean, reason?: string, protocol?: string}>} Verdict.
+ */
+async function authorizeWsUpgrade(request) {
+  const origin = String(request.headers.origin || '').replace(/\/$/, '');
+  if (!origin || !ALLOWED_WS_ORIGINS.has(origin)) {
+    return {ok: false, reason: 'origin not allowed'};
+  }
+
+  const rawProtocols = request.headers['sec-websocket-protocol'];
+  const protocols = String(rawProtocols || '')
+    .split(',')
+    .map((value) => value.trim())
+    .filter(Boolean);
+
+  const tokenProtocol = protocols.find((value) =>
+    value.startsWith(WS_TOKEN_PROTOCOL_PREFIX)
+  );
+  if (!tokenProtocol) {
+    return {ok: false, reason: 'missing token subprotocol'};
+  }
+
+  const token = tokenProtocol.slice(WS_TOKEN_PROTOCOL_PREFIX.length);
+  if (!token) {
+    return {ok: false, reason: 'empty token'};
+  }
+
+  try {
+    const decoded = await firebaseAuth.verifyIdToken(token);
+    if (!decoded || !decoded.uid) {
+      return {ok: false, reason: 'invalid token claims'};
+    }
+  } catch (err) {
+    return {ok: false, reason: 'token verification failed'};
+  }
+
+  return {ok: true, protocol: WS_ACK_PROTOCOL};
+}
+
 server.on('upgrade', async (request, socket, head) => {
   const url = new URL(request.url, `http://${request.headers.host}`);
 
   if (url.pathname === '/ws-proxy') {
-    
+    const verdict = await authorizeWsUpgrade(request);
+    if (!verdict.ok) {
+      console.warn(`[Node Proxy] Rejected /ws-proxy upgrade: ${verdict.reason}`);
+      rejectUpgrade(socket, 403, 'Forbidden');
+      return;
+    }
+
     let targetUrl = url.searchParams.get('target');
     if (!targetUrl) {
       console.log('[Node Proxy] Missing target URL');
-      socket.destroy();
+      rejectUpgrade(socket, 400, 'Bad Request');
       return;
     }
 
@@ -1143,7 +1408,12 @@ server.on('upgrade', async (request, socket, head) => {
       targetUrl = `wss://${location}-aiplatform.googleapis.com//ws/google.cloud.aiplatform.v1beta1.LlmBidiService/BidiGenerateContent`;
     } else {
       console.log('[Node Proxy] Invalid target URL');
-      socket.destroy();
+      rejectUpgrade(socket, 400, 'Bad Request');
+      return;
+    }
+
+    if (!isVertexProxyConfigured) {
+      rejectUpgrade(socket, 503, 'Service Unavailable');
       return;
     }
 
@@ -1154,7 +1424,7 @@ server.on('upgrade', async (request, socket, head) => {
       if (!accessToken) throw new Error('No token');
     } catch (err) {
       console.log('[Node Proxy] Authentication failed');
-      socket.destroy();
+      rejectUpgrade(socket, 502, 'Bad Gateway');
       return;
     }
 
@@ -1168,7 +1438,7 @@ server.on('upgrade', async (request, socket, head) => {
       });
     } catch (e) {
       console.error('[Node Proxy] Invalid Upstream URL');
-      socket.destroy();
+      rejectUpgrade(socket, 400, 'Bad Request');
       return;
     }
 
@@ -1189,7 +1459,8 @@ server.on('upgrade', async (request, socket, head) => {
       // Remove the "bootstrapping" error handler
       upstreamWs.removeListener('error', initialErrorHandler);
 
-      // Perform the HTTP -> WebSocket upgrade for the Client
+      // Perform the HTTP -> WebSocket upgrade for the Client, echoing the ack
+      // subprotocol so the browser's handshake succeeds.
       wss.handleUpgrade(request, socket, head, (ws) => {
 
         upstreamWs.on('message', (data, isBinary) => {

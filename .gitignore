@@ -64,6 +64,12 @@ node_modules/
 
 # dotenv environment variables file
 .env
+.env.*
+!.env.example
+frontend/.env
+frontend/.env.local
+backend/.env
+backend/.env.local
 
 # dataconnect generated files
 .dataconnect
@@ -88,14 +94,18 @@ firebase-service-account.json
 backend/firebase-service-account.json
 backend/*-service-account.json
 functions/*-service-account.json
-AWSCLIV2.pkg
 
-# Large binary files (not needed in repo)
-AWSCLIV2.pkg
+# Large binary installers (not needed in repo)
 *.pkg
+
+# Inquiry data exports (contain customer PII, never commit)
+functions/inquiries-backup-*.json
 
 # Archived/deprecated files
 _archive/
 
 # Obsidian vault config (editor, not source code)
 .obsidian/
+
+# Local assistant/editor tool config (not source code)
+.claude/

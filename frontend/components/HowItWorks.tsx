@@ -6,7 +6,7 @@ const steps = [
     number: '01',
     title: 'Connect your inquiry channel',
     description:
-      'Embed the NODALxAI form on your site, or forward submissions from your existing contact form to our intake endpoint. No developer required after initial setup.',
+      'Embed the NodalX form on your site, or forward submissions from your existing contact form to our intake endpoint. No developer required after initial setup.',
   },
   {
     number: '02',
@@ -24,7 +24,7 @@ const steps = [
 
 export default function HowItWorks() {
   return (
-    <Section id="how-it-works" bg="muted" border>
+    <Section id="how-it-works" bg="surface" border>
       <SectionHeader
         label="How it works"
         heading="Three steps. No new workflows."
@@ -32,12 +32,12 @@ export default function HowItWorks() {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-10 lg:gap-12">
         {steps.map((step) => (
           <div key={step.number}>
-            <span className="text-xs font-bold text-neutral-300 dark:text-neutral-700 tracking-widest">
+            <span className="text-xs font-bold text-text-tertiary tracking-widest">
               {step.number}
             </span>
-            <div className="w-8 h-px bg-black dark:bg-white mt-3 mb-4" />
-            <h3 className="text-base font-semibold text-black dark:text-white mb-2">{step.title}</h3>
-            <p className="text-sm text-neutral-500 dark:text-neutral-400 leading-relaxed">{step.description}</p>
+            <div className="w-8 h-px bg-white mt-3 mb-4" />
+            <h3 className="text-base font-semibold text-white mb-2">{step.title}</h3>
+            <p className="text-sm text-text-secondary leading-relaxed">{step.description}</p>
           </div>
         ))}
       </div>

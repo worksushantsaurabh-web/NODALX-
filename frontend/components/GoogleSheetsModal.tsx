@@ -4,6 +4,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { auth } from '../lib/firebase';
 import { Button, Input } from '../ui';
 import { Analytics } from '../lib/analytics';
+import { api } from '../src/services/api';
 
 interface GoogleSheetsModalProps {
   isOpen: boolean;
@@ -19,6 +20,14 @@ export default function GoogleSheetsModal({ isOpen, onClose, onSuccess }: Google
   const [modalState, setModalState] = useState<ModalState>('input');
   const [errorMessage, setErrorMessage] = useState('');
   const [connectedSheet, setConnectedSheet] = useState<{ title: string; spreadsheetId: string } | null>(null);
+  const [serviceAccountEmail, setServiceAccountEmail] = useState('');
+
+  useEffect(() => {
+    if (!isOpen || !(firebaseUser || auth?.currentUser)) return;
+    void api.get<{ serviceAccountEmail: string }>('/api/connectors/google-sheets/service-account')
+      .then(result => setServiceAccountEmail(result.serviceAccountEmail))
+      .catch(() => setServiceAccountEmail(''));
+  }, [isOpen, firebaseUser]);
 
   useEffect(() => {
     if (!isOpen) {
@@ -49,7 +58,7 @@ export default function GoogleSheetsModal({ isOpen, onClose, onSuccess }: Google
       return;
     }
 
-    const currentUser = firebaseUser || auth.currentUser;
+    const currentUser = firebaseUser || auth?.currentUser;
     if (!currentUser) {
       setErrorMessage('You must be signed in to connect a Google Sheet. Please sign in and try again.');
       setModalState('error');
@@ -129,26 +138,26 @@ export default function GoogleSheetsModal({ isOpen, onClose, onSuccess }: Google
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6 min-h-screen">
       {/* Backdrop */}
       <div
-        className="absolute inset-0 bg-neutral-950/50 dark:bg-neutral-950/70 modal-backdrop animate-fade-in"
+        className="absolute inset-0 modal-backdrop animate-fade-in"
         onClick={onClose}
         aria-hidden="true"
       ></div>
 
       {/* Modal */}
       <div
-        className="relative w-full max-w-[500px] bg-white/85 dark:bg-neutral-900/85 backdrop-blur-2xl rounded-3xl shadow-2xl shadow-neutral-900/15 dark:shadow-black/40 p-7 sm:p-8 animate-scale-in z-10 overflow-hidden border border-white/50 dark:border-white/10"
+        className="relative w-full max-w-[500px] g-panel rounded-3xl p-7 sm:p-8 animate-scale-in z-10 overflow-hidden"
         role="dialog"
         aria-modal="true"
         aria-labelledby="google-sheets-modal-title"
       >
         {/* Decorative glass orbs */}
-        <div className="absolute -top-20 -right-20 w-48 h-48 rounded-full bg-gradient-to-br from-neutral-400/10 to-neutral-300/10 blur-3xl pointer-events-none"></div>
+        <div className="absolute -top-20 -right-20 w-48 h-48 rounded-full bg-gradient-to-br from-accent/10 to-accent-2/10 blur-3xl pointer-events-none"></div>
         <div className="absolute -bottom-16 -left-16 w-40 h-40 rounded-full bg-gradient-to-tr from-green-400/20 to-emerald-400/20 blur-3xl pointer-events-none"></div>
 
         {/* Close Button */}
         <button
           onClick={onClose}
-          className="absolute top-4 right-4 p-2 text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-200 hover:bg-neutral-100/80 dark:hover:bg-white/10 rounded-xl transition-all duration-200 z-20 backdrop-blur-sm"
+          className="absolute top-4 right-4 p-2 text-text-secondary hover:text-text-primary hover:bg-surface-hover rounded-xl transition-all duration-200 z-20"
           aria-label="Close modal"
         >
           <X className="w-5 h-5" />
@@ -156,15 +165,16 @@ export default function GoogleSheetsModal({ isOpen, onClose, onSuccess }: Google
 
         {/* Header */}
         <div className="text-center mb-7 relative z-10">
-          <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-emerald-500 to-green-600 flex items-center justify-center shadow-lg shadow-emerald-600/25 mx-auto mb-5 glass-shine">
+          <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-emerald-500 to-green-600 flex items-center justify-center shadow-lg shadow-emerald-600/25 mx-auto mb-5 dark-ctx">
             <FileSpreadsheet className="w-8 h-8 text-white" />
           </div>
-          <h3 id="google-sheets-modal-title" className="text-2xl font-extrabold text-neutral-900 dark:text-white tracking-tight">
+          <h3 id="google-sheets-modal-title" className="text-2xl font-extrabold text-text-primary tracking-tight">
             Connect Google Sheet
           </h3>
-          <p className="text-neutral-500 dark:text-neutral-400 text-sm mt-2 leading-relaxed">
-            Link your spreadsheet to sync leads automatically
+          <p className="text-text-tertiary  text-sm mt-2 leading-relaxed">
+            Share your spreadsheet with the service account, then verify access.
           </p>
+          {serviceAccountEmail && <p className="mt-3 break-all text-xs text-text-secondary">Share with Editor access: <code>{serviceAccountEmail}</code></p>}
         </div>
 
         {/* Content based on state */}
@@ -172,25 +182,25 @@ export default function GoogleSheetsModal({ isOpen, onClose, onSuccess }: Google
           {/* Success State */}
           {modalState === 'success' && connectedSheet && (
             <div className="space-y-5">
-              <div className="p-5 bg-emerald-50/80 dark:bg-emerald-500/10 backdrop-blur-sm border border-emerald-200/60 dark:border-emerald-500/20 rounded-2xl">
+              <div className="p-5 bg-emerald-50/80   border border-emerald-200/60  rounded-2xl">
                 <div className="flex items-center gap-3 mb-3">
-                  <div className="w-10 h-10 rounded-xl bg-emerald-100 dark:bg-emerald-500/20 flex items-center justify-center">
-                    <CheckCircle2 className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
+                  <div className="w-10 h-10 rounded-xl bg-emerald-100  flex items-center justify-center">
+                    <CheckCircle2 className="w-5 h-5 text-emerald-600 " />
                   </div>
                   <div>
-                    <p className="text-sm font-bold text-emerald-800 dark:text-emerald-300">
+                    <p className="text-sm font-bold text-emerald-800 ">
                       Successfully Connected!
                     </p>
-                    <p className="text-xs text-emerald-600 dark:text-emerald-400">
+                    <p className="text-xs text-emerald-600 ">
                       Your Google Sheet is now linked
                     </p>
                   </div>
                 </div>
-                <div className="p-3 bg-white/60 dark:bg-black/20 rounded-xl border border-emerald-200/40 dark:border-emerald-500/10">
-                  <p className="text-sm font-semibold text-neutral-900 dark:text-white truncate">
+                <div className="p-3 g-chip rounded-xl">
+                  <p className="text-sm font-semibold text-text-primary truncate">
                     {connectedSheet.title}
                   </p>
-                  <p className="text-xs text-neutral-500 dark:text-neutral-400 font-mono mt-1 truncate">
+                  <p className="text-xs text-text-tertiary  font-mono mt-1 truncate">
                     ID: {connectedSheet.spreadsheetId}
                   </p>
                 </div>
@@ -213,14 +223,14 @@ export default function GoogleSheetsModal({ isOpen, onClose, onSuccess }: Google
           {modalState !== 'success' && (
             <form onSubmit={handleVerify} className="space-y-5">
               {/* Not Signed In Warning */}
-              {!firebaseUser && !auth.currentUser && (
-                <div className="p-4 bg-amber-50/80 dark:bg-amber-500/10 backdrop-blur-sm border border-amber-200/60 dark:border-amber-500/20 rounded-xl flex items-start gap-3">
-                  <AlertCircle className="w-5 h-5 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" />
+              {!firebaseUser && !auth?.currentUser && (
+                <div className="p-4 bg-amber-50/80   border border-amber-200/60  rounded-xl flex items-start gap-3">
+                  <AlertCircle className="w-5 h-5 text-amber-600  flex-shrink-0 mt-0.5" />
                   <div>
-                    <p className="text-sm font-semibold text-amber-700 dark:text-amber-400 leading-relaxed">
+                    <p className="text-sm font-semibold text-amber-700  leading-relaxed">
                       You must be signed in to connect a Google Sheet.
                     </p>
-                    <p className="text-xs text-amber-600 dark:text-amber-400/80 mt-1">
+                    <p className="text-xs text-amber-600  mt-1">
                       Please sign in to your account first.
                     </p>
                   </div>
@@ -229,10 +239,10 @@ export default function GoogleSheetsModal({ isOpen, onClose, onSuccess }: Google
 
               {/* Error Message */}
               {modalState === 'error' && errorMessage && (
-                <div className="p-4 bg-rose-50/80 dark:bg-rose-500/10 backdrop-blur-sm border border-rose-200/60 dark:border-rose-500/20 rounded-xl flex items-start gap-3 animate-shake">
-                  <AlertCircle className="w-5 h-5 text-rose-600 dark:text-rose-400 flex-shrink-0 mt-0.5" />
+                <div className="p-4 bg-rose-50/80   border border-rose-200/60  rounded-xl flex items-start gap-3 animate-shake">
+                  <AlertCircle className="w-5 h-5 text-rose-600  flex-shrink-0 mt-0.5" />
                   <div>
-                    <p className="text-sm font-semibold text-rose-700 dark:text-rose-400 leading-relaxed">
+                    <p className="text-sm font-semibold text-rose-700  leading-relaxed">
                       {errorMessage}
                     </p>
                   </div>
@@ -255,11 +265,11 @@ export default function GoogleSheetsModal({ isOpen, onClose, onSuccess }: Google
               />
 
               {/* Instructions */}
-              <div className="p-4 bg-neutral-50/80 dark:bg-neutral-800/40 backdrop-blur-sm rounded-xl border border-neutral-200/60 dark:border-neutral-700/40">
-                <p className="text-xs font-bold text-neutral-700 dark:text-neutral-300 uppercase tracking-wider mb-2">
+              <div className="p-4 g-chip rounded-xl">
+                <p className="text-xs font-bold text-text-primary uppercase tracking-wider mb-2">
                   Before connecting:
                 </p>
-                <ul className="space-y-1.5 text-xs text-neutral-500 dark:text-neutral-400">
+                <ul className="space-y-1.5 text-xs text-text-tertiary ">
                   <li className="flex items-start gap-2">
                     <span className="text-emerald-500 mt-0.5">1.</span>
                     <span>Open your Google Sheet</span>
@@ -284,7 +294,7 @@ export default function GoogleSheetsModal({ isOpen, onClose, onSuccess }: Google
                 type="submit"
                 variant="primary"
                 className="w-full"
-                disabled={modalState === 'loading' || !spreadsheetInput.trim() || (!firebaseUser && !auth.currentUser)}
+                disabled={modalState === 'loading' || !spreadsheetInput.trim() || (!firebaseUser && !auth?.currentUser)}
                 loading={modalState === 'loading'}
               >
                 {modalState !== 'loading' && <Link2 className="w-4 h-4" />}
@@ -297,7 +307,7 @@ export default function GoogleSheetsModal({ isOpen, onClose, onSuccess }: Google
                   href="https://support.google.com/docs/answer/9331169"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1.5 text-xs text-emerald-600 dark:text-emerald-400 font-semibold hover:underline"
+                  className="inline-flex items-center gap-1.5 text-xs text-emerald-600  font-semibold hover:underline"
                 >
                   <ExternalLink className="w-3 h-3" />
                   Learn how to share a Google Sheet

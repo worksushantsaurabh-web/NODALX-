@@ -2,8 +2,8 @@ import React from 'react';
 import { cn } from './cn';
 
 const bgMap = {
-  white: 'bg-white dark:bg-black',
-  muted: 'bg-neutral-50 dark:bg-neutral-950',
+  bg: 'bg-black',
+  surface: 'bg-surface',
 };
 
 export interface SectionProps {
@@ -15,18 +15,18 @@ export interface SectionProps {
   children: React.ReactNode;
 }
 
-export function Section({ id, bg = 'white', border = false, className, innerClassName, children }: SectionProps) {
+export function Section({ id, bg = 'bg', border = false, className, innerClassName, children }: SectionProps) {
   return (
     <section
       id={id}
       className={cn(
-        'py-24 lg:py-28',
+        'py-32 lg:py-40',
         bgMap[bg],
-        border && 'border-t border-neutral-200 dark:border-neutral-800',
+        border && 'border-t border-border',
         className,
       )}
     >
-      <div className={cn('max-w-5xl mx-auto px-4 sm:px-6 md:px-12', innerClassName)}>
+      <div className={cn('max-w-6xl mx-auto px-6 md:px-12', innerClassName)}>
         {children}
       </div>
     </section>

@@ -1,6 +1,6 @@
 import React from 'react';
 import { SlidersHorizontal, MessageSquare, LayoutDashboard, Plug, Code2, FileCheck } from 'lucide-react';
-import { Section, SectionHeader, Card } from '../ui';
+import { Section, SectionHeader } from '../ui';
 
 const features = [
   {
@@ -43,19 +43,19 @@ const features = [
 
 export default function Features() {
   return (
-    <Section id="features" bg="white" innerClassName="max-w-6xl mx-auto px-4 sm:px-6 md:px-12">
+    <Section id="features" bg="bg" innerClassName="max-w-6xl mx-auto px-4 sm:px-6 md:px-12">
       <SectionHeader
         label="What you get"
         heading="Built for teams that close deals, not manage inboxes."
       />
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
         {features.map((feature) => (
-          <div key={feature.title} className="glass-card rounded-xl p-6 transition-all duration-200 hover:-translate-y-0.5">
-            <div className="w-9 h-9 rounded-lg border border-neutral-200 dark:border-neutral-700 flex items-center justify-center bg-white/80 dark:bg-white/5 mb-4">
-              <feature.icon className="w-4 h-4 text-black dark:text-white" strokeWidth={1.5} />
+          <div key={feature.title} className="g-card rounded-2xl p-6">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-accent to-accent-2 flex items-center justify-center mb-4 shadow-lg">
+              <feature.icon className="w-4.5 h-4.5 text-[#fff]" strokeWidth={1.5} />
             </div>
-            <h3 className="text-sm font-semibold text-black dark:text-white mb-2">{feature.title}</h3>
-            <p className="text-sm text-neutral-500 dark:text-neutral-400 leading-relaxed">{feature.description}</p>
+            <h3 className="text-sm font-semibold text-text-primary mb-2">{feature.title}</h3>
+            <p className="text-sm text-text-secondary leading-relaxed">{feature.description}</p>
           </div>
         ))}
       </div>

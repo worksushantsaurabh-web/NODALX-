@@ -1,5 +1,5 @@
 /**
- * NODALxAI — Frontend Integration for Apps Script Webhook
+ * NodalX — Frontend Integration for Apps Script Webhook
  * 
  * This shows how to update your InquiryForm.tsx to send inquiries
  * to the Google Apps Script webhook instead of (or alongside) your backend.
@@ -193,7 +193,7 @@ export default function InquiryFormWithAppsScript() {
                 </h3>
                 
                 <div className="text-lg text-slate-600 dark:text-slate-400 mb-6 space-y-2">
-                  <p>Thank you for contacting NODALxAI.</p>
+                  <p>Thank you for contacting NodalX.</p>
                   <p>Your inquiry is being reviewed by our team.</p>
                 </div>
 

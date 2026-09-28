@@ -29,5 +29,35 @@ try {
   console.warn('Firebase initialization failed — running without auth:', (e as Error).message);
 }
 
+/**
+ * Return the Auth instance or fail with a diagnosable error.
+ *
+ * `auth` and `db` are nullable because initialization is allowed to fail, so
+ * every consumer previously dereferenced a possibly-null value. That surfaced
+ * as an opaque `TypeError: Cannot read properties of null` at click time. These
+ * accessors turn it into a clear message at the boundary.
+ */
+export function requireAuth(): Auth {
+  if (!auth) {
+    throw new Error(
+      'Firebase Auth is not initialized. Check VITE_FIREBASE_* configuration.'
+    );
+  }
+  return auth;
+}
+
+/**
+ * Return the Firestore instance or fail with a diagnosable error.
+ * @return {Firestore} The initialized Firestore instance.
+ */
+export function requireDb(): Firestore {
+  if (!db) {
+    throw new Error(
+      'Firestore is not initialized. Check VITE_FIREBASE_* configuration.'
+    );
+  }
+  return db;
+}
+
 export { auth, db };
 export default app;

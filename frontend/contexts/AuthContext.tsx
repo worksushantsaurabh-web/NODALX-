@@ -24,20 +24,6 @@ interface AuthContextType {
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
-const AUTH_STORAGE_KEY = 'nodalx_user';
-
-function getStoredUser(): User | null {
-  try {
-    const storedUser = localStorage.getItem(AUTH_STORAGE_KEY);
-    if (!storedUser) return null;
-
-    const user = JSON.parse(storedUser) as User;
-    return user.uid && user.displayName && user.email ? user : null;
-  } catch {
-    localStorage.removeItem(AUTH_STORAGE_KEY);
-    return null;
-  }
-}
 
 function firebaseUserToUser(fbUser: FirebaseUser): User {
   return {
@@ -50,46 +36,47 @@ function firebaseUserToUser(fbUser: FirebaseUser): User {
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<User | null>(getStoredUser);
+  // Authentication state comes from Firebase only. It used to be seeded from
+  // localStorage, which meant anyone could write a `nodalx_user` object and
+  // satisfy the client-side route guard. The real data was still protected
+  // server-side, but the gate itself was decorative.
+  const [user, setUser] = useState<User | null>(null);
   const [firebaseUser, setFirebaseUser] = useState<FirebaseUser | null>(null);
-  const [isLoading, setIsLoading] = useState(true); // Start true until we know auth state
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     if (!auth) {
       setIsLoading(false);
       return;
     }
-    const unsubscribe = onAuthStateChanged(auth, async (fbUser) => {
+
+    // Expose a getter rather than a cached token string. A token copied onto
+    // `window` is readable by any injected or third-party script, and the cached
+    // copy went stale after Firebase's ~1h expiry. getIdToken() transparently
+    // refreshes, so callers always receive a currently-valid credential.
+    (window as any).__nodalxGetIdToken = () =>
+      firebaseUser ? firebaseUser.getIdToken() : Promise.resolve(null);
+
+    const unsubscribe = onAuthStateChanged(auth, (fbUser) => {
       setFirebaseUser(fbUser);
-      if (fbUser) {
-        const mapped = firebaseUserToUser(fbUser);
-        setUser(mapped);
-        localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(mapped));
-        try {
-          const token = await fbUser.getIdToken();
-          (window as any).__nodalxFirebaseToken = token;
-        } catch {
-          (window as any).__nodalxFirebaseToken = null;
-        }
-      } else {
-        const stored = getStoredUser();
-        if (!stored) {
-          setUser(null);
-          localStorage.removeItem(AUTH_STORAGE_KEY);
-        }
-        (window as any).__nodalxFirebaseToken = null;
-      }
+      // A null fbUser means Firebase has no session, which must clear the UI
+      // unconditionally. Previously this branch only cleared when the
+      // localStorage copy was also gone, so signing out in another tab or a
+      // revoked session left a stale "logged in" view with a dead token.
+      setUser(fbUser ? firebaseUserToUser(fbUser) : null);
       setIsLoading(false);
     });
 
-    return unsubscribe;
+    return () => {
+      unsubscribe();
+      delete (window as any).__nodalxGetIdToken;
+    };
   }, []);
 
   const login = async (userData?: User) => {
-    if (userData) {
-      setUser(userData);
-      localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(userData));
-    }
+    // Firebase's onAuthStateChanged is the source of truth; this only applies an
+    // optimistically supplied profile while that resolves.
+    if (userData) setUser(userData);
   };
 
   const logout = async () => {
@@ -100,7 +87,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
     setUser(null);
     setFirebaseUser(null);
-    localStorage.removeItem(AUTH_STORAGE_KEY);
   };
 
   return (

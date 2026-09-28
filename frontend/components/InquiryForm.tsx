@@ -1,17 +1,15 @@
 import React, { useState, useRef } from 'react';
-import { Send, CheckCircle2, AlertCircle, Clock } from 'lucide-react';
+import { Send, CheckCircle2, AlertCircle } from 'lucide-react';
 import { Analytics } from '../lib/analytics';
 import { useFeedback } from '../contexts/FeedbackContext';
-
-const APPSCRIPT_WEBHOOK_URL = import.meta.env.VITE_APPSCRIPT_WEBHOOK_URL || '';
 
 export default function InquiryForm() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(false);
-  const [referenceNumber, setReferenceNumber] = useState('');
   const [error, setError] = useState<string | null>(null);
   const formRef = useRef<HTMLFormElement>(null);
   const formStarted = useRef(false);
+  const submittingRef = useRef(false);
   const { showSurvey } = useFeedback();
 
   const handleFormFocus = () => {
@@ -23,58 +21,45 @@ export default function InquiryForm() {
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    if (submittingRef.current) return;
+    submittingRef.current = true;
     Analytics.formSubmit();
     setIsSubmitting(true);
     setError(null);
 
-    const formData = new FormData(e.currentTarget);
-    const payload = {
-      name: formData.get('fullName') as string,
-      email: formData.get('email') as string,
-      phone: formData.get('phone') as string,
-      company: formData.get('company') as string,
-      industry: formData.get('industry') as string,
-      service: formData.get('service') as string,
-      message: formData.get('message') as string,
-      submittedAt: new Date().toISOString(),
-    };
-
     try {
-      if (APPSCRIPT_WEBHOOK_URL) {
-        // Apps Script POST: use no-cors to bypass Google's redirect CORS issue
-        // The request still reaches the server and executes doPost
-        await fetch(APPSCRIPT_WEBHOOK_URL, {
-          method: 'POST',
-          headers: { 'Content-Type': 'text/plain' },
-          body: JSON.stringify(payload),
-          mode: 'no-cors',
-          redirect: 'follow',
-        });
-        // no-cors gives opaque response (can't read body), but POST executes server-side
-      } else {
-        const response = await fetch('/api/inquiries', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload),
-        });
+      const formData = new FormData(e.currentTarget);
+      const payload = {
+        name: formData.get('fullName') as string,
+        email: formData.get('email') as string,
+        phone: formData.get('phone') as string,
+        company: formData.get('company') as string,
+        industry: formData.get('industry') as string,
+        service: formData.get('service') as string,
+        message: formData.get('message') as string,
+        submittedAt: new Date().toISOString(),
+      };
 
-        if (!response.ok) {
-          throw new Error(`Server responded with status: ${response.status}`);
-        }
-
-        const data = await response.json();
-        if (data && data.success === false) {
-          throw new Error(data.error || data.message || 'Submission failed');
-        }
+      const response = await fetch('/api/contact', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok || data.accepted !== true) {
+        throw new Error(data.error || `Server responded with status: ${response.status}`);
       }
 
-      Analytics.formSuccess();
-      showSurvey({ question: 'How easy was that?', context: 'form_submission', delayMs: 2000 });
-      if (payload.service) {
-        localStorage.setItem('fp_user_service', payload.service);
-      }
-      setReferenceNumber(`FP-${Math.floor(10000 + Math.random() * 90000)}`);
       setIsSubmitted(true);
+      Analytics.formSuccess();
+      try {
+        showSurvey({ question: 'How easy was that?', context: 'form_submission', delayMs: 2000 });
+        if (payload.service) {
+          localStorage.setItem('fp_user_service', payload.service);
+        }
+      } catch (err) {
+        console.warn('Inquiry accepted, but optional follow-up failed:', err);
+      }
 
     } catch (err: any) {
       const msg = err?.message || 'Unknown error';
@@ -82,6 +67,7 @@ export default function InquiryForm() {
       console.error('Inquiry submission error:', err);
       setError('We could not submit your inquiry. Please try again in a moment.');
     } finally {
+      submittingRef.current = false;
       setIsSubmitting(false);
     }
   };
@@ -94,58 +80,42 @@ export default function InquiryForm() {
     }
   };
 
-  const inputClass = "w-full glass-input rounded-lg px-4 py-3 text-black dark:text-white placeholder-neutral-400 dark:placeholder-neutral-600 outline-none transition-all text-sm";
+  const inputClass = "w-full bg-surface border border-border rounded-md px-4 py-3 text-white placeholder-neutral-500 outline-none transition-all text-sm focus:border-neutral-600";
 
   return (
-    <section id="contact" className="relative pb-24 pt-12 lg:pb-32 lg:pt-16 bg-white dark:bg-black">
+    <section id="contact" className="relative pb-32 pt-12 lg:pb-40 lg:pt-16 bg-black">
       <div className="max-w-4xl mx-auto px-6 md:px-12 relative z-10">
         <div className="text-center mb-12 md:mb-16">
-          <p className="text-xs font-medium tracking-widest text-neutral-500 uppercase mb-3">
+          <p className="text-xs font-medium tracking-cosmos text-text-tertiary uppercase mb-3">
             Get Started
           </p>
-          <h3 className="text-3xl md:text-4xl font-bold text-black dark:text-white tracking-tight mb-4">
+          <h3 className="text-3xl md:text-4xl font-bold text-white tracking-tight mb-4">
             Automate your workflow
           </h3>
-          <p className="text-lg text-neutral-500 dark:text-neutral-400 max-w-2xl mx-auto leading-relaxed">
-            Tell us about your business, and our AI will instantly route your inquiry to the right specialist.
+          <p className="text-lg text-text-secondary max-w-2xl mx-auto leading-relaxed">
+            Tell us about your business and what you need help with.
           </p>
         </div>
 
-        <div className="glass-card rounded-2xl p-8 md:p-10 min-h-[400px]">
+        <div className="border border-border bg-surface rounded-lg p-8 md:p-10 min-h-[400px]">
 
           {isSubmitted ? (
             <div className="flex flex-col items-center justify-center py-8 text-center animate-fade-in">
-              <div className="w-16 h-16 bg-neutral-100 dark:bg-neutral-900 rounded-full flex items-center justify-center mb-6 border border-neutral-200 dark:border-neutral-800">
-                <CheckCircle2 className="w-8 h-8 text-black dark:text-white" />
+              <div className="w-16 h-16 border border-border rounded-full flex items-center justify-center mb-6">
+                <CheckCircle2 className="w-8 h-8 text-white" />
               </div>
 
-              <h3 className="text-2xl font-bold text-black dark:text-white mb-4 tracking-tight">
+              <h3 className="text-2xl font-bold text-white mb-4 tracking-tight">
                 Inquiry Submitted Successfully
               </h3>
 
-              <p className="text-neutral-500 dark:text-neutral-400 mb-8">
-                Thank you for contacting NODALxAI. Your inquiry is being reviewed.
+              <p className="text-text-secondary mb-8">
+                Thank you for contacting NodalX. The server accepted your inquiry. A response time has not been confirmed.
               </p>
-
-              <div className="w-full max-w-md bg-neutral-50 dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-xl p-5 mb-8 text-left space-y-4">
-                <div className="flex items-center justify-between pb-3 border-b border-neutral-200 dark:border-neutral-800">
-                  <span className="text-sm text-neutral-500">Estimated Response</span>
-                  <span className="text-sm font-semibold text-black dark:text-white flex items-center gap-1.5">
-                    <Clock className="w-4 h-4" />
-                    15 Minutes
-                  </span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-neutral-500">Reference</span>
-                  <span className="text-sm font-mono font-semibold text-black dark:text-white bg-white dark:bg-black px-2.5 py-1 rounded-md border border-neutral-200 dark:border-neutral-800">
-                    {referenceNumber}
-                  </span>
-                </div>
-              </div>
 
               <button
                 onClick={handleReset}
-                className="px-6 py-3 rounded-lg bg-black dark:bg-white text-white dark:text-black font-medium text-sm transition-all hover:opacity-80"
+                className="px-6 py-3 rounded-md bg-white text-black font-medium text-sm transition-all hover:bg-neutral-200"
               >
                 Submit Another Inquiry
               </button>
@@ -154,35 +124,35 @@ export default function InquiryForm() {
             <form ref={formRef} id="inquiry-form" onSubmit={handleSubmit} onFocus={handleFormFocus} className="space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-2">
-                  <label htmlFor="fullName" className="block text-sm font-medium text-neutral-700 dark:text-neutral-300">
-                    Full Name <span className="text-neutral-400">*</span>
+                  <label htmlFor="fullName" className="block text-sm font-medium text-text-secondary">
+                    Full Name <span className="text-text-tertiary">*</span>
                   </label>
                   <input type="text" id="fullName" name="fullName" required className={inputClass} placeholder="Jane Doe" />
                 </div>
 
                 <div className="space-y-2">
-                  <label htmlFor="email" className="block text-sm font-medium text-neutral-700 dark:text-neutral-300">
-                    Email Address <span className="text-neutral-400">*</span>
+                  <label htmlFor="email" className="block text-sm font-medium text-text-secondary">
+                    Email Address <span className="text-text-tertiary">*</span>
                   </label>
                   <input type="email" id="email" name="email" required className={inputClass} placeholder="jane@company.com" />
                 </div>
 
                 <div className="space-y-2">
-                  <label htmlFor="phone" className="block text-sm font-medium text-neutral-700 dark:text-neutral-300">
+                  <label htmlFor="phone" className="block text-sm font-medium text-text-secondary">
                     Phone Number
                   </label>
                   <input type="tel" id="phone" name="phone" className={inputClass} placeholder="+1 (555) 000-0000" />
                 </div>
 
                 <div className="space-y-2">
-                  <label htmlFor="company" className="block text-sm font-medium text-neutral-700 dark:text-neutral-300">
-                    Company Name <span className="text-neutral-400">*</span>
+                  <label htmlFor="company" className="block text-sm font-medium text-text-secondary">
+                    Company Name <span className="text-text-tertiary">*</span>
                   </label>
                   <input type="text" id="company" name="company" required className={inputClass} placeholder="Acme Corp" />
                 </div>
 
                 <div className="space-y-2">
-                  <label htmlFor="industry" className="block text-sm font-medium text-neutral-700 dark:text-neutral-300">
+                  <label htmlFor="industry" className="block text-sm font-medium text-text-secondary">
                     Industry
                   </label>
                   <select id="industry" name="industry" className={inputClass}>
@@ -197,7 +167,7 @@ export default function InquiryForm() {
                 </div>
 
                 <div className="space-y-2">
-                  <label htmlFor="service" className="block text-sm font-medium text-neutral-700 dark:text-neutral-300">
+                  <label htmlFor="service" className="block text-sm font-medium text-text-secondary">
                     Service Required
                   </label>
                   <select id="service" name="service" className={inputClass}>
@@ -211,8 +181,8 @@ export default function InquiryForm() {
               </div>
 
               <div className="space-y-2">
-                <label htmlFor="message" className="block text-sm font-medium text-neutral-700 dark:text-neutral-300">
-                  How can we help you? <span className="text-neutral-400">*</span>
+                <label htmlFor="message" className="block text-sm font-medium text-text-secondary">
+                  How can we help you? <span className="text-text-tertiary">*</span>
                 </label>
                 <textarea
                   id="message"
@@ -225,16 +195,17 @@ export default function InquiryForm() {
               </div>
 
               {error && (
-                <div className="p-4 bg-neutral-50 dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-lg flex items-start gap-3">
-                  <AlertCircle className="w-5 h-5 text-neutral-600 dark:text-neutral-400 flex-shrink-0 mt-0.5" />
+                <div role="alert" className="p-4 bg-surface border border-border rounded-lg flex items-start gap-3">
+                  <AlertCircle className="w-5 h-5 text-text-secondary flex-shrink-0 mt-0.5" />
                   <div className="flex-1">
-                    <p className="text-sm font-medium text-black dark:text-white">Submission Failed</p>
-                    <p className="text-sm text-neutral-500 mt-1">{error}</p>
+                    <p className="text-sm font-medium text-white">Submission Failed</p>
+                    <p className="text-sm text-text-tertiary mt-1">{error}</p>
                   </div>
                   <button
                     type="button"
+                    disabled={isSubmitting}
                     onClick={() => formRef.current?.requestSubmit()}
-                    className="px-3 py-1.5 bg-neutral-100 dark:bg-neutral-800 hover:bg-neutral-200 dark:hover:bg-neutral-700 text-black dark:text-white text-sm font-medium rounded-lg transition-colors"
+                    className="px-3 py-1.5 bg-surface-hover hover:bg-neutral-700 text-white text-sm font-medium rounded-md transition-colors"
                   >
                     Retry
                   </button>
@@ -245,7 +216,7 @@ export default function InquiryForm() {
                 <button
                   type="submit"
                   disabled={isSubmitting}
-                  className="w-full md:w-auto px-8 py-3.5 rounded-lg bg-black dark:bg-white text-white dark:text-black font-medium text-sm transition-all hover:opacity-80 flex items-center justify-center gap-2 disabled:opacity-50"
+                  className="w-full md:w-auto px-8 py-3.5 rounded-md bg-white text-black font-medium text-sm transition-all hover:bg-neutral-200 flex items-center justify-center gap-2 disabled:opacity-50"
                 >
                   {isSubmitting ? 'Submitting...' : (
                     <>
@@ -255,8 +226,8 @@ export default function InquiryForm() {
                 </button>
               </div>
 
-              <p className="text-center text-xs text-neutral-400">
-                By submitting this form, you agree to our <a href="#/privacy" className="text-neutral-600 dark:text-neutral-300 hover:underline">Privacy Policy</a>.
+              <p className="text-center text-xs text-text-tertiary">
+                By submitting this form, you agree to our <a href="#/privacy" className="text-text-secondary hover:underline">Privacy Policy</a>.
               </p>
             </form>
           )}

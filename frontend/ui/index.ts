@@ -10,6 +10,9 @@ export { Section }      from './Section';
 export { Panel }        from './Panel';
 export { StatCard }     from './StatCard';
 export { EmptyState }   from './EmptyState';
+export { MagicCard }    from './MagicCard';
+export { BorderBeam }   from './BorderBeam';
+export { NumberTicker } from './NumberTicker';
 
 export type { ButtonProps }        from './Button';
 export type { BadgeProps }         from './Badge';

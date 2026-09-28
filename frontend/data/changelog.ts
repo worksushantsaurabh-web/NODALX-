@@ -43,7 +43,7 @@ export const changelog: ChangelogEntry[] = [
     date: '2026-08-01',
     title: 'Launch',
     summary:
-      'NODALxAI is live. Connect a contact form, qualify leads automatically, and send AI-drafted replies in minutes.',
+      'NodalX is live. Connect a contact form, qualify leads automatically, and send AI-drafted replies in minutes.',
     items: [
       { type: 'new', text: 'Embeddable inquiry form widget — one script tag, works on any site.' },
       { type: 'new', text: 'AI lead qualification — each submission scored against your criteria with a written explanation.' },

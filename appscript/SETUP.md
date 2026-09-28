@@ -1,4 +1,4 @@
-# NODALxAI Apps Script Setup (Replaces n8n)
+# NodalX Apps Script Setup (Replaces n8n)
 
 ## What You Get
 
@@ -20,13 +20,36 @@
 - Delete the default `myFunction()`
 - Paste the entire contents of **`Code.gs`**
 
-### 2. Run Setup Once
+### 2. Set the Intake Secret (required)
+
+Both `doGet` and `doPost` return customer contact details, so the deployed
+endpoint is guarded by a shared secret. **Do this before deploying.**
+
+- **Project Settings → Script Properties → Add script property**
+- Property: `INTAKE_SECRET`
+- Value: any long random string, e.g. `openssl rand -hex 32`
+
+Callers must then send it as either a header or a query parameter:
+```
+x-nodalx-secret: <value>     # header, for server-to-server
+?secret=<value>              # query param
+```
+
+If `INTAKE_SECRET` is unset, every request is rejected. The check fails
+closed on purpose: an unconfigured deployment must never accept traffic.
+
+> ⚠️ If you deployed before setting this, your web app URL is the only thing
+> protecting the spreadsheet. A previous deployment URL was published in a
+> public git repository, so treat that URL as compromised and delete the
+> deployment before creating a new one.
+
+### 3. Run Setup Once
 - In the editor dropdown, select `setupSheet`
 - Click **Run** (▶️)
 - Grant permissions when prompted
 - Check **Execution log** for the Sheet URL
 
-### 3. Deploy as Web App
+### 4. Deploy as Web App
 - Click **Deploy → New Deployment**
 - Click gear ⚙️ → **Web App**
 - Configure:
@@ -36,8 +59,12 @@
 - **Copy the Web App URL**
 
 > ⚠️ **Important:** After any code change, redeploy (Manage Deployments → Edit → New Version).
+>
+> **Never commit the web app URL.** It is a bearer credential for your customer
+> data. Keep it in `frontend/.env` (git-ignored) or in Firebase Functions
+> environment config.
 
-### 4. Add URL to Your Frontend
+### 5. Add URL to Your Frontend
 
 Create/edit `frontend/.env`:
 ```bash
@@ -54,6 +81,7 @@ Then copy `InquiryForm.tsx` into your frontend components folder and import it w
 ```bash
 curl -X POST "YOUR_APPSCRIPT_URL" \
   -H "Content-Type: application/json" \
+  -H "x-nodalx-secret: YOUR_INTAKE_SECRET" \
   -d '{
     "name": "Jane Doe",
     "email": "jane@company.com",
@@ -61,7 +89,7 @@ curl -X POST "YOUR_APPSCRIPT_URL" \
     "phone": "+1 555-0000",
     "industry": "SaaS",
     "message": "We need to buy your AI automation solution ASAP.",
-    "source": "https://nodalxai.com/contact"
+    "source": "https://nodalx.in/contact"
   }'
 ```
 
@@ -84,12 +112,17 @@ curl -X POST "YOUR_APPSCRIPT_URL" \
 
 ### GET — List Inquiries (for Dashboard)
 ```bash
-curl "YOUR_APPSCRIPT_URL?action=list"
+curl "YOUR_APPSCRIPT_URL?action=list&secret=YOUR_INTAKE_SECRET"
 ```
 
 ### GET — Stats
 ```bash
-curl "YOUR_APPSCRIPT_URL?action=stats"
+curl "YOUR_APPSCRIPT_URL?action=stats&secret=YOUR_INTAKE_SECRET"
+```
+
+### Requests without the secret
+```json
+{ "success": false, "message": "Unauthorized" }
 ```
 
 ---

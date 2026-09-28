@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
+  <rect width="1200" height="630" fill="#0f172a"/>
+  <rect width="1200" height="4" fill="#0d9488"/>
+  <rect x="80" y="72" width="40" height="40" rx="10" fill="#0d9488"/>
+  <path d="M90 82l20 20m0-20l-20 20" fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round"/>
+  <circle cx="90" cy="82" r="3" fill="#fff"/><circle cx="110" cy="82" r="3" fill="#fff"/>
+  <circle cx="90" cy="102" r="3" fill="#fff"/><circle cx="110" cy="102" r="3" fill="#fff"/>
+  <text x="132" y="101" fill="#fff" font-family="Arial, sans-serif" font-weight="700" font-size="26">NodalX</text>
+  <text x="80" y="205" fill="#2dd4bf" font-family="Arial, sans-serif" font-size="16" font-weight="700" letter-spacing="2">B2B INQUIRY AUTOMATION</text>
+  <text x="80" y="282" fill="#fff" font-family="Arial, sans-serif" font-size="58" font-weight="800">Every inquiry answered.</text>
+  <text x="80" y="354" fill="#fff" font-family="Arial, sans-serif" font-size="58" font-weight="800">Every lead scored.</text>
+  <text x="80" y="426" fill="#2dd4bf" font-family="Arial, sans-serif" font-size="58" font-weight="800">Nothing missed.</text>
+  <text x="80" y="483" fill="#94a3b8" font-family="Arial, sans-serif" font-size="22">Capture, qualify, and convert business inquiries automatically.</text>
+  <text x="80" y="572" fill="#94a3b8" font-family="Arial, sans-serif" font-size="16">Lead qualification  ·  Reply drafts  ·  Google Sheets sync  ·  Live dashboard</text>
+</svg>

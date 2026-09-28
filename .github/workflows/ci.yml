@@ -1,0 +1,117 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  functions:
+    name: Functions tests
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: functions
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: functions/package-lock.json
+      - run: npm ci
+      - run: npm test
+      - run: npm run lint
+      - name: Verify every export is a Cloud Function
+        # A plain object or a stray helper export fails silently at deploy time
+        # and only surfaces when the trigger stops firing.
+        run: |
+          node -e "
+          const fns = require('./index.js');
+          const names = Object.keys(fns);
+          if (!names.length) { throw new Error('No Cloud Function exports found.'); }
+          const bad = names.filter((n) => typeof fns[n] !== 'function' && !fns[n]?.__endpoint);
+          if (bad.length) { throw new Error('Invalid exports: ' + bad.join(', ')); }
+          console.log('Exports OK: ' + names.join(', '));
+          "
+
+  backend:
+    name: Backend syntax check
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+      - run: npm ci
+      - run: node --check server.js
+
+  frontend:
+    name: Frontend build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+      # Env files are untracked, so CI must supply its own placeholders.
+      - run: npm run build
+        env:
+          VITE_FIREBASE_API_KEY: ci-placeholder
+          VITE_FIREBASE_AUTH_DOMAIN: ci-placeholder.firebaseapp.com
+          VITE_FIREBASE_PROJECT_ID: ci-placeholder
+          VITE_FIREBASE_STORAGE_BUCKET: ci-placeholder.appspot.com
+          VITE_FIREBASE_MESSAGING_SENDER_ID: 000000000000
+          VITE_FIREBASE_APP_ID: 1:000000000000:web:ciplaceholder
+      - run: node --test pages/inquiryDesk.test.ts
+
+  rules:
+    name: Firestore config
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate indexes JSON
+        run: node -e "const i=require('./firestore.indexes.json'); if(!Array.isArray(i.indexes)) throw new Error('bad indexes'); console.log(i.indexes.length + ' indexes');"
+      - name: Fail if a secret is tracked
+        # The repo previously tracked frontend/.env, which leaked a Firebase
+        # web config. This keeps it from coming back.
+        # Matches .env, .env.local, .env.production. The .example suffix is
+        # explicitly allowed because those files hold placeholders, not secrets.
+        run: |
+          if git ls-files | grep -E '(^|/)\.env($|\.[^.]+$)' | grep -qv '\.example$'; then
+            echo "::error::A .env file is tracked in git. Untrack it and rotate the credentials."
+            exit 1
+          fi
+          echo "No tracked env files."
+
+  secrets:
+    name: Secret scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Full history so a credential reintroduced by a revert is caught too.
+          fetch-depth: 0
+      - name: Fail on secret-like values in tracked files
+        # The filename-only .env check above did not stop a hardcoded proxy
+        # secret from being committed into the public bundle and every commit.
+        # This scans file contents for credential shapes.
+        run: node scripts/scan-secrets.mjs
+      - name: Fail on secret-like values in the commit range
+        run: node scripts/scan-secrets.mjs --staged

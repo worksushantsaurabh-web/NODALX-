@@ -5,11 +5,11 @@ import { Section, SectionHeader } from '../ui';
 const faqs = [
   {
     q: 'Do I need to replace my existing contact form?',
-    a: 'No. You can use the NODALxAI embeddable form, or forward submissions from your current form to our intake endpoint. Your existing setup stays intact — you just add a destination.',
+    a: 'No. You can use the NodalX embeddable form, or forward submissions from your current form to our intake endpoint. Your existing setup stays intact — you just add a destination.',
   },
   {
     q: 'How does the lead scoring actually work?',
-    a: 'You define qualification criteria in plain language — budget range, company size, geography, urgency keywords. NODALxAI evaluates each submission against these rules and assigns a score with a written explanation. Nothing is a black box; you can read why every lead scored the way it did.',
+    a: 'You define qualification criteria in plain language — budget range, company size, geography, urgency keywords. NodalX evaluates each submission against these rules and assigns a score with a written explanation. Nothing is a black box; you can read why every lead scored the way it did.',
   },
   {
     q: 'Can I see what data the AI used to score a lead?',
@@ -21,7 +21,7 @@ const faqs = [
   },
   {
     q: 'Where is my data stored?',
-    a: 'Inquiry data lives in your connected Google Sheet or in the NODALxAI dashboard — your choice. We do not use your data to train models, and you can delete everything at any time through the dashboard.',
+    a: 'Inquiry data lives in your connected Google Sheet or in the NodalX dashboard — your choice. We do not use your data to train models, and you can delete everything at any time through the dashboard.',
   },
   {
     q: 'Can I control how the reply drafts sound?',
@@ -49,25 +49,25 @@ export default function FAQ() {
   const [open, setOpen] = useState<number | null>(null);
 
   return (
-    <Section id="faq" bg="muted" border innerClassName="max-w-3xl mx-auto px-4 sm:px-6 md:px-12">
+    <Section id="faq" bg="surface" border innerClassName="max-w-3xl mx-auto px-4 sm:px-6 md:px-12">
       <SectionHeader label="FAQ" heading="Questions we actually get asked" />
-      <div className="divide-y divide-neutral-200 dark:divide-neutral-800">
+      <div className="space-y-3">
         {faqs.map((faq, i) => (
-          <div key={i}>
+          <div key={i} className={`g-card rounded-2xl px-6 transition-all ${open === i ? 'g-card-open' : ''}`}>
             <button
               onClick={() => setOpen(open === i ? null : i)}
               className="w-full flex items-start justify-between gap-6 py-5 text-left group"
             >
-              <span className="text-sm font-semibold text-black dark:text-white leading-snug group-hover:text-neutral-600 dark:group-hover:text-neutral-300 transition-colors">
+              <span className="text-sm font-semibold text-text-primary leading-snug group-hover:text-accent transition-colors">
                 {faq.q}
               </span>
-              <span className="shrink-0 mt-0.5 text-neutral-400 dark:text-neutral-500">
+              <span className="shrink-0 mt-0.5 text-text-tertiary">
                 {open === i ? <Minus className="w-4 h-4" /> : <Plus className="w-4 h-4" />}
               </span>
             </button>
             {open === i && (
               <div className="pb-5">
-                <p className="text-sm text-neutral-600 dark:text-neutral-400 leading-relaxed">{faq.a}</p>
+                <p className="text-sm text-text-secondary leading-relaxed">{faq.a}</p>
               </div>
             )}
           </div>

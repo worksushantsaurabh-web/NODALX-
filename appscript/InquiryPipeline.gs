@@ -1,6 +1,6 @@
 /**
  * ═══════════════════════════════════════════════════════════════
- * NODALxAI — Inquiry Pipeline (Apps Script Replacement for n8n)
+ * NodalX — Inquiry Pipeline (Apps Script Replacement for n8n)
  * ═══════════════════════════════════════════════════════════════
  * 
  * What this does:
@@ -29,7 +29,7 @@ const CONFIG = {
   GEMINI_API_KEY: 'YOUR_GEMINI_API_KEY_HERE',
 
   // Sheet name where inquiries are stored
-  SHEET_NAME: 'NODALxAI_Inquiries',
+  SHEET_NAME: 'NodalX_Inquiries',
 
   // Gemini model to use
   GEMINI_MODEL: 'gemini-2.0-flash',
@@ -111,7 +111,14 @@ function setupSheet() {
 // WEBHOOK HANDLER (doPost)
 // ═══════════════════════════════════════════════════════════════
 
+// isAuthorized() and getIntakeSecret() are defined in Code.gs. Apps Script
+// shares one global scope per project, so both files must be pasted into the
+// same project for the guard below to resolve.
 function doPost(e) {
+  if (!isAuthorized(e)) {
+    return jsonResponse({ success: false, error: 'Unauthorized' }, 401);
+  }
+
   const lock = LockService.getScriptLock();
   lock.waitLock(10000);
   
@@ -175,6 +182,13 @@ function doPost(e) {
 // ═══════════════════════════════════════════════════════════════
 
 function doGet(e) {
+  // This handler returns full customer contact records, so the shared secret is
+  // required before the action is parsed. The web app URL was published in a
+  // public repository, so URL secrecy is not an access control.
+  if (!isAuthorized(e)) {
+    return jsonResponse({ success: false, error: 'Unauthorized' }, 401);
+  }
+
   try {
     const action = e.parameter.action || 'list';
     
@@ -214,7 +228,7 @@ function doGet(e) {
 // ═══════════════════════════════════════════════════════════════
 
 function classifyInquiry(payload) {
-  const prompt = `You are an AI business inquiry classifier for NODALxAI, a B2B AI automation company.
+  const prompt = `You are an AI business inquiry classifier for NodalX, a B2B AI automation company.
 
 Analyze the following inquiry and return a JSON object.
 
@@ -438,7 +452,7 @@ function sendEmailNotifications(payload, classification) {
     if (CONFIG.SEND_OWNER_EMAIL && CONFIG.OWNER_EMAIL) {
       const ownerSubject = `🔥 New Inquiry from ${payload.name} (${classification.intent} / ${classification.urgency} urgency)`;
       const ownerBody = `
-New inquiry received on NODALxAI:
+New inquiry received on NodalX:
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 CONTACT DETAILS
@@ -480,11 +494,11 @@ Reply directly to this lead: ${payload.email}
 
     // Send confirmation to the user who submitted the inquiry
     if (CONFIG.SEND_USER_CONFIRMATION && payload.email) {
-      const userSubject = 'We received your inquiry — NODALxAI';
+      const userSubject = 'We received your inquiry — NodalX';
       const userBody = `
 Hi ${payload.name},
 
-Thank you for reaching out to NODALxAI! We've received your inquiry and our team is reviewing it.
+Thank you for reaching out to NodalX! We've received your inquiry and our team is reviewing it.
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 YOUR INQUIRY SUMMARY
@@ -501,15 +515,15 @@ Our AI has analyzed your inquiry and routed it to the right specialist. You can 
 If you have any urgent questions, reply directly to this email.
 
 Best regards,
-The NODALxAI Team
-https://nodalxai.com
+The NodalX Team
+https://nodalx.in
 `;
 
       MailApp.sendEmail({
         to: payload.email,
         subject: userSubject,
         body: userBody,
-        name: 'NODALxAI',
+        name: 'NodalX',
       });
       Logger.log('User confirmation email sent to: ' + payload.email);
     }

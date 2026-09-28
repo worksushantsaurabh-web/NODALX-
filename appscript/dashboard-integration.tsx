@@ -1,5 +1,5 @@
 /**
- * NODALxAI — Dashboard Integration for Apps Script
+ * NodalX — Dashboard Integration for Apps Script
  * 
  * This shows how to update your Dashboard.tsx to fetch inquiry data
  * from the Google Apps Script GET endpoint instead of /api/customers.

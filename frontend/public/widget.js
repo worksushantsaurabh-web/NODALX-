@@ -5,10 +5,10 @@
   var scripts = document.getElementsByTagName('script');
   var currentScript = document.currentScript || scripts[scripts.length - 1];
   var apiKey = currentScript ? currentScript.getAttribute('data-api-key') : null;
-  var apiUrl = currentScript ? currentScript.getAttribute('data-api-url') || 'https://nodalxai-b9eb5.web.app/api/inquiries' : 'https://nodalxai-b9eb5.web.app/api/inquiries';
+  var apiUrl = currentScript ? currentScript.getAttribute('data-api-url') || 'https://nodalx.in/api/inquiries' : 'https://nodalx.in/api/inquiries';
 
   if (!apiKey) {
-    console.warn('[NODALxAI Widget] Missing data-api-key attribute on script tag.');
+    console.warn('[NodalX Widget] Missing data-api-key attribute on script tag.');
   }
 
   function initWidget() {
@@ -19,73 +19,81 @@
     // Prevent attaching twice
     if (form.getAttribute('data-nodalx-attached')) return;
     form.setAttribute('data-nodalx-attached', 'true');
+    var isSubmitting = false;
 
-    form.addEventListener('submit', function(e) {
+    form.addEventListener('submit', async function(e) {
       e.preventDefault();
+      if (isSubmitting) return;
+      isSubmitting = true;
 
       var submitBtn = form.querySelector('[type="submit"]') || form.querySelector('button');
       var originalBtnText = submitBtn ? submitBtn.innerText : '';
+      var originalBtnDisabled = submitBtn ? submitBtn.disabled : false;
       if (submitBtn) {
         submitBtn.disabled = true;
         submitBtn.innerText = 'Submitting...';
       }
 
-      // Collect form inputs dynamically
-      var formData = new FormData(form);
-      var payload = {};
+      try {
+        // Collect form inputs dynamically
+        var formData = new FormData(form);
+        var payload = {};
 
-      // Map form fields smartly
-      formData.forEach(function(value, key) {
-        var k = key.toLowerCase();
-        if (k.includes('name')) payload.name = value;
-        else if (k.includes('email')) payload.email = value;
-        else if (k.includes('company') || k.includes('org')) payload.company = value;
-        else if (k.includes('message') || k.includes('inquiry') || k.includes('comment') || k.includes('note')) payload.message = value;
-        else payload[key] = value;
-      });
+        // Map form fields smartly
+        formData.forEach(function(value, key) {
+          var k = key.toLowerCase();
+          if (k.includes('name')) payload.name = value;
+          else if (k.includes('email')) payload.email = value;
+          else if (k.includes('company') || k.includes('org')) payload.company = value;
+          else if (k.includes('message') || k.includes('inquiry') || k.includes('comment') || k.includes('note')) payload.message = value;
+          else payload[key] = value;
+        });
 
-      // Fallbacks
-      if (!payload.name) payload.name = form.querySelector('[name*="name"], [id*="name"]')?.value || 'Website Visitor';
-      if (!payload.email) payload.email = form.querySelector('[name*="email"], [id*="email"]')?.value || '';
-      if (!payload.company) payload.company = form.querySelector('[name*="company"], [id*="company"]')?.value || '';
-      if (!payload.message) payload.message = form.querySelector('textarea')?.value || form.querySelector('[name*="message"]')?.value || 'Inquiry submitted via website form';
+        // Fallbacks
+        if (!payload.name) payload.name = form.querySelector('[name*="name"], [id*="name"]')?.value || 'Website Visitor';
+        if (!payload.email) payload.email = form.querySelector('[name*="email"], [id*="email"]')?.value || '';
+        if (!payload.company) payload.company = form.querySelector('[name*="company"], [id*="company"]')?.value || '';
+        if (!payload.message) payload.message = form.querySelector('textarea')?.value || form.querySelector('[name*="message"]')?.value || 'Inquiry submitted via website form';
 
-      var headers = {
-        'Content-Type': 'application/json'
-      };
-      if (apiKey) {
-        headers['X-API-Key'] = apiKey;
-      }
+        var headers = {
+          'Content-Type': 'application/json'
+        };
+        if (apiKey) {
+          headers['X-API-Key'] = apiKey;
+        }
 
-      fetch(apiUrl, {
-        method: 'POST',
-        headers: headers,
-        body: JSON.stringify(payload)
-      })
-      .then(function(res) { return res.json(); })
-      .then(function(data) {
-        if (submitBtn) {
-          submitBtn.disabled = false;
-          submitBtn.innerText = originalBtnText;
+        var res = await fetch(apiUrl, {
+          method: 'POST',
+          headers: headers,
+          body: JSON.stringify(payload)
+        });
+        if (!res.ok) {
+          throw new Error('Server responded with status: ' + res.status);
+        }
+        var data = await res.json();
+        if (data && data.success === false) {
+          throw new Error(data.error || data.message || 'Submission failed');
         }
 
         // Show Toast / Banner
         showToast('Inquiry submitted successfully! We will get back to you soon.', 'success');
         form.reset();
-      })
-      .catch(function(err) {
-        console.error('[NODALxAI Widget Error]', err);
+      } catch (err) {
+        console.error('[NodalX Widget Error]', err);
+        showToast('Submission failed. Your entries have been kept. Please try again.', 'error');
+      } finally {
+        isSubmitting = false;
         if (submitBtn) {
-          submitBtn.disabled = false;
+          submitBtn.disabled = originalBtnDisabled;
           submitBtn.innerText = originalBtnText;
         }
-        showToast('Inquiry submitted successfully!', 'success');
-      });
+      }
     });
   }
 
   function showToast(message, type) {
     var toast = document.createElement('div');
+    toast.setAttribute('role', type === 'success' ? 'status' : 'alert');
     toast.style.position = 'fixed';
     toast.style.bottom = '20px';
     toast.style.right = '20px';

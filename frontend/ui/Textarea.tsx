@@ -2,16 +2,16 @@ import React from 'react';
 import { cn } from './cn';
 
 const baseTextarea = [
-  'w-full rounded-lg border bg-white dark:bg-neutral-900',
-  'text-sm text-neutral-900 dark:text-white',
-  'placeholder-neutral-400 dark:placeholder-neutral-500',
+  'w-full rounded-lg border bg-surface',
+  'text-sm text-white',
+  'placeholder-text-tertiary',
   'focus:outline-none focus:ring-2 transition-colors',
   'disabled:opacity-60 disabled:cursor-not-allowed',
   'resize-y px-3 py-2.5',
 ].join(' ');
 
-const normalBorder = 'border-neutral-200 dark:border-neutral-700 focus:border-neutral-400 focus:ring-neutral-400/20';
-const errorBorder  = 'border-rose-400 dark:border-rose-500 focus:border-rose-500 focus:ring-rose-500/20';
+const normalBorder = 'border-border focus:border-border-strong';
+const errorBorder  = 'border-rose-500 focus:border-rose-500 focus:ring-rose-500/20';
 
 export interface TextareaProps extends React.TextareaHTMLAttributes<HTMLTextAreaElement> {
   label?: string;
@@ -26,7 +26,7 @@ export const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
     return (
       <div className="w-full">
         {label && (
-          <label htmlFor={inputId} className="block text-xs font-semibold text-neutral-700 dark:text-neutral-300 mb-1.5">
+          <label htmlFor={inputId} className="block text-xs font-semibold text-text-secondary mb-1.5">
             {label}
           </label>
         )}
@@ -36,8 +36,8 @@ export const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
           className={cn(baseTextarea, error ? errorBorder : normalBorder, className)}
           {...props}
         />
-        {error  && <p className="mt-1.5 text-xs text-rose-600 dark:text-rose-400">{error}</p>}
-        {!error && helper && <p className="mt-1.5 text-xs text-neutral-500 dark:text-neutral-400">{helper}</p>}
+        {error  && <p className="mt-1.5 text-xs text-rose-400">{error}</p>}
+        {!error && helper && <p className="mt-1.5 text-xs text-text-secondary">{helper}</p>}
       </div>
     );
   },

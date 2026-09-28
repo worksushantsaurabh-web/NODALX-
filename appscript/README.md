@@ -1,4 +1,4 @@
-# NODALxAI — Apps Script Inquiry Pipeline
+# NodalX — Apps Script Inquiry Pipeline
 
 Replace your n8n subscription with a **free Google Apps Script** that handles inquiry classification using Gemini AI and stores data in Google Sheets.
 
@@ -63,7 +63,7 @@ Your n8n workflow handled:
 1. Click **Deploy** → **New Deployment**
 2. Click the gear icon (⚙️) next to "Select type" → Choose **Web App**
 3. Configure:
-   - **Description**: `NODALxAI Inquiry Pipeline v1`
+   - **Description**: `NodalX Inquiry Pipeline v1`
    - **Execute as**: Me
    - **Who has access**: Anyone
 4. Click **Deploy**

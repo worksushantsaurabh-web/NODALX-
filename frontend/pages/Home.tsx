@@ -19,7 +19,8 @@ export default function Home() {
   const handleGetStarted = () => setIsOnboardingOpen(true);
 
   return (
-    <div className="min-h-screen bg-white dark:bg-black text-neutral-900 dark:text-neutral-50 font-sans selection:bg-neutral-200 selection:text-black dark:selection:bg-neutral-800 dark:selection:text-white transition-colors duration-200 overflow-x-hidden w-full max-w-full">
+    <div className="min-h-screen bg-bg text-text-primary font-sans overflow-x-hidden w-full max-w-full">
+      <div className="app-aurora" aria-hidden="true" />
       <Navbar />
       <main>
         <Hero onGetStarted={handleGetStarted} />

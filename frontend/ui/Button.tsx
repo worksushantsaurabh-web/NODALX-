@@ -2,14 +2,14 @@ import React from 'react';
 import { cn } from './cn';
 
 const variants = {
-  primary: 'bg-black text-white hover:bg-neutral-800 dark:bg-white dark:text-black dark:hover:bg-neutral-200 disabled:opacity-50',
-  secondary: 'border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-transparent text-neutral-900 dark:text-neutral-100 hover:bg-neutral-50 dark:hover:bg-neutral-900',
-  ghost: 'text-neutral-600 dark:text-neutral-400 hover:text-black dark:hover:text-white hover:bg-neutral-100 dark:hover:bg-neutral-900',
-  destructive: 'bg-red-600 hover:bg-red-700 text-white disabled:opacity-50',
+  primary: 'btn-primary rounded-full',
+  secondary: 'g-chip rounded-full text-text-primary hover:border-accent',
+  ghost: 'text-text-secondary hover:text-text-primary hover:bg-surface-hover rounded-full',
+  destructive: 'bg-red-600 hover:bg-red-700 text-white disabled:opacity-50 rounded-full',
 };
 
 const sizes = {
-  sm: 'text-xs px-3 py-1.5',
+  sm: 'text-xs px-4 py-2',
   md: 'text-sm px-5 py-2.5',
   lg: 'text-base px-7 py-3',
 };
@@ -27,7 +27,7 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
         ref={ref}
         disabled={disabled || loading}
         className={cn(
-          'rounded-lg font-medium transition-all duration-150 inline-flex items-center justify-center gap-2 disabled:cursor-not-allowed',
+          'rounded-md font-medium transition-all duration-150 inline-flex items-center justify-center gap-2 disabled:cursor-not-allowed',
           variants[variant],
           sizes[size],
           loading && 'opacity-70',

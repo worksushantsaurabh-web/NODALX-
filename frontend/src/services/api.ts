@@ -1,5 +1,4 @@
 import { auth } from '../../lib/firebase';
-
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
 
 interface RequestOptions extends RequestInit {
@@ -24,8 +23,9 @@ async function request<T>(endpoint: string, options: RequestOptions = {}): Promi
     ...headers,
   };
 
-  // Add auth header if available
-  const token = await auth.currentUser?.getIdToken();
+  // Add auth header if available. `auth` is null when Firebase failed to
+  // initialize, so it is guarded rather than dereferenced.
+  const token = auth ? await auth.currentUser?.getIdToken() : null;
   if (token) {
     (defaultHeaders as Record<string, string>)['Authorization'] = `Bearer ${token}`;
   }

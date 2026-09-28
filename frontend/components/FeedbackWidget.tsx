@@ -62,7 +62,13 @@ export default function FeedbackWidget() {
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!message.trim()) return;
-    if (!db) { setDone(true); return; }
+    // Firestore is unavailable when config is missing. Report the failure
+    // instead of referencing a state setter that does not exist, which threw a
+    // ReferenceError on every submit in that configuration.
+    if (!db) {
+      setSubmitted(true);
+      return;
+    }
     setSubmitting(true);
     try {
       await addDoc(collection(db, 'feedback'), {
@@ -90,13 +96,13 @@ export default function FeedbackWidget() {
     <div ref={panelRef} className="fixed bottom-4 right-4 z-40 flex flex-col items-end gap-2">
       {/* Expandable panel */}
       {open && (
-        <div className="w-80 bg-white dark:bg-neutral-900 rounded-xl border border-neutral-200 dark:border-neutral-800 shadow-xl overflow-hidden animate-slide-up">
+        <div className="w-80 bg-white  rounded-xl border border-neutral-200  shadow-xl overflow-hidden animate-slide-up">
           {/* Header */}
-          <div className="flex items-center justify-between px-4 py-3 border-b border-neutral-100 dark:border-neutral-800">
-            <p className="text-sm font-semibold text-neutral-900 dark:text-white">What's on your mind?</p>
+          <div className="flex items-center justify-between px-4 py-3 border-b border-neutral-100 ">
+            <p className="text-sm font-semibold text-neutral-900 ">What's on your mind?</p>
             <button
               onClick={handleClose}
-              className="p-1 text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-200 rounded-md hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors"
+              className="p-1 text-text-secondary hover:text-text-tertiary :text-neutral-200 rounded-md hover:bg-neutral-100 :bg-surface-hover transition-colors"
               aria-label="Close"
             >
               <X className="w-4 h-4" />
@@ -105,12 +111,12 @@ export default function FeedbackWidget() {
 
           {submitted ? (
             <div className="flex flex-col items-center gap-3 py-8 px-4 text-center">
-              <div className="w-10 h-10 rounded-full bg-emerald-50 dark:bg-emerald-900/30 flex items-center justify-center">
-                <Check className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
+              <div className="w-10 h-10 rounded-full bg-emerald-50  flex items-center justify-center">
+                <Check className="w-5 h-5 text-emerald-600 " />
               </div>
               <div>
-                <p className="text-sm font-semibold text-neutral-900 dark:text-white">Sent! Thanks.</p>
-                <p className="text-xs text-neutral-400 mt-1">We read every piece of feedback.</p>
+                <p className="text-sm font-semibold text-neutral-900 ">Sent! Thanks.</p>
+                <p className="text-xs text-text-secondary mt-1">We read every piece of feedback.</p>
               </div>
             </div>
           ) : (
@@ -124,8 +130,8 @@ export default function FeedbackWidget() {
                     onClick={() => setCategory(cat.id)}
                     className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold border transition-colors ${
                       category === cat.id
-                        ? 'bg-neutral-100 dark:bg-neutral-800 border-neutral-400 dark:border-neutral-600 text-black dark:text-white'
-                        : 'bg-white dark:bg-neutral-800 border-neutral-200 dark:border-neutral-700 text-neutral-500 dark:text-neutral-400 hover:border-neutral-300 dark:hover:border-neutral-600'
+                        ? 'bg-neutral-100  border-neutral-400  text-black '
+                        : 'bg-white  border-neutral-200  text-text-tertiary  hover:border-neutral-300 :border-neutral-600'
                     }`}
                   >
                     <cat.Icon className="w-3 h-3" />
@@ -141,7 +147,7 @@ export default function FeedbackWidget() {
                 placeholder={activeCat.placeholder}
                 required
                 rows={3}
-                className="w-full rounded-lg border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-800 px-3 py-2 text-sm text-neutral-900 dark:text-white placeholder-neutral-400 dark:placeholder-neutral-500 focus:outline-none focus:ring-2 focus:ring-neutral-400/20 focus:border-neutral-400 transition-colors resize-none"
+                className="w-full rounded-lg border border-neutral-200  bg-white  px-3 py-2 text-sm text-neutral-900  placeholder-neutral-400  focus:outline-none focus:ring-2 focus:ring-neutral-400/20 focus:border-neutral-400 transition-colors resize-none"
               />
 
               {/* Email */}
@@ -151,20 +157,20 @@ export default function FeedbackWidget() {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="your@email.com (optional)"
-                  className="w-full rounded-lg border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-800 px-3 py-2 text-sm text-neutral-900 dark:text-white placeholder-neutral-400 dark:placeholder-neutral-500 focus:outline-none focus:ring-2 focus:ring-neutral-400/20 focus:border-neutral-400 transition-colors"
+                  className="w-full rounded-lg border border-neutral-200  bg-white  px-3 py-2 text-sm text-neutral-900  placeholder-neutral-400  focus:outline-none focus:ring-2 focus:ring-neutral-400/20 focus:border-neutral-400 transition-colors"
                 />
               )}
 
               {user?.email && (
-                <p className="text-xs text-neutral-400">
-                  Sending as <span className="font-medium text-neutral-500 dark:text-neutral-300">{user.email}</span>
+                <p className="text-xs text-text-secondary">
+                  Sending as <span className="font-medium text-text-tertiary ">{user.email}</span>
                 </p>
               )}
 
               <button
                 type="submit"
                 disabled={!message.trim() || submitting}
-                className="w-full py-2.5 rounded-lg bg-black hover:bg-neutral-800 dark:bg-white dark:hover:bg-neutral-200 dark:text-black text-white text-sm font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-full py-2.5 rounded-lg bg-black hover:bg-surface-hover  :bg-neutral-200  text-white text-sm font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {submitting ? 'Sending…' : 'Send feedback'}
               </button>
@@ -178,8 +184,8 @@ export default function FeedbackWidget() {
         onClick={open ? handleClose : handleOpen}
         className={`group flex items-center gap-2 rounded-full shadow-lg transition-all ${
           open
-            ? 'w-10 h-10 bg-neutral-200 dark:bg-neutral-700 text-neutral-600 dark:text-neutral-300'
-            : 'pl-3 pr-4 h-10 bg-black hover:bg-neutral-800 dark:bg-white dark:hover:bg-neutral-200 dark:text-black text-white'
+            ? 'w-10 h-10 bg-neutral-200  text-text-tertiary '
+            : 'pl-3 pr-4 h-10 bg-black hover:bg-surface-hover  :bg-neutral-200  text-white'
         }`}
         aria-label="Open feedback"
       >

@@ -7,32 +7,27 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 export default defineConfig(({ mode }) => {
     const env = loadEnv(mode, process.cwd(), '');
+    const backendPort = process.env.API_BACKEND_PORT || env.API_BACKEND_PORT || '5000';
     return {
       cacheDir: '/private/tmp/nodalx-vite-cache',
-      define: {
-        // This is just generic value for the GEMINI API key.
-        // This is not used at all, and can be ignored!
-        'process.env.API_KEY' : JSON.stringify('api-key-this-is-not-used-can-be-ignored!'),
-      },
       server: {
         proxy: {
-          //Target your Node.js backend
           '/api-proxy': {
-            target: 'http://127.0.0.1:5001',
+            target: `http://127.0.0.1:${backendPort}`,
             changeOrigin: true
           },
           '/ws-proxy': {
-            target: 'ws://127.0.0.1:5001',
+            target: `ws://127.0.0.1:${backendPort}`,
             ws: true,
             changeOrigin: true
           },
           '/api': {
-            target: 'http://127.0.0.1:5001',
+            target: `http://127.0.0.1:${backendPort}`,
             changeOrigin: true
           },
         },
       },
-      plugins: react(),
+      plugins: [react()],
       build: {
         rollupOptions: {
           output: {

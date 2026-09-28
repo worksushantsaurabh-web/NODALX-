@@ -34,9 +34,9 @@ const TIMEZONES = [
 ];
 
 const TIER_LABELS: Record<string, { label: string; color: string; bg: string }> = {
-  free: { label: 'Free', color: 'text-neutral-600 dark:text-neutral-300', bg: 'bg-neutral-100 dark:bg-white/10' },
-  pro: { label: 'Pro', color: 'text-black dark:text-white', bg: 'bg-neutral-100 dark:bg-neutral-800' },
-  enterprise: { label: 'Enterprise', color: 'text-indigo-700 dark:text-indigo-300', bg: 'bg-indigo-500/10' },
+  free: { label: 'Free', color: 'text-text-tertiary ', bg: 'bg-surface-hover ' },
+  pro: { label: 'Pro', color: 'text-text-primary ', bg: 'bg-surface-hover ' },
+  enterprise: { label: 'Enterprise', color: 'text-indigo-700 ', bg: 'bg-indigo-500/10' },
 };
 
 export default function UserProfilePage() {
@@ -116,8 +116,8 @@ export default function UserProfilePage() {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-20">
-        <Loader2 className="h-6 w-6 animate-spin text-black dark:text-white" />
-        <span className="ml-3 text-sm text-neutral-500">Loading profile…</span>
+        <Loader2 className="h-6 w-6 animate-spin text-accent" />
+        <span className="ml-3 text-sm text-text-tertiary">Loading profile…</span>
       </div>
     );
   }
@@ -126,21 +126,21 @@ export default function UserProfilePage() {
     <div className="space-y-8 animate-fade-in pb-16">
       {/* Page header */}
       <div>
-        <p className="text-sm font-semibold uppercase tracking-[0.18em] text-black dark:text-white">Account</p>
-        <h1 className="mt-2 text-3xl font-bold tracking-tight text-neutral-950 dark:text-white">Your profile</h1>
-        <p className="mt-2 text-neutral-500 dark:text-neutral-400">Manage your account settings, preferences, and subscription.</p>
+        <p className="text-sm font-semibold uppercase tracking-[0.18em] text-accent">Account</p>
+        <h1 className="mt-2 text-3xl font-bold tracking-tight text-text-primary">Your profile</h1>
+        <p className="mt-2 text-text-tertiary ">Manage your account settings, preferences, and subscription.</p>
       </div>
 
       {error && (
-        <div className="rounded-2xl border border-rose-300/60 bg-rose-50 p-4 dark:border-rose-400/20 dark:bg-rose-400/10">
-          <p className="text-sm font-semibold text-rose-800 dark:text-rose-200">{error}</p>
+        <div className="rounded-2xl border border-red-500/30 bg-red-500/10 p-4">
+          <p className="text-sm font-semibold text-red-700 dark:text-red-400">{error}</p>
         </div>
       )}
 
       {saveSuccess && (
-        <div className="flex items-center gap-3 rounded-2xl border border-emerald-300/60 bg-emerald-50 p-4 dark:border-emerald-400/20 dark:bg-emerald-400/10">
+        <div className="flex items-center gap-3 rounded-2xl border border-emerald-500/30 bg-emerald-500/10 p-4">
           <Check className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
-          <p className="text-sm font-semibold text-emerald-800 dark:text-emerald-200">Profile saved successfully.</p>
+          <p className="text-sm font-semibold text-emerald-700 dark:text-emerald-400">Profile saved successfully.</p>
         </div>
       )}
 
@@ -149,83 +149,83 @@ export default function UserProfilePage() {
         <div className="space-y-6">
 
           {/* Identity card */}
-          <div className="rounded-2xl border border-neutral-200 bg-white p-6 dark:border-white/10 dark:bg-white/5">
-            <h2 className="mb-6 flex items-center gap-2.5 text-lg font-bold text-neutral-950 dark:text-white">
-              <UserIcon className="h-5 w-5 text-black dark:text-white" /> Personal info
+          <div className="g-card rounded-2xl p-6">
+            <h2 className="mb-6 flex items-center gap-2.5 text-lg font-bold text-text-primary">
+              <UserIcon className="h-5 w-5 text-accent" /> Personal info
             </h2>
 
             <div className="flex flex-col gap-6 sm:flex-row sm:items-start">
               {/* Avatar */}
               <div className="group relative flex-shrink-0">
-                <div className="flex h-20 w-20 items-center justify-center overflow-hidden rounded-2xl bg-gradient-to-br from-neutral-800 to-neutral-600 dark:from-neutral-200 dark:to-neutral-400 text-2xl font-bold text-white shadow-lg shadow-neutral-500/20">
+                <div className="flex h-20 w-20 items-center justify-center overflow-hidden rounded-2xl bg-gradient-to-br from-accent to-accent-2 text-2xl font-bold text-[#fff] shadow-lg shadow-accent/20">
                   {user?.photoURL ? (
                     <img src={user.photoURL} alt="" className="h-full w-full object-cover" referrerPolicy="no-referrer" />
                   ) : (
                     (displayName || 'U').charAt(0).toUpperCase()
                   )}
                 </div>
-                <div className="absolute -bottom-1 -right-1 flex h-7 w-7 items-center justify-center rounded-full border-2 border-white bg-neutral-900 text-white dark:border-neutral-950">
+                <div className="absolute -bottom-1 -right-1 flex h-7 w-7 items-center justify-center rounded-full border-2 border-border bg-accent text-[#fff]">
                   <Camera className="h-3 w-3" />
                 </div>
               </div>
 
               <div className="flex-1 space-y-4">
                 <div>
-                  <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-neutral-400">Display name</label>
+                  <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-text-secondary">Display name</label>
                   <input
                     type="text"
                     value={displayName}
                     onChange={e => setDisplayName(e.target.value)}
-                    className="w-full rounded-xl border border-neutral-200 bg-neutral-50 px-4 py-2.5 text-sm font-medium text-neutral-900 outline-none transition focus:border-neutral-400 focus:ring-2 focus:ring-neutral-400/20 dark:border-white/10 dark:bg-white/5 dark:text-white"
+                    className="g-input w-full px-4 py-2.5 text-sm font-medium text-text-primary"
                     placeholder="Your name"
                   />
                 </div>
                 <div>
-                  <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-neutral-400">Email</label>
-                  <div className="flex items-center gap-2 rounded-xl border border-neutral-200 bg-neutral-50/60 px-4 py-2.5 dark:border-white/10 dark:bg-white/[0.03]">
-                    <Mail className="h-4 w-4 text-neutral-400" />
-                    <span className="text-sm text-neutral-500 dark:text-neutral-400">{user?.email || profile?.email || '—'}</span>
+                  <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-text-secondary">Email</label>
+                  <div className="flex items-center gap-2 rounded-xl border border-border bg-surface-hover/40 px-4 py-2.5">
+                    <Mail className="h-4 w-4 text-text-secondary" />
+                    <span className="text-sm text-text-tertiary ">{user?.email || profile?.email || '—'}</span>
                   </div>
-                  <p className="mt-1 text-xs text-neutral-400">Email is managed by your sign-in provider.</p>
+                  <p className="mt-1 text-xs text-text-secondary">Email is managed by your sign-in provider.</p>
                 </div>
               </div>
             </div>
           </div>
 
           {/* Workspace card */}
-          <div className="rounded-2xl border border-neutral-200 bg-white p-6 dark:border-white/10 dark:bg-white/5">
-            <h2 className="mb-6 flex items-center gap-2.5 text-lg font-bold text-neutral-950 dark:text-white">
-              <Building2 className="h-5 w-5 text-black dark:text-white" /> Workspace
+          <div className="g-card rounded-2xl p-6">
+            <h2 className="mb-6 flex items-center gap-2.5 text-lg font-bold text-text-primary">
+              <Building2 className="h-5 w-5 text-accent" /> Workspace
             </h2>
             <div className="grid gap-4 sm:grid-cols-2">
               <div>
-                <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-neutral-400">Workspace name</label>
+                <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-text-secondary">Workspace name</label>
                 <input
                   type="text"
                   value={workspace}
                   onChange={e => setWorkspace(e.target.value)}
-                  className="w-full rounded-xl border border-neutral-200 bg-neutral-50 px-4 py-2.5 text-sm font-medium text-neutral-900 outline-none transition focus:border-neutral-400 focus:ring-2 focus:ring-neutral-400/20 dark:border-white/10 dark:bg-white/5 dark:text-white"
+                  className="g-input w-full px-4 py-2.5 text-sm font-medium text-text-primary"
                   placeholder="My Workspace"
                 />
               </div>
               <div>
-                <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-neutral-400">Your role</label>
+                <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-text-secondary">Your role</label>
                 <input
                   type="text"
                   value={role}
                   onChange={e => setRole(e.target.value)}
-                  className="w-full rounded-xl border border-neutral-200 bg-neutral-50 px-4 py-2.5 text-sm font-medium text-neutral-900 outline-none transition focus:border-neutral-400 focus:ring-2 focus:ring-neutral-400/20 dark:border-white/10 dark:bg-white/5 dark:text-white"
+                  className="g-input w-full px-4 py-2.5 text-sm font-medium text-text-primary"
                   placeholder="Founder"
                 />
               </div>
               <div className="sm:col-span-2">
-                <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-neutral-400">
+                <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-text-secondary">
                   <Globe className="mr-1 inline h-3.5 w-3.5" /> Timezone
                 </label>
                 <select
                   value={timezone}
                   onChange={e => setTimezone(e.target.value)}
-                  className="w-full rounded-xl border border-neutral-200 bg-neutral-50 px-4 py-2.5 text-sm font-medium text-neutral-900 outline-none transition focus:border-neutral-400 focus:ring-2 focus:ring-neutral-400/20 dark:border-white/10 dark:bg-white/5 dark:text-white"
+                  className="g-input w-full px-4 py-2.5 text-sm font-medium text-text-primary"
                 >
                   {TIMEZONES.map(tz => (
                     <option key={tz} value={tz}>{tz.replace(/_/g, ' ')}</option>
@@ -236,9 +236,9 @@ export default function UserProfilePage() {
           </div>
 
           {/* Notifications card */}
-          <div className="rounded-2xl border border-neutral-200 bg-white p-6 dark:border-white/10 dark:bg-white/5">
-            <h2 className="mb-6 flex items-center gap-2.5 text-lg font-bold text-neutral-950 dark:text-white">
-              <Bell className="h-5 w-5 text-black dark:text-white" /> Notifications
+          <div className="g-card rounded-2xl p-6">
+            <h2 className="mb-6 flex items-center gap-2.5 text-lg font-bold text-text-primary">
+              <Bell className="h-5 w-5 text-accent" /> Notifications
             </h2>
             <div className="space-y-4">
               {([
@@ -246,13 +246,13 @@ export default function UserProfilePage() {
                 { key: 'weeklySummary' as const, label: 'Weekly summary', desc: 'Receive a digest of your inquiry activity each week.', icon: Clock },
                 { key: 'securityAlerts' as const, label: 'Security alerts', desc: 'Important security notifications for your account.', icon: Shield },
               ]).map(item => (
-                <label key={item.key} className="flex cursor-pointer items-start gap-4 rounded-xl p-3 transition hover:bg-neutral-50 dark:hover:bg-white/5">
-                  <div className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-neutral-100 dark:bg-white/10">
-                    <item.icon className="h-4 w-4 text-neutral-500 dark:text-neutral-400" />
+                <label key={item.key} className="flex cursor-pointer items-start gap-4 rounded-xl p-3 transition hover:bg-surface-hover/40">
+                  <div className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-surface-hover">
+                    <item.icon className="h-4 w-4 text-text-tertiary " />
                   </div>
                   <div className="min-w-0 flex-1">
-                    <p className="text-sm font-semibold text-neutral-900 dark:text-white">{item.label}</p>
-                    <p className="mt-0.5 text-xs text-neutral-500 dark:text-neutral-400">{item.desc}</p>
+                    <p className="text-sm font-semibold text-text-primary">{item.label}</p>
+                    <p className="mt-0.5 text-xs text-text-tertiary ">{item.desc}</p>
                   </div>
                   <div className="mt-1">
                     <button
@@ -260,12 +260,12 @@ export default function UserProfilePage() {
                       role="switch"
                       aria-checked={notifications[item.key]}
                       onClick={() => setNotifications(prev => ({ ...prev, [item.key]: !prev[item.key] }))}
-                      className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus-visible:ring-2 focus-visible:ring-neutral-400 ${
-                        notifications[item.key] ? 'bg-black dark:bg-white' : 'bg-neutral-300 dark:bg-white/20'
+                      className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 transition-colors duration-200 ease-in-out focus:outline-none focus-visible:ring-2 focus-visible:ring-accent ${
+                        notifications[item.key] ? 'bg-accent border-transparent' : 'bg-surface-hover border-border-strong'
                       }`}
                     >
                       <span
-                        className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                        className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-surface border border-border-strong shadow ring-0 transition duration-200 ease-in-out ${
                           notifications[item.key] ? 'translate-x-5' : 'translate-x-0'
                         }`}
                       />
@@ -281,7 +281,7 @@ export default function UserProfilePage() {
             <button
               onClick={handleSave}
               disabled={isSaving}
-              className="inline-flex items-center gap-2.5 rounded-xl bg-black dark:bg-white px-6 py-3 text-sm font-bold text-white shadow-lg shadow-neutral-900/10 transition hover:bg-neutral-800 dark:hover:bg-neutral-200 disabled:opacity-50"
+              className="btn-primary inline-flex items-center gap-2.5 rounded-xl px-6 py-3 text-sm font-bold text-[#fff] transition disabled:opacity-50"
             >
               {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
               {isSaving ? 'Saving…' : 'Save changes'}
@@ -292,9 +292,9 @@ export default function UserProfilePage() {
         {/* Right column — subscription & danger zone */}
         <div className="space-y-6">
           {/* Subscription card */}
-          <div className="rounded-2xl border border-neutral-200 bg-white p-6 dark:border-white/10 dark:bg-white/5">
-            <h2 className="mb-5 flex items-center gap-2.5 text-lg font-bold text-neutral-950 dark:text-white">
-              <Sparkles className="h-5 w-5 text-black dark:text-white" /> Subscription
+          <div className="g-card rounded-2xl p-6">
+            <h2 className="mb-5 flex items-center gap-2.5 text-lg font-bold text-text-primary">
+              <Sparkles className="h-5 w-5 text-accent" /> Subscription
             </h2>
             <div className="space-y-5">
               <div className="flex items-center gap-3">
@@ -303,8 +303,8 @@ export default function UserProfilePage() {
                 </span>
                 <span className={`rounded-full px-2.5 py-1 text-xs font-bold ${
                   profile?.subscription?.status === 'active'
-                    ? 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300'
-                    : 'bg-amber-500/10 text-amber-700 dark:text-amber-300'
+                    ? 'bg-emerald-500/10 text-emerald-700 '
+                    : 'bg-amber-500/10 text-amber-700 '
                 }`}>
                   {profile?.subscription?.status || 'active'}
                 </span>
@@ -313,49 +313,49 @@ export default function UserProfilePage() {
               {/* Usage bar */}
               <div>
                 <div className="mb-2 flex items-center justify-between">
-                  <span className="text-xs font-semibold text-neutral-500 dark:text-neutral-400">Executions this month</span>
-                  <span className="text-xs font-bold text-neutral-700 dark:text-neutral-200">{executionsUsed.toLocaleString()} / {executionsLimit.toLocaleString()}</span>
+                  <span className="text-xs font-semibold text-text-tertiary ">Executions this month</span>
+                  <span className="text-xs font-bold text-text-primary">{executionsUsed.toLocaleString()} / {executionsLimit.toLocaleString()}</span>
                 </div>
-                <div className="h-2.5 w-full overflow-hidden rounded-full bg-neutral-100 dark:bg-white/10">
+                <div className="h-2.5 w-full overflow-hidden rounded-full bg-surface-hover">
                   <div
                     className={`h-full rounded-full transition-all duration-500 ${
-                      usagePercent > 85 ? 'bg-rose-500' : usagePercent > 60 ? 'bg-amber-500' : 'bg-black dark:bg-white'
+                      usagePercent > 85 ? 'bg-rose-500' : usagePercent > 60 ? 'bg-amber-500' : 'bg-accent'
                     }`}
                     style={{ width: `${usagePercent}%` }}
                   />
                 </div>
-                <p className="mt-1.5 text-xs text-neutral-400">{usagePercent}% of monthly limit used</p>
+                <p className="mt-1.5 text-xs text-text-secondary">{usagePercent}% of monthly limit used</p>
               </div>
 
               {profile?.subscription?.nextInvoiceDate && (
-                <p className="text-xs text-neutral-400">
-                  Next invoice: <span className="font-semibold text-neutral-600 dark:text-neutral-300">{profile.subscription.nextInvoiceDate}</span>
+                <p className="text-xs text-text-secondary">
+                  Next invoice: <span className="font-semibold text-text-tertiary ">{profile.subscription.nextInvoiceDate}</span>
                 </p>
               )}
             </div>
           </div>
 
           {/* Quick info card */}
-          <div className="rounded-2xl border border-neutral-200 bg-white p-6 dark:border-white/10 dark:bg-white/5">
-            <h3 className="mb-4 text-sm font-bold text-neutral-950 dark:text-white">Account details</h3>
+          <div className="g-card rounded-2xl p-6">
+            <h3 className="mb-4 text-sm font-bold text-text-primary">Account details</h3>
             <dl className="space-y-3 text-sm">
               <div className="flex justify-between">
-                <dt className="text-neutral-500 dark:text-neutral-400">User ID</dt>
-                <dd className="font-mono text-xs text-neutral-600 dark:text-neutral-300">{user?.uid?.slice(0, 12)}…</dd>
+                <dt className="text-text-tertiary ">User ID</dt>
+                <dd className="font-mono text-xs text-text-tertiary ">{user?.uid?.slice(0, 12)}…</dd>
               </div>
               <div className="flex justify-between">
-                <dt className="text-neutral-500 dark:text-neutral-400">API keys</dt>
-                <dd className="font-semibold text-neutral-700 dark:text-neutral-200">{profile?.apiKeys?.length || 0}</dd>
+                <dt className="text-text-tertiary ">API keys</dt>
+                <dd className="font-semibold text-text-primary">{profile?.apiKeys?.length || 0}</dd>
               </div>
             </dl>
           </div>
 
           {/* Sign out / danger zone */}
-          <div className="rounded-2xl border border-rose-200/60 bg-rose-50/50 p-6 dark:border-rose-400/10 dark:bg-rose-400/5">
-            <h3 className="mb-3 text-sm font-bold text-rose-900 dark:text-rose-300">Danger zone</h3>
+          <div className="rounded-2xl border border-red-500/20 bg-red-500/5 p-6">
+            <h3 className="mb-3 text-sm font-bold text-red-700 dark:text-red-400">Danger zone</h3>
             <button
               onClick={logout}
-              className="inline-flex items-center gap-2 rounded-xl border border-rose-200 bg-white px-4 py-2.5 text-sm font-bold text-rose-700 transition hover:bg-rose-50 dark:border-rose-500/30 dark:bg-transparent dark:text-rose-400 dark:hover:bg-rose-400/10"
+              className="inline-flex items-center gap-2 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-2.5 text-sm font-bold text-red-600 dark:text-red-400 transition hover:brightness-110"
             >
               <LogOut className="h-4 w-4" />
               Sign out of NodalX

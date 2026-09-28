@@ -128,6 +128,10 @@ export default function SignInModal({ isOpen, onClose }: SignInModalProps) {
       recaptchaVerifierRef.current.clear();
     }
     if (!recaptchaContainerRef.current) return;
+    if (!auth) {
+      setErrorMsg('Authentication is not available right now. Please try again later.');
+      return;
+    }
 
     try {
       recaptchaVerifierRef.current = new RecaptchaVerifier(auth, recaptchaContainerRef.current, {
@@ -192,18 +196,28 @@ export default function SignInModal({ isOpen, onClose }: SignInModalProps) {
     setErrorMsg(null);
     setInfoMsg(null);
 
+    if (!auth) {
+      setErrorMsg('Authentication is not available right now. Please try again later.');
+      return;
+    }
+
     try {
       const userCred = await createUserWithEmailAndPassword(auth, email, password);
 
       await updateProfile(userCred.user, { displayName: fullName });
 
       // Save user details to Firestore
+      if (!db) {
+        setErrorMsg('Database is not available right now. Please try again later.');
+        return;
+      }
       const userDocRef = doc(db, 'users', userCred.user.uid);
       await setDoc(userDocRef, {
         uid: userCred.user.uid,
         email: userCred.user.email,
         displayName: fullName,
         companyName: companyName,
+        tier: 'free',
         createdAt: new Date(),
       });
 
@@ -257,6 +271,11 @@ export default function SignInModal({ isOpen, onClose }: SignInModalProps) {
     setErrorMsg(null);
     setInfoMsg(null);
 
+    if (!auth) {
+      setErrorMsg('Authentication is not available right now. Please try again later.');
+      return;
+    }
+
     try {
       await sendPasswordResetEmail(auth, email);
       setInfoMsg('Password reset email sent! Check your inbox.');
@@ -302,6 +321,7 @@ export default function SignInModal({ isOpen, onClose }: SignInModalProps) {
             uid: result.user.uid,
             email: result.user.email,
             displayName: result.user.displayName || '',
+            tier: 'free',
             createdAt: new Date(),
           });
 
@@ -372,6 +392,11 @@ export default function SignInModal({ isOpen, onClose }: SignInModalProps) {
         return;
       }
 
+      if (!auth) {
+        setErrorMsg('Authentication is not available right now. Please try again later.');
+        return;
+      }
+
       const confirmation = await signInWithPhoneNumber(
         auth,
         phoneNumber,
@@ -414,17 +439,18 @@ export default function SignInModal({ isOpen, onClose }: SignInModalProps) {
     try {
       const result = await confirmationResult.confirm(otpCode);
       if (result.user) {
-        // Check if this is a new user
-        const userDocRef = doc(db, 'users', result.user.uid);
-        const userDoc = await getDoc(userDocRef);
-        const isNewUser = !userDoc.exists();
+        // Check if this is a new user. Without Firestore no document is written
+        // at all rather than a partial one.
+        const userDocRef = db ? doc(db, 'users', result.user.uid) : null;
+        const existingDoc = userDocRef ? await getDoc(userDocRef) : null;
 
-        if (isNewUser) {
+        if (userDocRef && existingDoc && !existingDoc.exists()) {
           // Save to Firestore
           await setDoc(userDocRef, {
             uid: result.user.uid,
             phoneNumber: result.user.phoneNumber || phoneNumber,
             displayName: result.user.displayName || '',
+            tier: 'free',
             createdAt: new Date(),
           });
 
@@ -494,8 +520,8 @@ export default function SignInModal({ isOpen, onClose }: SignInModalProps) {
       }}
       className={`flex-1 flex items-center justify-center gap-2 py-2.5 text-xs font-bold uppercase tracking-wider rounded-lg transition-all ${
         authMode === mode
-          ? 'bg-neutral-100 dark:bg-neutral-800 text-black dark:text-white border border-neutral-300 dark:border-neutral-600'
-          : 'text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-300'
+          ? 'bg-surface-hover text-text-primary border border-border-strong'
+          : 'text-text-secondary hover:text-text-primary'
       }`}
     >
       {icon}
@@ -507,25 +533,25 @@ export default function SignInModal({ isOpen, onClose }: SignInModalProps) {
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6 min-h-screen">
       {/* Backdrop */}
       <div
-        className="absolute inset-0 bg-neutral-950/50 dark:bg-neutral-950/70 modal-backdrop animate-fade-in"
+        className="absolute inset-0 modal-backdrop animate-fade-in"
         onClick={onClose}
         aria-hidden="true"
       ></div>
 
       {/* Modal */}
       <div
-        className="relative w-full max-w-[420px] bg-white/80 dark:bg-neutral-900/80 backdrop-blur-2xl rounded-3xl shadow-2xl shadow-neutral-900/10 dark:shadow-black/30 p-6 sm:p-8 animate-scale-in z-10 overflow-hidden border border-white/40 dark:border-white/10"
+        className="relative w-full max-w-[420px] g-panel rounded-3xl p-6 sm:p-8 animate-scale-in z-10 overflow-hidden"
         role="dialog"
         aria-modal="true"
       >
         {/* Decorative glass orbs */}
-        <div className="absolute -top-16 -right-16 w-40 h-40 rounded-full bg-gradient-to-br from-neutral-300/20 to-neutral-400/20 blur-3xl pointer-events-none"></div>
-        <div className="absolute -bottom-12 -left-12 w-32 h-32 rounded-full bg-gradient-to-tr from-neutral-400/15 to-neutral-300/15 blur-3xl pointer-events-none"></div>
+        <div className="absolute -top-16 -right-16 w-40 h-40 rounded-full bg-gradient-to-br from-accent/20 to-accent-2/20 blur-3xl pointer-events-none"></div>
+        <div className="absolute -bottom-12 -left-12 w-32 h-32 rounded-full bg-gradient-to-tr from-accent/15 to-accent-2/15 blur-3xl pointer-events-none"></div>
 
         {/* Close Button */}
         <button
           onClick={onClose}
-          className="absolute top-4 right-4 p-2 text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-200 hover:bg-neutral-100/80 dark:hover:bg-white/10 rounded-xl transition-all duration-200 z-20 backdrop-blur-sm"
+          className="absolute top-4 right-4 p-2 text-text-secondary hover:text-text-tertiary hover:bg-surface-hover rounded-xl transition-all duration-200 z-20"
           aria-label="Close modal"
         >
           <X className="w-5 h-5" />
@@ -533,19 +559,19 @@ export default function SignInModal({ isOpen, onClose }: SignInModalProps) {
 
         {/* Header */}
         <div className="text-center mb-5 relative z-10">
-          <div className="w-14 h-14 rounded-2xl bg-black dark:bg-white flex items-center justify-center shadow-lg shadow-neutral-900/20 mx-auto mb-4 glass-shine">
+          <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-accent to-accent-2 flex items-center justify-center shadow-lg shadow-accent/25 mx-auto mb-4 dark-ctx">
             <LogIn className="w-7 h-7 text-white" />
           </div>
-          <h3 className="text-2xl font-extrabold text-neutral-900 dark:text-white mb-1.5">
+          <h3 className="text-2xl font-extrabold text-text-primary mb-1.5">
             Sign In
           </h3>
-          <p className="text-neutral-500 dark:text-neutral-400 text-sm">
-            Access your NODALxAI dashboard
+          <p className="text-text-tertiary  text-sm">
+            Access your NodalX dashboard
           </p>
         </div>
 
         {/* Auth Mode Tabs */}
-        <div className="flex gap-2 mb-5 bg-neutral-100/70 dark:bg-neutral-800/40 p-1 rounded-xl relative z-10">
+        <div className="flex gap-2 mb-5 g-chip p-1 rounded-xl relative z-10">
           {renderTab('email', 'Email', <Mail className="w-3.5 h-3.5" />)}
           {renderTab('google', 'Google', (
             <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none">
@@ -560,14 +586,14 @@ export default function SignInModal({ isOpen, onClose }: SignInModalProps) {
 
         {/* Info Message */}
         {infoMsg && (
-          <div className="mb-4 p-3.5 bg-neutral-50 dark:bg-neutral-800/50 backdrop-blur-sm border border-neutral-200 dark:border-neutral-700 rounded-xl text-neutral-700 dark:text-neutral-300 text-xs font-semibold leading-relaxed animate-slide-up">
+          <div className="mb-4 p-3.5 g-chip rounded-xl text-text-primary text-xs font-semibold leading-relaxed animate-slide-up">
             {infoMsg}
           </div>
         )}
 
         {/* Error Message */}
         {errorMsg && (
-          <div className="mb-4 p-3.5 bg-rose-50/80 dark:bg-rose-500/10 backdrop-blur-sm border border-rose-200/60 dark:border-rose-500/20 rounded-xl flex items-start gap-2.5 text-rose-700 dark:text-rose-400 animate-shake">
+          <div className="mb-4 p-3.5 bg-red-500/10 border border-red-500/30 rounded-xl flex items-start gap-2.5 text-red-600 dark:text-red-400 animate-shake">
             <AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5" />
             <span className="text-xs font-semibold leading-relaxed">{errorMsg}</span>
           </div>
@@ -581,11 +607,11 @@ export default function SignInModal({ isOpen, onClose }: SignInModalProps) {
               {emailStep === 'signin' && (
                 <form onSubmit={handleEmailSignIn} className="space-y-4">
                   <div>
-                    <label className="block text-xs font-bold text-neutral-700 dark:text-neutral-300 uppercase tracking-wider mb-2">
+                    <label className="block text-xs font-bold text-text-primary uppercase tracking-wider mb-2">
                       Email Address
                     </label>
                     <div className="relative">
-                      <span className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-neutral-400">
+                      <span className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-text-secondary">
                         <Mail className="w-4 h-4" />
                       </span>
                       <input
@@ -594,16 +620,16 @@ export default function SignInModal({ isOpen, onClose }: SignInModalProps) {
                         value={email}
                         onChange={(e) => setEmail(e.target.value)}
                         placeholder="you@example.com"
-                        className="w-full pl-10 pr-4 py-3 bg-white/60 dark:bg-black/20 backdrop-blur-sm border border-neutral-200/80 dark:border-white/10 rounded-xl text-sm text-neutral-900 dark:text-white placeholder-neutral-400 focus:outline-none focus:ring-2 focus:ring-neutral-400/30 focus:border-neutral-400 transition-all"
+                        className="w-full pl-10 pr-4 py-3 g-input text-sm text-text-primary placeholder:text-text-tertiary"
                       />
                     </div>
                   </div>
                   <div>
-                    <label className="block text-xs font-bold text-neutral-700 dark:text-neutral-300 uppercase tracking-wider mb-2">
+                    <label className="block text-xs font-bold text-text-primary uppercase tracking-wider mb-2">
                       Password
                     </label>
                     <div className="relative">
-                      <span className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-neutral-400">
+                      <span className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-text-secondary">
                         <Lock className="w-4 h-4" />
                       </span>
                       <input
@@ -612,12 +638,12 @@ export default function SignInModal({ isOpen, onClose }: SignInModalProps) {
                         value={password}
                         onChange={(e) => setPassword(e.target.value)}
                         placeholder="Enter your password"
-                        className="w-full pl-10 pr-10 py-3 bg-white/60 dark:bg-black/20 backdrop-blur-sm border border-neutral-200/80 dark:border-white/10 rounded-xl text-sm text-neutral-900 dark:text-white placeholder-neutral-400 focus:outline-none focus:ring-2 focus:ring-neutral-400/30 focus:border-neutral-400 transition-all"
+                        className="w-full pl-10 pr-10 py-3 g-input text-sm text-text-primary placeholder:text-text-tertiary"
                       />
                       <button
                         type="button"
                         onClick={() => setShowPassword(!showPassword)}
-                        className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-300"
+                        className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-text-secondary hover:text-text-tertiary"
                       >
                         {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                       </button>
@@ -628,7 +654,7 @@ export default function SignInModal({ isOpen, onClose }: SignInModalProps) {
                     <button
                       type="button"
                       onClick={() => setEmailStep('forgot')}
-                      className="text-xs text-black dark:text-white font-semibold hover:underline"
+                      className="text-xs text-accent font-semibold hover:underline"
                     >
                       Forgot Password?
                     </button>
@@ -637,7 +663,7 @@ export default function SignInModal({ isOpen, onClose }: SignInModalProps) {
                   <button
                     type="submit"
                     disabled={isSubmitting}
-                    className="w-full py-3.5 bg-black dark:bg-white text-white dark:text-black font-bold text-sm rounded-xl transition-all shadow-lg shadow-neutral-900/10 hover:shadow-neutral-900/20 hover:bg-neutral-800 dark:hover:bg-neutral-200 hover:-translate-y-0.5 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0 glass-shine"
+                    className="w-full py-3.5 btn-primary text-[#fff] font-bold text-sm rounded-xl transition-all hover:-translate-y-0.5 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0"
                   >
                     {isSubmitting ? (
                       <>
@@ -652,12 +678,12 @@ export default function SignInModal({ isOpen, onClose }: SignInModalProps) {
                     )}
                   </button>
 
-                  <div className="text-center text-xs text-neutral-500 dark:text-neutral-400 pt-2">
+                  <div className="text-center text-xs text-text-tertiary  pt-2">
                     Don't have an account?{' '}
                     <button
                       type="button"
                       onClick={() => { setEmailStep('signup'); setErrorMsg(null); setInfoMsg(null); }}
-                      className="font-semibold text-black dark:text-white hover:underline"
+                      className="font-semibold text-accent hover:underline"
                     >
                       Create one
                     </button>
@@ -668,11 +694,11 @@ export default function SignInModal({ isOpen, onClose }: SignInModalProps) {
               {emailStep === 'signup' && (
                 <form onSubmit={handleEmailSignUp} className="space-y-4">
                   <div>
-                    <label className="block text-xs font-bold text-neutral-700 dark:text-neutral-300 uppercase tracking-wider mb-2">
+                    <label className="block text-xs font-bold text-text-primary uppercase tracking-wider mb-2">
                       Full Name
                     </label>
                     <div className="relative">
-                      <span className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-neutral-400">
+                      <span className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-text-secondary">
                         <User className="w-4 h-4" />
                       </span>
                       <input
@@ -681,16 +707,16 @@ export default function SignInModal({ isOpen, onClose }: SignInModalProps) {
                         value={fullName}
                         onChange={(e) => setFullName(e.target.value)}
                         placeholder="John Doe"
-                        className="w-full pl-10 pr-4 py-3 bg-white/60 dark:bg-black/20 backdrop-blur-sm border border-neutral-200/80 dark:border-white/10 rounded-xl text-sm text-neutral-900 dark:text-white placeholder-neutral-400 focus:outline-none focus:ring-2 focus:ring-neutral-400/30 focus:border-neutral-400 transition-all"
+                        className="w-full pl-10 pr-4 py-3 g-input text-sm text-text-primary placeholder:text-text-tertiary"
                       />
                     </div>
                   </div>
                   <div>
-                    <label className="block text-xs font-bold text-neutral-700 dark:text-neutral-300 uppercase tracking-wider mb-2">
+                    <label className="block text-xs font-bold text-text-primary uppercase tracking-wider mb-2">
                       Company Name
                     </label>
                     <div className="relative">
-                      <span className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-neutral-400">
+                      <span className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-text-secondary">
                         <Building className="w-4 h-4" />
                       </span>
                       <input
@@ -699,16 +725,16 @@ export default function SignInModal({ isOpen, onClose }: SignInModalProps) {
                         value={companyName}
                         onChange={(e) => setCompanyName(e.target.value)}
                         placeholder="Acme Inc."
-                        className="w-full pl-10 pr-4 py-3 bg-white/60 dark:bg-black/20 backdrop-blur-sm border border-neutral-200/80 dark:border-white/10 rounded-xl text-sm text-neutral-900 dark:text-white placeholder-neutral-400 focus:outline-none focus:ring-2 focus:ring-neutral-400/30 focus:border-neutral-400 transition-all"
+                        className="w-full pl-10 pr-4 py-3 g-input text-sm text-text-primary placeholder:text-text-tertiary"
                       />
                     </div>
                   </div>
                   <div>
-                    <label className="block text-xs font-bold text-neutral-700 dark:text-neutral-300 uppercase tracking-wider mb-2">
+                    <label className="block text-xs font-bold text-text-primary uppercase tracking-wider mb-2">
                       Email Address
                     </label>
                     <div className="relative">
-                      <span className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-neutral-400">
+                      <span className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-text-secondary">
                         <Mail className="w-4 h-4" />
                       </span>
                       <input
@@ -717,16 +743,16 @@ export default function SignInModal({ isOpen, onClose }: SignInModalProps) {
                         value={email}
                         onChange={(e) => setEmail(e.target.value)}
                         placeholder="you@example.com"
-                        className="w-full pl-10 pr-4 py-3 bg-white/60 dark:bg-black/20 backdrop-blur-sm border border-neutral-200/80 dark:border-white/10 rounded-xl text-sm text-neutral-900 dark:text-white placeholder-neutral-400 focus:outline-none focus:ring-2 focus:ring-neutral-400/30 focus:border-neutral-400 transition-all"
+                        className="w-full pl-10 pr-4 py-3 g-input text-sm text-text-primary placeholder:text-text-tertiary"
                       />
                     </div>
                   </div>
                   <div>
-                    <label className="block text-xs font-bold text-neutral-700 dark:text-neutral-300 uppercase tracking-wider mb-2">
+                    <label className="block text-xs font-bold text-text-primary uppercase tracking-wider mb-2">
                       Password
                     </label>
                     <div className="relative">
-                      <span className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-neutral-400">
+                      <span className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-text-secondary">
                         <Lock className="w-4 h-4" />
                       </span>
                       <input
@@ -735,12 +761,12 @@ export default function SignInModal({ isOpen, onClose }: SignInModalProps) {
                         value={password}
                         onChange={(e) => setPassword(e.target.value)}
                         placeholder="Min. 6 characters"
-                        className="w-full pl-10 pr-10 py-3 bg-white/60 dark:bg-black/20 backdrop-blur-sm border border-neutral-200/80 dark:border-white/10 rounded-xl text-sm text-neutral-900 dark:text-white placeholder-neutral-400 focus:outline-none focus:ring-2 focus:ring-neutral-400/30 focus:border-neutral-400 transition-all"
+                        className="w-full pl-10 pr-10 py-3 g-input text-sm text-text-primary placeholder:text-text-tertiary"
                       />
                       <button
                         type="button"
                         onClick={() => setShowPassword(!showPassword)}
-                        className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-300"
+                        className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-text-secondary hover:text-text-tertiary"
                       >
                         {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                       </button>
@@ -750,7 +776,7 @@ export default function SignInModal({ isOpen, onClose }: SignInModalProps) {
                   <button
                     type="submit"
                     disabled={isSubmitting}
-                    className="w-full py-3.5 bg-black dark:bg-white text-white dark:text-black font-bold text-sm rounded-xl transition-all shadow-lg shadow-neutral-900/10 hover:shadow-neutral-900/20 hover:bg-neutral-800 dark:hover:bg-neutral-200 hover:-translate-y-0.5 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0 glass-shine"
+                    className="w-full py-3.5 btn-primary text-[#fff] font-bold text-sm rounded-xl transition-all hover:-translate-y-0.5 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0"
                   >
                     {isSubmitting ? (
                       <>
@@ -765,12 +791,12 @@ export default function SignInModal({ isOpen, onClose }: SignInModalProps) {
                     )}
                   </button>
 
-                  <div className="text-center text-xs text-neutral-500 dark:text-neutral-400 pt-2">
+                  <div className="text-center text-xs text-text-tertiary  pt-2">
                     Already have an account?{' '}
                     <button
                       type="button"
                       onClick={() => { setEmailStep('signin'); setErrorMsg(null); setInfoMsg(null); }}
-                      className="font-semibold text-black dark:text-white hover:underline"
+                      className="font-semibold text-accent hover:underline"
                     >
                       Sign In
                     </button>
@@ -780,15 +806,15 @@ export default function SignInModal({ isOpen, onClose }: SignInModalProps) {
 
               {emailStep === 'forgot' && (
                 <form onSubmit={handleForgotPassword} className="space-y-4">
-                  <p className="text-sm text-neutral-500 dark:text-neutral-400 mb-4">
+                  <p className="text-sm text-text-tertiary  mb-4">
                     Enter your email and we'll send you a password reset link.
                   </p>
                   <div>
-                    <label className="block text-xs font-bold text-neutral-700 dark:text-neutral-300 uppercase tracking-wider mb-2">
+                    <label className="block text-xs font-bold text-text-primary uppercase tracking-wider mb-2">
                       Email Address
                     </label>
                     <div className="relative">
-                      <span className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-neutral-400">
+                      <span className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-text-secondary">
                         <Mail className="w-4 h-4" />
                       </span>
                       <input
@@ -797,7 +823,7 @@ export default function SignInModal({ isOpen, onClose }: SignInModalProps) {
                         value={email}
                         onChange={(e) => setEmail(e.target.value)}
                         placeholder="you@example.com"
-                        className="w-full pl-10 pr-4 py-3 bg-white/60 dark:bg-black/20 backdrop-blur-sm border border-neutral-200/80 dark:border-white/10 rounded-xl text-sm text-neutral-900 dark:text-white placeholder-neutral-400 focus:outline-none focus:ring-2 focus:ring-neutral-400/30 focus:border-neutral-400 transition-all"
+                        className="w-full pl-10 pr-4 py-3 g-input text-sm text-text-primary placeholder:text-text-tertiary"
                       />
                     </div>
                   </div>
@@ -805,7 +831,7 @@ export default function SignInModal({ isOpen, onClose }: SignInModalProps) {
                   <button
                     type="submit"
                     disabled={isSubmitting}
-                    className="w-full py-3.5 bg-black dark:bg-white text-white dark:text-black font-bold text-sm rounded-xl transition-all shadow-lg shadow-neutral-900/10 hover:shadow-neutral-900/20 hover:bg-neutral-800 dark:hover:bg-neutral-200 hover:-translate-y-0.5 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0 glass-shine"
+                    className="w-full py-3.5 btn-primary text-[#fff] font-bold text-sm rounded-xl transition-all hover:-translate-y-0.5 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0"
                   >
                     {isSubmitting ? (
                       <>
@@ -820,12 +846,12 @@ export default function SignInModal({ isOpen, onClose }: SignInModalProps) {
                     )}
                   </button>
 
-                  <div className="text-center text-xs text-neutral-500 dark:text-neutral-400 pt-2">
+                  <div className="text-center text-xs text-text-tertiary  pt-2">
                     Remember your password?{' '}
                     <button
                       type="button"
                       onClick={() => { setEmailStep('signin'); setErrorMsg(null); setInfoMsg(null); }}
-                      className="font-semibold text-black dark:text-white hover:underline"
+                      className="font-semibold text-accent hover:underline"
                     >
                       Sign In
                     </button>
@@ -838,13 +864,13 @@ export default function SignInModal({ isOpen, onClose }: SignInModalProps) {
           {/* GOOGLE AUTH */}
           {authMode === 'google' && (
             <div className="space-y-4">
-              <div className="text-center text-sm text-neutral-500 dark:text-neutral-400">
+              <div className="text-center text-sm text-text-tertiary ">
                 Sign in securely with your Google account.
               </div>
               <button
                 onClick={handleGoogleSignIn}
                 disabled={isSubmitting}
-                className="w-full py-3.5 bg-white dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 hover:bg-neutral-50 dark:hover:bg-neutral-700 text-neutral-900 dark:text-white font-semibold text-sm rounded-xl transition-all shadow-md hover:shadow-lg hover:-translate-y-0.5 flex items-center justify-center gap-3 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0"
+                className="w-full py-3.5 g-chip text-text-primary font-semibold text-sm rounded-xl hover:border-accent transition-all hover:-translate-y-0.5 flex items-center justify-center gap-3 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0"
               >
                 {isSubmitting ? (
                   <RefreshCw className="w-5 h-5 animate-spin" />
@@ -860,14 +886,14 @@ export default function SignInModal({ isOpen, onClose }: SignInModalProps) {
               </button>
 
               <div className="flex items-center gap-3 my-4">
-                <div className="flex-1 h-px bg-neutral-200 dark:bg-neutral-700"></div>
-                <span className="text-xs text-neutral-400 font-medium">OR</span>
-                <div className="flex-1 h-px bg-neutral-200 dark:bg-neutral-700"></div>
+                <div className="flex-1 h-px bg-border"></div>
+                <span className="text-xs text-text-secondary font-medium">OR</span>
+                <div className="flex-1 h-px bg-border"></div>
               </div>
 
               <button
                 onClick={() => { setAuthMode('email'); setEmailStep('signin'); }}
-                className="w-full py-3 border border-neutral-200 dark:border-neutral-700 rounded-xl text-sm font-semibold text-neutral-600 dark:text-neutral-300 hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-all"
+                className="w-full py-3 border border-border rounded-xl text-sm font-semibold text-text-tertiary hover:bg-surface-hover transition-all"
               >
                 Sign in with Email Instead
               </button>
@@ -880,11 +906,11 @@ export default function SignInModal({ isOpen, onClose }: SignInModalProps) {
               {otpStep === 'phone' && (
                 <form onSubmit={handleSendOtp} className="space-y-4">
                   <div>
-                    <label className="block text-xs font-bold text-neutral-700 dark:text-neutral-300 uppercase tracking-wider mb-2">
+                    <label className="block text-xs font-bold text-text-primary uppercase tracking-wider mb-2">
                       Phone Number
                     </label>
                     <div className="relative">
-                      <span className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-neutral-400">
+                      <span className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-text-secondary">
                         <Phone className="w-4 h-4" />
                       </span>
                       <input
@@ -893,16 +919,16 @@ export default function SignInModal({ isOpen, onClose }: SignInModalProps) {
                         value={phoneNumber}
                         onChange={(e) => setPhoneNumber(e.target.value)}
                         placeholder="+1234567890"
-                        className="w-full pl-10 pr-4 py-3 bg-white/60 dark:bg-black/20 backdrop-blur-sm border border-neutral-200/80 dark:border-white/10 rounded-xl text-sm text-neutral-900 dark:text-white placeholder-neutral-400 focus:outline-none focus:ring-2 focus:ring-neutral-400/30 focus:border-neutral-400 transition-all"
+                        className="w-full pl-10 pr-4 py-3 g-input text-sm text-text-primary placeholder:text-text-tertiary"
                       />
                     </div>
-                    <p className="text-xs text-neutral-400 mt-1.5">Enter your phone number in E.164 format (e.g., +1234567890)</p>
+                    <p className="text-xs text-text-secondary mt-1.5">Enter your phone number in E.164 format (e.g., +1234567890)</p>
                   </div>
 
                   <button
                     type="submit"
                     disabled={isSubmitting}
-                    className="w-full py-3.5 bg-black dark:bg-white text-white dark:text-black font-bold text-sm rounded-xl transition-all shadow-lg shadow-neutral-900/10 hover:shadow-neutral-900/20 hover:bg-neutral-800 dark:hover:bg-neutral-200 hover:-translate-y-0.5 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0 glass-shine"
+                    className="w-full py-3.5 btn-primary text-[#fff] font-bold text-sm rounded-xl transition-all hover:-translate-y-0.5 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0"
                   >
                     {isSubmitting ? (
                       <>
@@ -923,19 +949,19 @@ export default function SignInModal({ isOpen, onClose }: SignInModalProps) {
                 <form onSubmit={handleVerifyOtp} className="space-y-4">
                   <div>
                     <div className="flex justify-between items-center mb-2">
-                      <label className="block text-xs font-bold text-neutral-700 dark:text-neutral-300 uppercase tracking-wider">
+                      <label className="block text-xs font-bold text-text-primary uppercase tracking-wider">
                         Enter OTP
                       </label>
                       <button
                         type="button"
                         onClick={() => { setOtpStep('phone'); setConfirmationResult(null); setErrorMsg(null); setInfoMsg(null); }}
-                        className="text-xs text-black dark:text-white font-semibold hover:underline"
+                        className="text-xs text-accent font-semibold hover:underline"
                       >
                         Change Number
                       </button>
                     </div>
                     <div className="relative">
-                      <span className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-neutral-400">
+                      <span className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-text-secondary">
                         <Lock className="w-4 h-4" />
                       </span>
                       <input
@@ -945,7 +971,7 @@ export default function SignInModal({ isOpen, onClose }: SignInModalProps) {
                         value={otpCode}
                         onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, ''))}
                         placeholder="123456"
-                        className="w-full pl-10 pr-4 py-3 bg-white/60 dark:bg-black/20 backdrop-blur-sm border border-neutral-200/80 dark:border-white/10 rounded-xl text-sm text-neutral-900 dark:text-white placeholder-neutral-400 focus:outline-none tracking-[0.3em] font-bold focus:ring-2 focus:ring-neutral-400/30 focus:border-neutral-400 transition-all text-center"
+                        className="w-full pl-10 pr-4 py-3 g-input text-sm text-text-primary placeholder:text-text-tertiary tracking-[0.3em] font-bold transition-all text-center"
                       />
                     </div>
                   </div>
@@ -953,7 +979,7 @@ export default function SignInModal({ isOpen, onClose }: SignInModalProps) {
                   <button
                     type="submit"
                     disabled={isSubmitting}
-                    className="w-full py-3.5 bg-black dark:bg-white text-white dark:text-black font-bold text-sm rounded-xl transition-all shadow-lg shadow-neutral-900/10 hover:shadow-neutral-900/20 hover:bg-neutral-800 dark:hover:bg-neutral-200 hover:-translate-y-0.5 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0 glass-shine"
+                    className="w-full py-3.5 btn-primary text-[#fff] font-bold text-sm rounded-xl transition-all hover:-translate-y-0.5 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0"
                   >
                     {isSubmitting ? (
                       <>
@@ -969,10 +995,10 @@ export default function SignInModal({ isOpen, onClose }: SignInModalProps) {
                   </button>
 
                   {/* Resend OTP */}
-                  <div className="text-center text-xs text-neutral-500 dark:text-neutral-400 pt-2">
+                  <div className="text-center text-xs text-text-tertiary  pt-2">
                     Didn't receive a code?{' '}
                     {resendTimer > 0 ? (
-                      <span className="text-neutral-500 dark:text-neutral-400">
+                      <span className="text-text-tertiary ">
                         Resend in {String(Math.floor(resendTimer / 60)).padStart(2, '0')}:
                         {String(resendTimer % 60).padStart(2, '0')}
                       </span>
@@ -980,7 +1006,7 @@ export default function SignInModal({ isOpen, onClose }: SignInModalProps) {
                       <button
                         type="button"
                         onClick={handleResendOtp}
-                        className="font-semibold text-black dark:text-white hover:underline"
+                        className="font-semibold text-accent hover:underline"
                         disabled={isSubmitting}
                       >
                         Resend code

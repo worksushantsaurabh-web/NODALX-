@@ -64,11 +64,11 @@ async function getServiceAccountEmail() {
     const auth = new google.auth.GoogleAuth({
       scopes: ["https://www.googleapis.com/auth/spreadsheets"],
     });
-    const client = await auth.getClient();
-    const email = client.email || client.credentials?.client_email;
-    return email || "282855451102-compute@developer.gserviceaccount.com";
-  } catch {
-    return "282855451102-compute@developer.gserviceaccount.com";
+    const credentials = await auth.getCredentials();
+    if (!credentials.client_email) throw new Error("Service account email unavailable");
+    return credentials.client_email;
+  } catch (error) {
+    throw new Error(`Unable to identify the Google Sheets service account: ${error.message}`);
   }
 }
 
@@ -81,12 +81,7 @@ async function getServiceAccountEmail() {
 async function appendRow(spreadsheetId, data) {
   const sheetId = extractSpreadsheetId(spreadsheetId);
 
-  let sheets;
-  try {
-    sheets = await getSheetsClient();
-  } catch (error) {
-    throw error;
-  }
+  const sheets = await getSheetsClient();
 
   const row = [
     data.createdAt || new Date().toISOString(),
@@ -96,7 +91,7 @@ async function appendRow(spreadsheetId, data) {
     data.message || "",
     data.intent || "",
     data.urgency || "",
-    data.fit_score || "",
+    data.fit_score ?? "",
     data.category || "",
     data.summary || "",
   ];
@@ -105,7 +100,7 @@ async function appendRow(spreadsheetId, data) {
     await sheets.spreadsheets.values.append({
       spreadsheetId: sheetId,
       range: "Sheet1!A:J",
-      valueInputOption: "USER_ENTERED",
+      valueInputOption: "RAW",
       insertDataOption: "INSERT_ROWS",
       requestBody: {
         values: [row],
@@ -142,12 +137,7 @@ async function appendRow(spreadsheetId, data) {
 async function verifyAccess(spreadsheetId) {
   const sheetId = extractSpreadsheetId(spreadsheetId);
 
-  let sheets;
-  try {
-    sheets = await getSheetsClient();
-  } catch (error) {
-    throw error;
-  }
+  const sheets = await getSheetsClient();
 
   try {
     const res = await sheets.spreadsheets.get({spreadsheetId: sheetId});
@@ -185,17 +175,12 @@ async function verifyAccess(spreadsheetId) {
 async function readSheetRows(spreadsheetId) {
   const sheetId = extractSpreadsheetId(spreadsheetId);
 
-  let sheets;
-  try {
-    sheets = await getSheetsClient();
-  } catch (error) {
-    throw error;
-  }
+  const sheets = await getSheetsClient();
 
   try {
     const res = await sheets.spreadsheets.values.get({
       spreadsheetId: sheetId,
-      range: "Sheet1!A1:Z500",
+      range: "Sheet1!1:500",
     });
 
     const values = res.data.values || [];
@@ -222,7 +207,7 @@ async function readSheetRows(spreadsheetId) {
       return obj;
     });
 
-    return {headers: headers.filter((h) => h), rows, rawValues: values, isEmpty: false};
+    return {headers, rows, rawValues: values, isEmpty: false};
   } catch (error) {
     console.error("[Google Sheets Read Error]:", error.message);
     const serviceEmail = await getServiceAccountEmail();
@@ -266,27 +251,14 @@ async function writeClassificationsToSheet(spreadsheetId, classifications) {
     return {success: true, rowsUpdated: 0, message: "No classifications to write."};
   }
 
-  let sheets;
-  try {
-    sheets = await getSheetsClient();
-  } catch (error) {
-    throw error;
-  }
+  const sheets = await getSheetsClient();
 
   try {
     const currentData = await readSheetRows(sheetId);
-    let headers = currentData.headers;
+    const headers = currentData.headers;
 
     if (currentData.isEmpty || headers.length === 0) {
-      headers = ["Name", "Email", "Company", "Message"];
-      await sheets.spreadsheets.values.update({
-        spreadsheetId: sheetId,
-        range: "Sheet1!A1:D1",
-        valueInputOption: "USER_ENTERED",
-        requestBody: {
-          values: [headers],
-        },
-      });
+      throw new Error("Sheet1 must contain a header row before analysis.");
     }
 
     const aiCols = ["AI_Intent", "AI_Urgency", "AI_Fit_Score", "AI_Summary"];
@@ -298,41 +270,45 @@ async function writeClassificationsToSheet(spreadsheetId, classifications) {
       }
     });
 
+    const columnName = (index) => {
+      let value = index + 1;
+      let name = "";
+      while (value > 0) {
+        value--;
+        name = String.fromCharCode(65 + value % 26) + name;
+        value = Math.floor(value / 26);
+      }
+      return name;
+    };
+
     if (updatedHeaders.length > headers.length) {
-      const colCount = Math.min(updatedHeaders.length, 26);
-      const endCol = String.fromCharCode(64 + colCount);
       await sheets.spreadsheets.values.update({
         spreadsheetId: sheetId,
-        range: `Sheet1!A1:${endCol}1`,
-        valueInputOption: "USER_ENTERED",
+        range: `Sheet1!A1:${columnName(updatedHeaders.length - 1)}1`,
+        valueInputOption: "RAW",
         requestBody: {
           values: [updatedHeaders],
         },
       });
     }
 
-    const updateValues = classifications.map((c) => [
-      c.intent || "",
-      c.urgency || "",
-      c.fit_score || "",
-      c.summary || "",
-    ]);
-
-    const startColIndex = updatedHeaders.indexOf("AI_Intent");
-    const startColLetter = String.fromCharCode(65 + startColIndex);
-    const endColLetter = String.fromCharCode(65 + startColIndex + 3);
-    const endRow = updateValues.length + 1;
-
-    await sheets.spreadsheets.values.update({
+    const fields = ["intent", "urgency", "fit_score", "summary"];
+    const endRow = classifications.length + 1;
+    await sheets.spreadsheets.values.batchUpdate({
       spreadsheetId: sheetId,
-      range: `Sheet1!${startColLetter}2:${endColLetter}${endRow}`,
-      valueInputOption: "USER_ENTERED",
       requestBody: {
-        values: updateValues,
+        valueInputOption: "RAW",
+        data: aiCols.map((column, index) => {
+          const columnLetter = columnName(updatedHeaders.indexOf(column));
+          return {
+            range: `Sheet1!${columnLetter}2:${columnLetter}${endRow}`,
+            values: classifications.map((classification) => [classification[fields[index]] ?? ""]),
+          };
+        }),
       },
     });
 
-    return {success: true, rowsUpdated: updateValues.length};
+    return {success: true, rowsUpdated: classifications.length};
   } catch (error) {
     if (error.message?.includes("Permission denied") ||
         error.message?.includes("Spreadsheet not found") ||

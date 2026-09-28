@@ -1,16 +1,18 @@
 {
-  "name": "nodalx-ai-frontend",
+  "name": "nodalx-frontend",
   "private": true,
   "version": "0.0.0",
   "type": "module",
   "scripts": {
     "dev": "vite --configLoader runner",
-    "build": "vite build --configLoader runner",
-    "preview": "vite preview"
+    "build": "tsc --noEmit && vite build --configLoader runner",
+    "preview": "vite preview",
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "firebase": "^11.7.0",
     "lucide-react": "latest",
+    "motion": "^13.2.0",
     "react": "latest",
     "react-dom": "latest",
     "react-router-dom": "^7.11.0"

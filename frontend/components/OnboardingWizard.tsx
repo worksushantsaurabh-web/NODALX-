@@ -13,11 +13,9 @@ interface OnboardingWizardProps {
 type Step = 'key' | 'snippet' | 'test' | 'done';
 
 interface TestResult {
-  score?: number | string;
-  intent?: string;
-  category?: string;
-  summary?: string;
-  suggested_action?: string;
+  accepted: boolean;
+  id: string;
+  processingStatus: string;
 }
 
 const TOTAL_STEPS = 3;
@@ -33,11 +31,11 @@ function ProgressBar({ step }: { step: Step }) {
         <div
           key={i}
           className={`h-1 rounded-full transition-all duration-300 ${
-            i < current ? 'bg-black dark:bg-white' : 'bg-neutral-200 dark:bg-neutral-700'
+            i < current ? 'bg-accent ' : 'bg-border-strong '
           } ${i === 0 ? 'w-10' : 'w-6'}`}
         />
       ))}
-      <span className="text-xs text-neutral-400 ml-1">
+      <span className="text-xs text-text-secondary ml-1">
         {current} of {TOTAL_STEPS}
       </span>
     </div>
@@ -84,21 +82,21 @@ function StepKey({
   if (!key) {
     return (
       <div className="flex flex-col items-center text-center gap-6">
-        <div className="w-14 h-14 rounded-2xl bg-neutral-100 dark:bg-neutral-800 flex items-center justify-center">
-          <Key className="w-6 h-6 text-black dark:text-white" strokeWidth={1.5} />
+        <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-accent to-accent-2 dark-ctx flex items-center justify-center">
+          <Key className="w-6 h-6 text-[#fff] " strokeWidth={1.5} />
         </div>
         <div>
-          <h2 className="text-2xl font-bold text-neutral-900 dark:text-white tracking-tight mb-2">
+          <h2 className="text-2xl font-bold text-text-primary  tracking-tight mb-2">
             Welcome, {userName.split(' ')[0]}!
           </h2>
-          <p className="text-neutral-500 dark:text-neutral-400 text-sm leading-relaxed max-w-xs mx-auto">
-            Let's get you set up in 2 minutes. First, generate your API key — it connects your website form to the AI.
+          <p className="text-text-tertiary  text-sm leading-relaxed max-w-xs mx-auto">
+            Generate a workspace API key to connect your server or automation platform to NodalX.
           </p>
         </div>
         <button
           onClick={generate}
           disabled={loading}
-          className="inline-flex items-center gap-2 px-6 py-3 rounded-lg bg-black dark:bg-white hover:bg-neutral-800 dark:hover:bg-neutral-200 text-white text-sm font-semibold transition-colors disabled:opacity-60"
+          className="inline-flex items-center gap-2 px-6 py-3 rounded-xl btn-primary text-[#fff] text-sm font-semibold transition-colors disabled:opacity-60"
         >
           {loading ? (
             <>
@@ -115,31 +113,31 @@ function StepKey({
             </>
           )}
         </button>
-        {error && <p className="text-xs text-rose-600 dark:text-rose-400">{error}</p>}
+        {error && <p className="text-xs text-rose-600 ">{error}</p>}
       </div>
     );
   }
 
   return (
     <div className="flex flex-col items-center text-center gap-6">
-      <div className="w-14 h-14 rounded-2xl bg-emerald-50 dark:bg-emerald-900/20 flex items-center justify-center">
+      <div className="w-14 h-14 rounded-2xl bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center">
         <CheckCircle2 className="w-6 h-6 text-emerald-600 dark:text-emerald-400" strokeWidth={1.5} />
       </div>
       <div>
-        <h2 className="text-2xl font-bold text-neutral-900 dark:text-white tracking-tight mb-2">
+        <h2 className="text-2xl font-bold text-text-primary  tracking-tight mb-2">
           Your key is ready
         </h2>
-        <p className="text-neutral-500 dark:text-neutral-400 text-sm">Copy it — you'll need it in the next step.</p>
+        <p className="text-text-tertiary  text-sm">Copy it — you'll need it in the next step.</p>
       </div>
 
       <div className="w-full max-w-sm">
-        <div className="flex items-center gap-2 p-3 rounded-lg bg-neutral-50 dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700">
-          <code className="flex-1 text-xs text-neutral-700 dark:text-neutral-200 font-mono truncate">
+        <div className="flex items-center gap-2 p-3 g-input rounded-lg">
+          <code className="flex-1 text-xs text-text-primary font-mono truncate">
             {key}
           </code>
           <button
             onClick={copy}
-            className="shrink-0 p-1.5 rounded-md hover:bg-neutral-200 dark:hover:bg-neutral-700 text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-200 transition-colors"
+            className="shrink-0 p-1.5 rounded-md hover:bg-surface-hover text-text-secondary transition-colors"
           >
             {copied ? <Check className="w-3.5 h-3.5 text-emerald-500" /> : <Copy className="w-3.5 h-3.5" />}
           </button>
@@ -148,7 +146,7 @@ function StepKey({
 
       <button
         onClick={() => onDone(key)}
-        className="inline-flex items-center gap-2 px-6 py-3 rounded-lg bg-black dark:bg-white hover:bg-neutral-800 dark:hover:bg-neutral-200 text-white text-sm font-semibold transition-colors"
+        className="inline-flex items-center gap-2 px-6 py-3 rounded-xl btn-primary text-[#fff] text-sm font-semibold transition-colors"
       >
         Next: add to your site
         <ArrowRight className="w-4 h-4" />
@@ -161,12 +159,13 @@ function StepKey({
 
 function StepSnippet({ apiKey, onDone }: { apiKey: string; onDone: () => void }) {
   const [copied, setCopied] = useState(false);
-  const appHost = import.meta.env.VITE_APP_HOST || 'https://app.nodalxai.com';
-
-  const snippet = `<script
-  src="${appHost}/widget.js"
-  data-api-key="${apiKey}"
-></script>`;
+  const appHost = import.meta.env.DEV
+    ? import.meta.env.VITE_PUBLIC_API_ORIGIN || window.location.origin
+    : window.location.origin;
+  const snippet = `curl -X POST '${appHost}/api/inquiries' \\
+  -H 'Content-Type: application/json' \\
+  -H 'X-API-Key: ${apiKey}' \\
+  -d '{"name":"Jane Doe","email":"jane@example.com","company":"Acme","message":"Request a demo"}'`;
 
   const copy = () => {
     navigator.clipboard.writeText(snippet);
@@ -176,22 +175,22 @@ function StepSnippet({ apiKey, onDone }: { apiKey: string; onDone: () => void })
 
   return (
     <div className="flex flex-col items-center text-center gap-6">
-      <div className="w-14 h-14 rounded-2xl bg-neutral-100 dark:bg-neutral-800 flex items-center justify-center">
-        <Code2 className="w-6 h-6 text-black dark:text-white" strokeWidth={1.5} />
+      <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-accent to-accent-2 dark-ctx flex items-center justify-center">
+        <Code2 className="w-6 h-6 text-[#fff] " strokeWidth={1.5} />
       </div>
       <div>
-        <h2 className="text-2xl font-bold text-neutral-900 dark:text-white tracking-tight mb-2">
-          Add this to your site
+        <h2 className="text-2xl font-bold text-text-primary  tracking-tight mb-2">
+          Connect your server
         </h2>
-        <p className="text-neutral-500 dark:text-neutral-400 text-sm leading-relaxed max-w-xs mx-auto">
-          One script tag. Paste it before the <code className="text-xs bg-neutral-100 dark:bg-neutral-800 px-1 rounded">&lt;/body&gt;</code> of any page with a contact form.
+        <p className="text-text-tertiary  text-sm leading-relaxed max-w-xs mx-auto">
+          Send inquiries from your server or trusted automation tool. Keep the API key out of public HTML and browser JavaScript.
         </p>
       </div>
 
       <div className="w-full max-w-sm">
-        <div className="relative rounded-lg bg-neutral-900 dark:bg-neutral-800 border border-neutral-700 text-left overflow-hidden">
-          <div className="flex items-center justify-between px-4 py-2 border-b border-neutral-700">
-            <span className="text-[10px] text-neutral-400 font-mono">HTML</span>
+        <div className="relative rounded-lg bg-neutral-900  border border-border-strong text-left overflow-hidden dark-ctx">
+          <div className="flex items-center justify-between px-4 py-2 border-b border-border-strong">
+            <span className="text-[10px] text-text-secondary font-mono">Server request</span>
             <button
               onClick={copy}
               className="inline-flex items-center gap-1.5 text-[10px] font-semibold text-neutral-300 hover:text-white transition-colors"
@@ -209,14 +208,14 @@ function StepSnippet({ apiKey, onDone }: { apiKey: string; onDone: () => void })
       <div className="flex flex-col sm:flex-row gap-3 w-full max-w-sm">
         <button
           onClick={onDone}
-          className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-black dark:bg-white hover:bg-neutral-800 dark:hover:bg-neutral-200 text-white text-sm font-semibold transition-colors"
+          className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl btn-primary text-[#fff] text-sm font-semibold transition-colors"
         >
-          I've added it
+          Continue to test
           <ArrowRight className="w-4 h-4" />
         </button>
         <button
           onClick={onDone}
-          className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg border border-neutral-200 dark:border-neutral-700 text-neutral-600 dark:text-neutral-300 text-sm font-semibold hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-colors"
+          className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg g-chip text-text-primary text-sm font-semibold hover:border-accent transition-colors"
         >
           Skip for now
         </button>
@@ -244,14 +243,16 @@ function StepTest({ apiKey, onDone }: { apiKey: string; onDone: () => void }) {
     setLoading(true);
     setError(null);
     try {
-      const baseUrl = import.meta.env.VITE_APP_HOST || window.location.origin;
+      const baseUrl = import.meta.env.DEV
+        ? import.meta.env.VITE_PUBLIC_API_ORIGIN || window.location.origin
+        : window.location.origin;
       const res = await fetch(`${baseUrl}/api/inquiries`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'X-API-Key': apiKey },
         body: JSON.stringify(TEST_PAYLOAD),
       });
-      if (!res.ok) throw new Error(`Server returned ${res.status}`);
       const data = await res.json().catch(() => ({}));
+      if (!res.ok || data.accepted !== true) throw new Error(data.error || `Server returned ${res.status}`);
       setResult(data);
       Analytics.testInquirySent();
       showSurvey({ question: 'How smooth was setup?', context: 'onboarding_complete', delayMs: 2500 });
@@ -263,57 +264,30 @@ function StepTest({ apiKey, onDone }: { apiKey: string; onDone: () => void }) {
   };
 
   if (result) {
-    const score = result.score ?? result.fit_score ?? '—';
     return (
       <div className="flex flex-col items-center text-center gap-6">
-        <div className="w-14 h-14 rounded-2xl bg-emerald-50 dark:bg-emerald-900/20 flex items-center justify-center">
+        <div className="w-14 h-14 rounded-2xl bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center">
           <CheckCircle2 className="w-6 h-6 text-emerald-600 dark:text-emerald-400" strokeWidth={1.5} />
         </div>
         <div>
-          <h2 className="text-2xl font-bold text-neutral-900 dark:text-white tracking-tight mb-2">
+          <h2 className="text-2xl font-bold text-text-primary  tracking-tight mb-2">
             It works.
           </h2>
-          <p className="text-neutral-500 dark:text-neutral-400 text-sm">
-            The AI read the inquiry, scored it, and drafted a reply — automatically.
+          <p className="text-text-tertiary  text-sm">
+            The test inquiry was stored in your dashboard. AI processing status: {result.processingStatus.replaceAll('_', ' ')}.
           </p>
         </div>
 
-        <div className="w-full max-w-sm rounded-xl border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 overflow-hidden text-left">
-          <div className="px-4 py-3 border-b border-neutral-100 dark:border-neutral-800 bg-neutral-50 dark:bg-neutral-800/60">
-            <p className="text-xs font-semibold text-neutral-600 dark:text-neutral-300">Inquiry from Sarah K. · Meridian Group</p>
+        <div className="w-full max-w-sm g-card rounded-2xl overflow-hidden text-left">
+          <div className="px-4 py-3 border-b border-border bg-surface">
+            <p className="text-xs font-semibold text-text-tertiary ">Inquiry from Sarah K. · Meridian Group</p>
           </div>
-          <div className="p-4 space-y-3">
-            <div className="flex items-center justify-between text-xs">
-              <span className="text-neutral-400">Fit score</span>
-              <span className="font-bold text-emerald-600 dark:text-emerald-400">{score}/10</span>
-            </div>
-            {result.intent && (
-              <div className="flex items-center justify-between text-xs">
-                <span className="text-neutral-400">Intent</span>
-                <span className="font-semibold text-neutral-700 dark:text-neutral-200 capitalize">{result.intent}</span>
-              </div>
-            )}
-            {result.category && (
-              <div className="flex items-center justify-between text-xs">
-                <span className="text-neutral-400">Category</span>
-                <span className="font-semibold text-neutral-700 dark:text-neutral-200">{result.category}</span>
-              </div>
-            )}
-            {result.suggested_action && (
-              <div className="pt-2 border-t border-neutral-100 dark:border-neutral-800">
-                <p className="text-[10px] font-semibold uppercase tracking-wider text-neutral-400 mb-1">Suggested action</p>
-                <p className="text-xs text-neutral-600 dark:text-neutral-300 leading-relaxed">{result.suggested_action}</p>
-              </div>
-            )}
-            {!result.intent && !result.category && !result.suggested_action && (
-              <p className="text-xs text-emerald-600 dark:text-emerald-400 font-medium">Inquiry received and queued for AI processing.</p>
-            )}
-          </div>
+          <div className="p-4 text-xs text-text-secondary">Inquiry ID: {result.id}</div>
         </div>
 
         <button
           onClick={onDone}
-          className="inline-flex items-center gap-2 px-6 py-3 rounded-lg bg-black dark:bg-white hover:bg-neutral-800 dark:hover:bg-neutral-200 text-white text-sm font-semibold transition-colors"
+          className="inline-flex items-center gap-2 px-6 py-3 rounded-xl btn-primary text-[#fff] text-sm font-semibold transition-colors"
         >
           Go to my dashboard
           <ArrowRight className="w-4 h-4" />
@@ -324,34 +298,34 @@ function StepTest({ apiKey, onDone }: { apiKey: string; onDone: () => void }) {
 
   return (
     <div className="flex flex-col items-center text-center gap-6">
-      <div className="w-14 h-14 rounded-2xl bg-neutral-100 dark:bg-neutral-800 flex items-center justify-center">
-        <Zap className="w-6 h-6 text-black dark:text-white" strokeWidth={1.5} />
+      <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-accent to-accent-2 dark-ctx flex items-center justify-center">
+        <Zap className="w-6 h-6 text-[#fff] " strokeWidth={1.5} />
       </div>
       <div>
-        <h2 className="text-2xl font-bold text-neutral-900 dark:text-white tracking-tight mb-2">
+        <h2 className="text-2xl font-bold text-text-primary  tracking-tight mb-2">
           See it work in 10 seconds
         </h2>
-        <p className="text-neutral-500 dark:text-neutral-400 text-sm leading-relaxed max-w-xs mx-auto">
-          We'll send a real inquiry through your pipeline and show you what the AI does with it.
+        <p className="text-text-tertiary  text-sm leading-relaxed max-w-xs mx-auto">
+          Send a test inquiry and confirm NodalX stores it in your dashboard.
         </p>
       </div>
 
       {/* Preview of the test inquiry */}
-      <div className="w-full max-w-sm rounded-xl border border-neutral-200 dark:border-neutral-700 bg-neutral-50 dark:bg-neutral-800/40 p-4 text-left space-y-2">
-        <p className="text-[10px] font-semibold uppercase tracking-wider text-neutral-400">Test inquiry</p>
-        <p className="text-sm font-semibold text-neutral-800 dark:text-neutral-100">Sarah K. · Meridian Group</p>
-        <p className="text-xs text-neutral-500 dark:text-neutral-400 leading-relaxed line-clamp-2">
+      <div className="w-full max-w-sm g-card rounded-2xl p-4 text-left space-y-2">
+        <p className="text-[10px] font-semibold uppercase tracking-wider text-text-secondary">Test inquiry</p>
+        <p className="text-sm font-semibold text-text-primary">Sarah K. · Meridian Group</p>
+        <p className="text-xs text-text-tertiary  leading-relaxed line-clamp-2">
           "{TEST_PAYLOAD.message}"
         </p>
       </div>
 
-      {error && <p className="text-xs text-rose-600 dark:text-rose-400">{error}</p>}
+      {error && <p className="text-xs text-rose-600 ">{error}</p>}
 
       <div className="flex flex-col sm:flex-row gap-3 w-full max-w-sm">
         <button
           onClick={send}
           disabled={loading}
-          className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-black dark:bg-white hover:bg-neutral-800 dark:hover:bg-neutral-200 text-white text-sm font-semibold transition-colors disabled:opacity-60"
+          className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl btn-primary text-[#fff] text-sm font-semibold transition-colors disabled:opacity-60"
         >
           {loading ? (
             <>
@@ -370,7 +344,7 @@ function StepTest({ apiKey, onDone }: { apiKey: string; onDone: () => void }) {
         </button>
         <button
           onClick={onDone}
-          className="flex-1 inline-flex items-center justify-center px-4 py-2.5 rounded-lg border border-neutral-200 dark:border-neutral-700 text-neutral-600 dark:text-neutral-300 text-sm font-semibold hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-colors"
+          className="flex-1 inline-flex items-center justify-center px-4 py-2.5 rounded-lg g-chip text-text-primary text-sm font-semibold hover:border-accent transition-colors"
         >
           Skip for now
         </button>
@@ -391,14 +365,14 @@ export default function OnboardingWizard({ userName, onComplete }: OnboardingWiz
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex flex-col bg-white dark:bg-neutral-950 overflow-y-auto">
+    <div className="fixed inset-0 z-50 flex flex-col bg-bg overflow-y-auto">
       {/* Top bar */}
-      <div className="shrink-0 flex items-center justify-between px-6 py-4 border-b border-neutral-200 dark:border-neutral-800">
+      <div className="shrink-0 flex items-center justify-between px-6 py-4 border-b border-border">
         <NodalXLogo className="w-8 h-8" />
         <ProgressBar step={step} />
         <button
           onClick={skip}
-          className="text-xs text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-200 transition-colors flex items-center gap-1"
+          className="text-xs text-text-secondary hover:text-text-primary transition-colors flex items-center gap-1"
         >
           <X className="w-3.5 h-3.5" />
           Skip setup
