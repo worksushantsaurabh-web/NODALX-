@@ -109,3 +109,6 @@ _archive/
 
 # Local assistant/editor tool config (not source code)
 .claude/
+
+# Local verified backups contain customer data and authentication hashes.
+.private-backups/

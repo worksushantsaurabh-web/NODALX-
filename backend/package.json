@@ -1,6 +1,9 @@
 {
   "name": "nodalx-api-backend-server",
   "type": "module",
+  "overrides": {
+    "gaxios@6.7.1": { "uuid": "^11.1.1" }
+  },
   "private": true,
   "version": "0.0.0",
   "description": "Node backend for proxying Google Cloud API requests",
@@ -16,9 +19,9 @@
     "dotenv": "^17.2.3",
     "express": "^5.2.1",
     "express-rate-limit": "^7.5.0",
-    "firebase-admin": "^13.10.0",
+    "firebase-admin": "^14.5.0",
     "google-auth-library": "^10.5.0",
-    "googleapis": "^140.0.0",
+    "googleapis": "^182.0.0",
     "node-fetch": "^3.3.2",
     "ws": "^8.18.0"
   },

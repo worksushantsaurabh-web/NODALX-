@@ -99,26 +99,7 @@
     const inputUrl = typeof url === 'string' ? url : (url instanceof URL ? url.href : null);
 
     if (inputUrl && isValidUrl(inputUrl)) {
-      const targetUrl = encodeURIComponent(inputUrl);
-      const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-      const host = window.location.host;
-      const proxyUrl = `${protocol}//${host}/ws-proxy?target=${targetUrl}`;
-
-      // The backend refuses to open the proxy socket without a verifiable
-      // Firebase ID token, and browsers cannot set custom headers on a
-      // WebSocket handshake, so the token travels as a subprotocol. The server
-      // echoes back `nodalx-proxy`.
-      const requested = Array.isArray(protocols) ? protocols : (protocols ? [protocols] : []);
-      const tokenPromise = getIdToken();
-      tokenPromise.then((token) => {
-        const authProtocols = token ? ['nodalx.token.' + token] : [];
-        return new originalWebSocket(proxyUrl, ['nodalx-proxy', ...authProtocols, ...requested]);
-      });
-      // Return a placeholder so the caller's API surface is unchanged; the real
-      // socket is delivered once the token resolves.
-      const placeholder = new originalWebSocket('wss://localhost.invalid/pending');
-      placeholder.close();
-      return placeholder;
+      throw new Error('Use await openVertexSocket(url) for authenticated Vertex connections.');
     }
     return new originalWebSocket(url, protocols);
   };
@@ -194,3 +175,18 @@
     }
   }
 })()
+
+// Token acquisition is asynchronous; never pretend a synchronous constructor
+// can return the eventual socket. Callers await this before attaching handlers.
+export async function openVertexSocket(url) {
+  if (url !== 'wss://aiplatform.googleapis.com//ws/google.cloud.aiplatform.v1beta1.LlmBidiService/BidiGenerateContent') {
+    throw new Error('Unsupported Vertex socket URL');
+  }
+  const token = await window.__nodalxGetIdToken?.();
+  if (!token) throw new Error('Sign in before opening a Vertex connection');
+  const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+  return new window.WebSocket(
+    `${protocol}//${window.location.host}/ws-proxy?target=${encodeURIComponent(url)}`,
+    ['nodalx-proxy', 'nodalx.token.' + token],
+  );
+}

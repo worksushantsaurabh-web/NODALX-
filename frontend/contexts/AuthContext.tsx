@@ -55,7 +55,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // copy went stale after Firebase's ~1h expiry. getIdToken() transparently
     // refreshes, so callers always receive a currently-valid credential.
     (window as any).__nodalxGetIdToken = () =>
-      firebaseUser ? firebaseUser.getIdToken() : Promise.resolve(null);
+      auth?.currentUser ? auth.currentUser.getIdToken() : Promise.resolve(null);
 
     const unsubscribe = onAuthStateChanged(auth, (fbUser) => {
       setFirebaseUser(fbUser);

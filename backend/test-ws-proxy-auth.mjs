@@ -70,8 +70,8 @@ results.push(await attempt('allowed origin, garbage token', {
 console.log('\n--- /ws-proxy authorization results ---');
 for (const r of results) console.log(' ', r);
 
-const anyOpened = results.some((r) => r.startsWith('OPENED'));
-console.log(anyOpened ? '\nFAIL: a request was allowed through' : '\nPASS: every unauthenticated upgrade was refused');
+const failed = results.some((r) => !r.startsWith('HTTP 403'));
+console.log(failed ? '\nFAIL: expected HTTP 403 for every attempt' : '\nPASS: every unauthenticated upgrade returned HTTP 403');
 
 child.kill('SIGKILL');
-process.exit(anyOpened ? 1 : 0);
+process.exit(failed ? 1 : 0);

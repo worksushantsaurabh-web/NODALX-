@@ -81,6 +81,7 @@ const GOOGLE_CLOUD_LOCATION = process?.env?.GOOGLE_CLOUD_LOCATION;
 const GOOGLE_CLOUD_PROJECT = process?.env?.GOOGLE_CLOUD_PROJECT;
 const PROXY_HEADER = process?.env?.PROXY_HEADER;
 const isVertexProxyConfigured = Boolean(
+  process.env.ENABLE_VERTEX_PROXY === 'true' &&
   GOOGLE_CLOUD_PROJECT && GOOGLE_CLOUD_LOCATION && PROXY_HEADER
 );
 
@@ -279,6 +280,12 @@ app.post('/api-proxy', async (req, res) => {
   }
 
   const extractedParams = req.extractedParams;
+  const allowedModels = new Set((process.env.VERTEX_ALLOWED_MODELS || '').split(',').map((s) => s.trim()).filter(Boolean));
+  if (!extractedParams.model || !allowedModels.has(extractedParams.model) ||
+      !/^gemini-[a-zA-Z0-9.-]+$/.test(extractedParams.model) ||
+      !/:(generateContent|streamGenerateContent)$/.test(originalUrl)) {
+    return res.status(403).json({ error: 'Model or operation not permitted' });
+  }
   console.log(`[Node Proxy] Matched API client: ${apiClient.name}`);
   try {
     // 2. Get authenticated access token
@@ -1297,7 +1304,10 @@ const server = app.listen(PORT, API_BACKEND_HOST, () => {
 });
 
 
-const wss = new WebSocketServer({ noServer: true });
+const wss = new WebSocketServer({
+  noServer: true,
+  handleProtocols: (protocols) => protocols.has('nodalx-proxy') ? 'nodalx-proxy' : false,
+});
 
 /**
  * Reject a WebSocket upgrade request with a plain HTTP response.
@@ -1361,6 +1371,9 @@ async function authorizeWsUpgrade(request) {
     .map((value) => value.trim())
     .filter(Boolean);
 
+  if (!protocols.includes(WS_ACK_PROTOCOL)) {
+    return {ok: false, reason: 'missing acknowledgement subprotocol'};
+  }
   const tokenProtocol = protocols.find((value) =>
     value.startsWith(WS_TOKEN_PROTOCOL_PREFIX)
   );
@@ -1412,7 +1425,7 @@ server.on('upgrade', async (request, socket, head) => {
       return;
     }
 
-    if (!isVertexProxyConfigured) {
+    if (!isVertexProxyConfigured || process.env.ENABLE_VERTEX_LIVE_PROXY !== 'true') {
       rejectUpgrade(socket, 503, 'Service Unavailable');
       return;
     }
@@ -1464,9 +1477,6 @@ server.on('upgrade', async (request, socket, head) => {
       wss.handleUpgrade(request, socket, head, (ws) => {
 
         upstreamWs.on('message', (data, isBinary) => {
-          const logMsg = isBinary ? '<Binary Data>' : data.toString();
-          console.log(`[Upstream -> Client] [${new Date().toISOString()}]: ${logMsg}`);
-
           if (ws.readyState === WebSocket.OPEN) {
             if (data === undefined || data === null) {
               console.warn('[Node Proxy] Attempted to send undefined/null data to client');
@@ -1477,17 +1487,26 @@ server.on('upgrade', async (request, socket, head) => {
         });
 
         ws.on('message', (data, isBinary) => {
-          const logMsg = isBinary ? '<Binary Data>' : data.toString();
-
           let dataJson = {};
           try {
             dataJson = JSON.parse(data.toString());
           } catch (error) {
-            console.error('[Node Proxy] Failed to parse message from client:', error);
             ws.close(1011, 'Failed to parse message');
+            return;
           }
 
+          if (!dataJson || typeof dataJson !== 'object' || Array.isArray(dataJson)) {
+            ws.close(1008, 'Invalid message');
+            return;
+          }
           if (dataJson['setup']) {
+            const model = dataJson.setup.model;
+            const permitted = new Set((process.env.VERTEX_ALLOWED_MODELS || '').split(',').map((s) => s.trim()).filter(Boolean));
+            const id = typeof model === 'string' ? model.replace(/^publishers\/google\/models\//, '') : '';
+            if (!/^gemini-[a-zA-Z0-9.-]+$/.test(id) || !permitted.has(id) || model !== `publishers/google/models/${id}`) {
+              ws.close(1008, 'Model not permitted');
+              return;
+            }
             dataJson['setup']['model'] = `projects/${GOOGLE_CLOUD_PROJECT}/locations/${GOOGLE_CLOUD_LOCATION}/${dataJson['setup']['model']}`;
           }
 

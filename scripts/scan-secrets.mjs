@@ -12,9 +12,10 @@
  * analyser: the goal is to catch the mistakes actually made in this repo, with
  * no false-positive noise.
  *
- * Usage: node scripts/scan-secrets.mjs [--staged]
+ * Usage: node scripts/scan-secrets.mjs [--staged | --history]
  *   (default) scans every file tracked by git
  *   --staged  scans only files staged for commit
+ *   --history scans blobs reachable from all local refs
  */
 
 import { execFileSync } from 'node:child_process';
@@ -80,29 +81,40 @@ const ALLOWED_FILES = new Set([
 const SKIP_DIR_PREFIXES = ['node_modules/', 'dist/', '_archive/', '.git/'];
 
 const stagedOnly = process.argv.includes('--staged');
+const history = process.argv.includes('--history');
 
 function trackedFiles() {
   const args = stagedOnly
-    ? ['diff', '--cached', '--name-only', '--diff-filter=ACMR']
-    : ['ls-files'];
+    ? ['diff', '--cached', '--name-only', '-z', '--diff-filter=ACMR']
+    : ['ls-files', '-z'];
   const out = execFileSync('git', args, { encoding: 'utf8', maxBuffer: 32 * 1024 * 1024 });
-  return out.split('\n').map((line) => line.trim()).filter(Boolean);
+  return out.split('\0').filter(Boolean);
 }
 
-const files = trackedFiles();
+const files = history
+  ? execFileSync('git', ['rev-list', '--objects', '--all'], { encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 }).trim().split('\n')
+  : trackedFiles();
 const findings = [];
 
-for (const file of files) {
+for (const entry of files) {
+  const object = history ? entry.split(' ')[0] : null;
+  const file = history ? entry.slice(entry.indexOf(' ') + 1) : entry;
+  if (history && execFileSync('git', ['cat-file', '-t', object], { encoding: 'utf8' }).trim() !== 'blob') continue;
   if (SKIP_DIR_PREFIXES.some((prefix) => file.startsWith(prefix))) continue;
 
   let content;
   try {
-    const buffer = readFileSync(file);
+    const buffer = history
+      ? execFileSync('git', ['cat-file', 'blob', object], { maxBuffer: 128 * 1024 * 1024 })
+      : stagedOnly
+        ? execFileSync('git', ['show', `:${file}`], { maxBuffer: 128 * 1024 * 1024 })
+        : readFileSync(file);
     // Skip binaries rather than scanning their bytes.
     if (buffer.includes(0)) continue;
     content = buffer.toString('utf8');
-  } catch {
-    continue;
+  } catch (error) {
+    if (!history && !stagedOnly && error.code === 'ENOENT') continue;
+    throw error;
   }
 
   for (const { name, regex } of SECRET_PATTERNS) {
@@ -114,8 +126,9 @@ for (const file of files) {
     if (ALLOWED_FILES.has(file)) continue;
 
     for (const match of new Set(matches)) {
+      if (name === 'hardcoded shared-secret header' && /['"]REDACTED_PROXY_SECRET['"]$/.test(match)) continue;
       // Do not echo the full credential into CI logs.
-      const preview = `${match.slice(0, 12)}…${match.slice(-4)}`;
+      const preview = '[redacted]';
       findings.push({ file, name, preview });
     }
   }
