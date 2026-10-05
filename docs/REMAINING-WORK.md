@@ -22,8 +22,9 @@ https://nodalx-frontend.vercel.app. See
 `runbooks/vercel-deployment-2026-10-04.md` for verification and remaining blockers.
 The contact route now has its server-side Apps Script configuration. Version 4
 of Apps Script is deployed and one labelled test row survived an identical retry
-without duplication. Both public requests returned 502, however; confirmed HTTP
-acceptance remains blocked pending the local timeout repair's Vercel deployment.
+without duplication. Earlier public requests returned 502; after deploying the
+timeout repair, an exact retry returned HTTP 202 with `duplicate: true` and the
+same row ID. Public duplicate acknowledgement is now verified.
 See `runbooks/intake-timeout-repair-2026-10-05.md` for evidence and verification.
 The legacy API health check returns 404 because the GCP project is suspended.
 
@@ -35,10 +36,11 @@ Do not reactivate Google billing to implement the AWS path.
 - Linked Vercel project `nodalx-frontend` has both Apps Script server variables.
 - Hardened proxy, stable retry handling, Apps Script duplicate protection and
   an intake-only AWS handler/template are implemented. The proxy/frontend are
-  deployed to Vercel; Apps Script Version 4 is deployed. The new response timeout
-  repair is local only, and AWS infrastructure is not deployed.
-- Signed workspace migration, public duplicate acknowledgement and notification
-  delivery remain unverified. See the timeout repair runbook for current checks.
+  deployed to Vercel, including the response timeout repair; Apps Script Version
+  4 is deployed. AWS infrastructure is not deployed.
+- Signed workspace migration and notification delivery remain unverified. The
+  release passed 24 intake/security tests and 29 frontend tests plus build and
+  secret scans. See the timeout repair runbook for current live checks.
 - AWS default SSO is expired. Confirm account/region, cost approval and identity
   migration before provisioning. Do not delete existing Firebase data/config.
 - Newly added local recipes/automation must be included in migration scope;

@@ -18,7 +18,7 @@
 - Storage duplicate prevention was observed. A public HTTP 202 duplicate
   acknowledgement, live changed-payload 409 and email delivery remain unverified.
 
-## Local repair — not yet deployed
+## Repair — published to Vercel and GitHub
 
 | Layer | Previous deadline | New deadline |
 | --- | --- | --- |
@@ -39,14 +39,36 @@ No AWS infrastructure or Firebase services were deployed or changed.
 
 Reference: [Vercel per-function duration configuration](https://vercel.com/docs/functions/configuring-functions/duration).
 
-## Publish and verify
+## Release verification
+
+- Source commit `c3bfb84` was pushed to the existing GitHub repository's `main`
+  branch without a force push. Existing unpublished local commits were preserved.
+- Deployment `dpl_4Nbm7BeAedX1MYH8NPDbW1grNULS` is `READY` in production and
+  was assigned to `https://nodalx.in`. No DNS or environment variables changed.
+- Vercel's dry run verified 112 allowlisted source entries, 743,250 bytes, and
+  the contact/server/form sources. No dotenv, private backup, customer export,
+  archive, local dependencies or frontend build output was uploaded.
+- Cloud TypeScript checking and Vite build passed. Local checks passed:
+  24 intake/security tests, 29 frontend tests, build/typecheck, working-tree and
+  Git-history secret scans, and whitespace validation.
+- Live homepage and four referenced JavaScript/CSS assets returned HTTP 200.
+  The deployed bundle contains the revised inquiry acknowledgement wording.
+  Contact GET returned 405; an empty contact POST returned 400.
+- An exact retry of the existing labelled test returned HTTP 202 in 5.061
+  seconds, `accepted: true`, `duplicate: true`, with the same operation/row ID.
+  No new test operation was created. The spreadsheet was not re-inspected in
+  this release, and email delivery and live changed-payload 409 remain unverified.
+- The cloud dependency install still reports five high development/build
+  dependency warnings. Those were not fixed with an automatic breaking upgrade.
+
+## Procedure for future releases
 
 1. Renew Vercel CLI login in the owner's terminal. Browser sign-in is separate.
    Do not disclose tokens or bypass denied access to the local credential store.
 2. From the repository root, rerun the deployment dry run and confirm
    `.vercelignore` excludes secrets, private backups, local dependencies and build
-   output. The assistant's dry run was blocked by CLI cache access and did not
-   produce a verified upload inventory.
+   output. The earlier dry run was blocked by CLI cache access; after the owner
+   renewed login, the release dry run succeeded with update checks disabled.
 3. Deploy this local checkout to the linked `nodalx-frontend` production project.
    A dashboard redeploy of an older build will not publish these local edits.
    Do not create another project, enable billing or change DNS for this repair.

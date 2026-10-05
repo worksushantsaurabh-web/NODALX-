@@ -19,8 +19,8 @@ authenticated backend or a verified inquiry submission.
   development audit warnings remain visible and must be reviewed separately.
 - 19 root tests and 28 frontend tests pass. Typecheck/build, SDK loading, secret
   scan and whitespace checks pass. The CSS output hash is unchanged.
-- The security patch has **not been redeployed**: Vercel's CLI login could not
-  refresh. Renew the CLI login, repeat the safe deployment dry run, then deploy.
+- The security patch was redeployed with the inquiry timeout repair after the
+  owner renewed Vercel CLI login; the safe upload dry run and cloud build passed.
   Do not solve the remaining warning using an unreviewed `npm audit fix --force`.
 
 References: [gRPC maintainer advisory](https://github.com/grpc/grpc-node/security/advisories/GHSA-m9gg-hp2v-232j),
@@ -30,9 +30,10 @@ References: [gRPC maintainer advisory](https://github.com/grpc/grpc-node/securit
 ## 2. Inquiry intake — owner configuration required
 
 Status update, 5 October: server variables are configured and Apps Script
-Version 4 is deployed. One labelled inquiry was stored without duplication on
-retry, but both public requests returned 502. The timeout repair is local and
-awaits Vercel publishing. See `intake-timeout-repair-2026-10-05.md`; the steps
+Version 4 is deployed. Earlier public requests returned 502 despite storage.
+The timeout repair is now deployed to Vercel and an exact retry returned HTTP
+202, `duplicate: true`, with the same row ID. See
+`intake-timeout-repair-2026-10-05.md`; the steps
 below remain a setup checklist, not the current verification status.
 
 1. Open Apps Script **Project Settings → Script Properties** for the existing
@@ -68,7 +69,7 @@ below remain a setup checklist, not the current verification status.
    with the same key: one row and no duplicate notifications. A different
    payload must have a different key. A health check alone does not prove storage.
 
-**Confirmed public intake is not yet verified after the timeout repair.** Apps Script rows are
+**Public duplicate acknowledgement is verified; notification delivery is not.** Apps Script rows are
 not automatically visible in the current Firestore dashboard. Never expose the
 entire owner spreadsheet to every signed-in user.
 
