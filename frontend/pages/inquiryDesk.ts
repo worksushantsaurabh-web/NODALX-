@@ -1,5 +1,5 @@
 export type InquirySource = 'backend' | 'apps-script';
-export type QueueFilter = 'all' | 'review' | 'priority' | 'contacted' | 'spam';
+export type QueueFilter = 'all' | 'review' | 'priority' | 'contacted' | 'spam' | 'closed';
 export type QueueSort = 'priority' | 'newest' | 'oldest';
 
 export interface Inquiry {
@@ -30,9 +30,10 @@ export const queueFilters: Array<{ id: QueueFilter; label: string }> = [
   { id: 'priority', label: 'High priority' },
   { id: 'contacted', label: 'Contacted' },
   { id: 'spam', label: 'Spam' },
+  { id: 'closed', label: 'Closed' },
 ];
 
-export const queueRules = 'Labels are trimmed and lowercased, then matched exactly. Needs review: new, pending, review, or needs review. Contacted: contacted only. Spam: spam only. High priority: intent is high or purchase, OR urgency is high; spam status is excluded. Priority sort puts high priority first, then other needs-review records, then other records, then spam. Ties use newest source activity, then source and ID. Missing or invalid activity dates sort last within each group. Fit scores do not affect rank. Unknown statuses appear in All (and High priority if their signals match).';
+export const queueRules = 'Labels are trimmed and lowercased, then matched exactly. Needs review: new, pending, review, or needs review. Contacted: contacted only. Spam: spam only. Closed: won or lost. High priority: intent is high or purchase, OR urgency is high; spam and closed statuses are excluded. Priority sort puts high priority first, then other needs-review records, then other records, then spam. Ties use newest source activity, then source and ID. Missing or invalid activity dates sort last within each group. Fit scores do not affect rank. Unknown statuses appear in All (and High priority if their signals match).';
 
 export function normalize(value: string): string {
   return value.trim().toLowerCase();
@@ -45,7 +46,7 @@ export function activityTime(value: string): number | null {
 }
 
 export function priorityReasons(inquiry: Inquiry): string[] {
-  if (normalize(inquiry.status) === 'spam') return [];
+  if (['spam', 'won', 'lost'].includes(normalize(inquiry.status))) return [];
   const reasons: string[] = [];
   if (['high', 'purchase'].includes(normalize(inquiry.intent))) reasons.push(`Intent is ${normalize(inquiry.intent)}`);
   if (normalize(inquiry.urgency) === 'high') reasons.push('Urgency is high');
@@ -59,6 +60,7 @@ export function matchesFilter(inquiry: Inquiry, filter: QueueFilter): boolean {
     case 'priority': return priorityReasons(inquiry).length > 0;
     case 'contacted': return status === 'contacted';
     case 'spam': return status === 'spam';
+    case 'closed': return ['won', 'lost'].includes(status);
     default: return true;
   }
 }
@@ -109,6 +111,19 @@ export interface SourceSnapshot {
   records: Inquiry[];
   fetchedAt: number | null;
   warning: string | null;
+}
+
+export function parseInquiryPage(payload: unknown) {
+  if (!payload || typeof payload !== 'object' || !('records' in payload) || !('nextCursor' in payload) ||
+    (payload.nextCursor !== null && typeof payload.nextCursor !== 'string')) {
+    throw new Error('The server returned an invalid inquiry page.');
+  }
+  return {...parseInquiries(payload.records, 'backend'), nextCursor: payload.nextCursor as string | null};
+}
+
+export function appendInquiryPage(previous: Inquiry[], incoming: Inquiry[]): Inquiry[] {
+  const loaded = new Set(previous.map(record => record.key));
+  return [...previous, ...incoming.filter(record => !loaded.has(record.key))];
 }
 
 export function settleSource(previous: SourceSnapshot, result: PromiseSettledResult<ReturnType<typeof parseInquiries>>, now: number): SourceSnapshot {

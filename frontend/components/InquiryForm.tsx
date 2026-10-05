@@ -10,6 +10,8 @@ export default function InquiryForm() {
   const formRef = useRef<HTMLFormElement>(null);
   const formStarted = useRef(false);
   const submittingRef = useRef(false);
+  const requestId = useRef<string | null>(null);
+  const lastPayload = useRef('');
   const { showSurvey } = useFeedback();
 
   const handleFormFocus = () => {
@@ -39,11 +41,16 @@ export default function InquiryForm() {
         message: formData.get('message') as string,
         submittedAt: new Date().toISOString(),
       };
+      const identity = JSON.stringify({...payload, submittedAt: undefined});
+      if (lastPayload.current !== identity) requestId.current = crypto.randomUUID();
+      requestId.current ||= crypto.randomUUID();
+      lastPayload.current = identity;
 
       const response = await fetch('/api/contact', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'Idempotency-Key': requestId.current },
         body: JSON.stringify(payload),
+        signal: AbortSignal.timeout(20000),
       });
       const data = await response.json().catch(() => ({}));
       if (!response.ok || data.accepted !== true) {
@@ -73,6 +80,8 @@ export default function InquiryForm() {
   };
 
   const handleReset = () => {
+    requestId.current = null;
+    lastPayload.current = '';
     setIsSubmitted(false);
     setError(null);
     if (formRef.current) {
@@ -80,16 +89,16 @@ export default function InquiryForm() {
     }
   };
 
-  const inputClass = "w-full bg-surface border border-border rounded-md px-4 py-3 text-white placeholder-neutral-500 outline-none transition-all text-sm focus:border-neutral-600";
+  const inputClass = "min-h-11 min-w-0 w-full bg-bg border border-border-strong rounded-lg px-3 py-3 text-text-primary placeholder:text-text-tertiary outline-none transition-colors text-sm focus:border-accent focus:ring-1 focus:ring-accent";
 
   return (
-    <section id="contact" className="relative pb-32 pt-12 lg:pb-40 lg:pt-16 bg-black">
-      <div className="max-w-4xl mx-auto px-6 md:px-12 relative z-10">
+    <section id="contact" className="relative scroll-mt-24 py-20 sm:py-24 lg:py-28 bg-bg">
+      <div className="max-w-4xl mx-auto px-5 sm:px-6 md:px-12 relative z-10">
         <div className="text-center mb-12 md:mb-16">
           <p className="text-xs font-medium tracking-cosmos text-text-tertiary uppercase mb-3">
             Get Started
           </p>
-          <h3 className="text-3xl md:text-4xl font-bold text-white tracking-tight mb-4">
+          <h3 className="text-3xl sm:text-4xl font-semibold text-text-primary tracking-tight mb-4">
             Automate your workflow
           </h3>
           <p className="text-lg text-text-secondary max-w-2xl mx-auto leading-relaxed">
@@ -97,7 +106,7 @@ export default function InquiryForm() {
           </p>
         </div>
 
-        <div className="border border-border bg-surface rounded-lg p-8 md:p-10 min-h-[400px]">
+        <div className="min-w-0 border border-border bg-surface rounded-xl p-5 sm:p-8 md:p-10 min-h-[400px]">
 
           {isSubmitted ? (
             <div className="flex flex-col items-center justify-center py-8 text-center animate-fade-in">
@@ -195,17 +204,17 @@ export default function InquiryForm() {
               </div>
 
               {error && (
-                <div role="alert" className="p-4 bg-surface border border-border rounded-lg flex items-start gap-3">
+                <div role="alert" className="p-4 bg-bg border border-border rounded-lg flex flex-wrap items-start gap-3">
                   <AlertCircle className="w-5 h-5 text-text-secondary flex-shrink-0 mt-0.5" />
-                  <div className="flex-1">
-                    <p className="text-sm font-medium text-white">Submission Failed</p>
-                    <p className="text-sm text-text-tertiary mt-1">{error}</p>
+                  <div className="min-w-0 flex-1 basis-36">
+                    <p className="text-sm font-medium text-text-primary">Submission Failed</p>
+                    <p className="break-words text-sm text-text-secondary mt-1">{error}</p>
                   </div>
                   <button
                     type="button"
                     disabled={isSubmitting}
                     onClick={() => formRef.current?.requestSubmit()}
-                    className="px-3 py-1.5 bg-surface-hover hover:bg-neutral-700 text-white text-sm font-medium rounded-md transition-colors"
+                    className="min-h-11 shrink-0 px-3 py-2 bg-surface-hover hover:bg-surface text-text-primary text-sm font-medium rounded-lg transition-colors"
                   >
                     Retry
                   </button>
@@ -216,7 +225,7 @@ export default function InquiryForm() {
                 <button
                   type="submit"
                   disabled={isSubmitting}
-                  className="w-full md:w-auto px-8 py-3.5 rounded-md bg-white text-black font-medium text-sm transition-all hover:bg-neutral-200 flex items-center justify-center gap-2 disabled:opacity-50"
+                  className="min-h-11 w-full md:w-auto px-8 py-3 rounded-lg bg-accent text-[#fff] font-medium text-sm transition-colors hover:opacity-90 flex items-center justify-center gap-2 disabled:opacity-50"
                 >
                   {isSubmitting ? 'Submitting...' : (
                     <>

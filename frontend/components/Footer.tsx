@@ -1,13 +1,11 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { NodalXLogo } from './Navbar';
-import { Mail, Phone, ArrowUpRight, Send, Check } from 'lucide-react';
+import { Mail, Phone, ArrowUpRight } from 'lucide-react';
 
 export default function Footer() {
   const currentYear = new Date().getFullYear();
   const navigate = useNavigate();
-  const [email, setEmail] = useState('');
-  const [subscribed, setSubscribed] = useState(false);
 
   const scrollToTop = (e?: React.MouseEvent) => {
     if (e) e.preventDefault();
@@ -22,39 +20,31 @@ export default function Footer() {
     }
   };
 
-  const handleSubscribe = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (email) {
-      setSubscribed(true);
-      setEmail('');
-      setTimeout(() => setSubscribed(false), 3000);
-    }
-  };
 
   return (
-    <footer className="bg-black text-text-secondary border-t border-border">
+    <footer className="bg-bg text-text-secondary border-t border-border">
       <div className="border-b border-border">
-        <div className="max-w-7xl mx-auto px-6 md:px-12 py-14">
+        <div className="max-w-7xl mx-auto px-5 sm:px-6 md:px-12 py-14">
           <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-8">
             <div>
-              <h3 className="text-2xl sm:text-3xl font-bold text-white mb-2 tracking-tight">
+              <h3 className="text-2xl sm:text-3xl font-bold text-text-primary mb-2 tracking-tight">
                 Ready to automate your inquiry pipeline?
               </h3>
               <p className="text-text-secondary text-sm max-w-md leading-relaxed">
-                Qualify leads, draft personalized responses, and route deals — all in real-time.
+                Organize inquiries, review optional processing results, and track human follow-up.
               </p>
             </div>
-            <div className="flex gap-3 shrink-0">
+            <div className="flex w-full flex-col gap-3 sm:w-auto sm:flex-row sm:shrink-0">
               <button
                 onClick={(e) => scrollToSection(e, 'how-it-works')}
-                className="px-5 py-2.5 rounded-md bg-white hover:bg-neutral-200 text-black font-medium text-sm transition-colors flex items-center gap-2"
+                className="min-h-11 px-5 py-2.5 rounded-md bg-accent hover:opacity-90 text-[#fff] font-medium text-sm transition-colors flex items-center justify-center gap-2"
               >
                 See How It Works
                 <ArrowUpRight className="w-4 h-4" />
               </button>
               <button
                 onClick={() => navigate('/dashboard')}
-                className="px-5 py-2.5 rounded-md border border-border-strong hover:border-text-tertiary text-text-secondary hover:text-white font-medium text-sm transition-colors"
+                className="min-h-11 px-5 py-2.5 rounded-md border border-border-strong hover:border-text-tertiary text-text-secondary hover:text-text-primary font-medium text-sm transition-colors"
               >
                 Go to Dashboard
               </button>
@@ -63,27 +53,27 @@ export default function Footer() {
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-6 md:px-12 py-14">
+      <div className="max-w-7xl mx-auto px-5 sm:px-6 md:px-12 py-14">
         <div className="grid grid-cols-1 md:grid-cols-12 gap-10 md:gap-8 mb-12">
           <div className="md:col-span-5 space-y-6">
             <div className="flex items-center gap-2.5 cursor-pointer" onClick={scrollToTop}>
               <NodalXLogo className="w-8 h-8" />
-              <span className="text-base font-bold tracking-tight text-white">NodalX</span>
+              <span className="text-base font-bold tracking-tight text-text-primary">NodalX</span>
             </div>
             <p className="text-text-secondary text-sm leading-relaxed max-w-md">
-              AI-powered business inquiry assistant. Capture inbound inquiries, qualify with advanced AI models, and automate response routing seamlessly.
+              Business inquiry intake and follow-up workspace. Preserve original messages and choose the next action with context.
             </p>
             <div className="space-y-2 pt-2">
               <a
                 href="mailto:nodalxai@gmail.com"
-                className="flex items-center gap-2 text-sm text-text-secondary hover:text-white transition-colors"
+                className="flex items-center gap-2 text-sm text-text-secondary hover:text-text-primary transition-colors"
               >
                 <Mail className="w-4 h-4 shrink-0" />
                 <span>nodalxai@gmail.com</span>
               </a>
               <a
                 href="tel:+918051037012"
-                className="flex items-center gap-2 text-sm text-text-secondary hover:text-white transition-colors"
+                className="flex items-center gap-2 text-sm text-text-secondary hover:text-text-primary transition-colors"
               >
                 <Phone className="w-4 h-4 shrink-0" />
                 <span>+91 80510 37012</span>
@@ -92,7 +82,7 @@ export default function Footer() {
           </div>
 
           <div className="md:col-span-3 space-y-4">
-            <h4 className="text-xs font-bold text-white uppercase tracking-cosmos">Platform</h4>
+            <h4 className="text-xs font-bold text-text-primary uppercase tracking-cosmos">Platform</h4>
             <ul className="space-y-3">
               {[
                 { label: 'How It Works', target: 'how-it-works' },
@@ -103,7 +93,7 @@ export default function Footer() {
                 <li key={item.label}>
                   <button
                     onClick={(e) => item.target ? scrollToSection(e, item.target) : navigate('/dashboard')}
-                    className="text-sm text-text-secondary hover:text-white transition-colors text-left"
+                    className="text-sm text-text-secondary hover:text-text-primary transition-colors text-left"
                   >
                     {item.label}
                   </button>
@@ -113,42 +103,9 @@ export default function Footer() {
           </div>
 
           <div className="md:col-span-4 space-y-4">
-            <h4 className="text-xs font-bold text-white uppercase tracking-cosmos">Newsletter</h4>
-            <p className="text-text-secondary text-xs leading-relaxed">
-              Get product updates and AI inquiry automation insights delivered to your inbox.
-            </p>
-            <form onSubmit={handleSubscribe} className="space-y-2">
-              <div className="flex gap-2">
-                <input
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="your@email.com"
-                  className="flex-1 px-4 py-2.5 text-xs rounded-md bg-surface border border-border focus:border-neutral-600 text-white placeholder-neutral-500 outline-none transition-all"
-                  required
-                />
-                <button
-                  type="submit"
-                  className={`px-4 py-2.5 rounded-md text-xs font-medium transition-all flex items-center gap-1.5 whitespace-nowrap ${
-                    subscribed
-                      ? 'bg-white text-black'
-                      : 'bg-white hover:bg-neutral-200 text-black'
-                  }`}
-                >
-                  {subscribed ? (
-                    <>
-                      <Check className="w-3.5 h-3.5" />
-                      Saved!
-                    </>
-                  ) : (
-                    <>
-                      <Send className="w-3.5 h-3.5" />
-                      Subscribe
-                    </>
-                  )}
-                </button>
-              </div>
-            </form>
+            <h4 className="text-xs font-bold text-text-primary uppercase tracking-cosmos">Product updates</h4>
+            <p className="text-text-secondary text-xs leading-relaxed">Read the changelog for updates. Newsletter subscriptions are not available yet.</p>
+            <button onClick={() => navigate('/changelog')} className="text-sm text-accent hover:underline">View changelog</button>
           </div>
         </div>
 
@@ -158,15 +115,15 @@ export default function Footer() {
           <p className="text-xs text-text-tertiary">
             &copy; {currentYear} <span className="font-medium text-text-secondary">NodalX</span>. All rights reserved.
           </p>
-          <div className="flex items-center gap-4 text-xs text-text-tertiary">
-            <a href="#/changelog" className="hover:text-white transition-colors">Changelog</a>
-            <a href="#/privacy" className="hover:text-white transition-colors">Privacy Policy</a>
-            <a href="#/terms" className="hover:text-white transition-colors">Terms of Service</a>
-            <a href="mailto:nodalxai@gmail.com" className="hover:text-white transition-colors">Contact</a>
+          <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-2 text-xs text-text-tertiary">
+            <a href="#/changelog" className="hover:text-text-primary transition-colors">Changelog</a>
+            <a href="#/privacy" className="hover:text-text-primary transition-colors">Privacy Policy</a>
+            <a href="#/terms" className="hover:text-text-primary transition-colors">Terms of Service</a>
+            <a href="mailto:nodalxai@gmail.com" className="hover:text-text-primary transition-colors">Contact</a>
           </div>
           <button
             onClick={scrollToTop}
-            className="flex items-center gap-1.5 text-xs text-text-secondary hover:text-white transition-colors px-3 py-1.5 rounded-md hover:bg-surface-hover"
+            className="flex items-center gap-1.5 text-xs text-text-secondary hover:text-text-primary transition-colors px-3 py-1.5 rounded-md hover:bg-surface-hover"
           >
             Back to top <span>&uarr;</span>
           </button>

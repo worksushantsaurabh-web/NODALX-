@@ -5,8 +5,8 @@
   "outputDirectory": "frontend/dist",
   "installCommand": "npm --prefix frontend ci",
   "rewrites": [
-    { "source": "/api/:path*", "destination": "https://nodalxai-b9eb5.web.app/api/:path*" },
-    { "source": "/(.*)", "destination": "/index.html" }
+    { "source": "/api/:path((?!contact(?:/|$)).*)", "destination": "https://nodalxai-b9eb5.web.app/api/:path*" },
+    { "source": "/:path((?!api(?:/|$)).*)", "destination": "/index.html" }
   ],
   "headers": [
     {

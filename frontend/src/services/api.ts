@@ -5,6 +5,13 @@ interface RequestOptions extends RequestInit {
   params?: Record<string, string>;
 }
 
+export class ApiError extends Error {
+  constructor(message: string, public status: number, public code?: string, public requestId?: string) {
+    super(requestId ? `${message} Reference: ${requestId}` : message);
+    this.name = 'ApiError';
+  }
+}
+
 async function request<T>(endpoint: string, options: RequestOptions = {}): Promise<T> {
   const { params, headers, ...fetchOptions } = options;
   
@@ -33,11 +40,14 @@ async function request<T>(endpoint: string, options: RequestOptions = {}): Promi
   const response = await fetch(url.toString(), {
     ...fetchOptions,
     headers: defaultHeaders,
+    signal: fetchOptions.signal || AbortSignal.timeout(20000),
+    cache: 'no-store',
   });
 
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({}));
-    throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
+    const message = errorData.error || (response.status >= 500 ? 'The service is temporarily unavailable. Please retry later.' : `Request failed (${response.status}).`);
+    throw new ApiError(message, response.status, errorData.code, response.headers.get('X-Request-ID') || undefined);
   }
 
   // Handle 204 No Content

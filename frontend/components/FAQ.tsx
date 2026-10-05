@@ -4,58 +4,60 @@ import { Section, SectionHeader } from '../ui';
 
 const faqs = [
   {
-    q: 'Do I need to replace my existing contact form?',
-    a: 'No. You can use the NodalX embeddable form, or forward submissions from your current form to our intake endpoint. Your existing setup stays intact — you just add a destination.',
+    "q": "Do I need to replace my existing contact form?",
+    "a": "No. A developer can forward submissions from your form server or trusted automation to the intake API. Keep the workspace API key server-side; a browser-only embed is not provided."
   },
   {
-    q: 'How does the lead scoring actually work?',
-    a: 'You define qualification criteria in plain language — budget range, company size, geography, urgency keywords. NodalX evaluates each submission against these rules and assigns a score with a written explanation. Nothing is a black box; you can read why every lead scored the way it did.',
+    "q": "How does qualification work?",
+    "a": "A configured external workflow can return classification and fit signals. Processing must be configured and tested first. Results are suggestions for human review, not guaranteed accuracy."
   },
   {
-    q: 'Can I see what data the AI used to score a lead?',
-    a: 'Yes. Every qualification score includes a written breakdown — which signals were weighted, what matched your criteria, and the final score. Every decision is traceable. If a score looks wrong, you can read exactly why it was assigned and adjust your criteria.',
+    "q": "Can I inspect the original inquiry?",
+    "a": "Yes. The Inquiry Desk retains the submitted message and shows available processing results alongside it. Missing analysis is not presented as a completed score."
   },
   {
-    q: 'Does this work with our existing CRM?',
-    a: 'Google Sheets and Slack sync automatically today. HubSpot contacts are created on sign-up. Direct CRM integrations (Salesforce, Pipedrive, HubSpot deals) are on the roadmap. In the meantime, most CRMs can pull from Google Sheets via Zapier or a native CSV import.',
+    "q": "Does this work with our existing CRM?",
+    "a": "Google Sheets supports explicit import and optional results export. Slack supports configured alerts. Continuous CRM sync and automatic HubSpot onboarding are not included in the pilot."
   },
   {
-    q: 'Where is my data stored?',
-    a: 'Inquiry data lives in your connected Google Sheet or in the NodalX dashboard — your choice. We do not use your data to train models, and you can delete everything at any time through the dashboard.',
+    "q": "Where is my data stored?",
+    "a": "The dashboard reads inquiries stored in Firebase Firestore. Sheets is an import/export connector, not the dashboard database. Contact support to request export or deletion; there is no self-service account deletion yet."
   },
   {
-    q: 'Can I control how the reply drafts sound?',
-    a: 'Yes. You set a tone profile (formal, direct, conversational) and can paste in sample replies to calibrate style. You can also add mandatory inclusions like pricing links or booking links, and the draft will incorporate them where appropriate.',
+    "q": "Does NodalX send replies automatically?",
+    "a": "No. Where a processing workflow supplies a draft, you can review it and open your email app. Marking an inquiry Contacted does not prove a message was sent or delivered."
   },
   {
-    q: 'How long does setup take?',
-    a: 'Most teams are live in under 15 minutes. Embedding the form is one script tag. Connecting Google Sheets takes two clicks and an OAuth grant. Defining scoring criteria takes five minutes the first time, less when you refine it later.',
+    "q": "How long does setup take?",
+    "a": "Setup depends on your existing form server, credentials, and spreadsheet permissions. Sheets uses service-account sharing and a verification tab, not an OAuth grant. Validate a test inquiry before inviting users."
   },
   {
-    q: 'What happens if the AI is unsure about a lead?',
-    a: "If a score falls below your confidence threshold, the inquiry is flagged for manual review rather than auto-replied. You set the threshold. Nothing goes out without you seeing it first — unless you explicitly enable auto-send for high-confidence leads.",
+    "q": "What happens when processing fails?",
+    "a": "The saved inquiry remains visible. Review the processing status and retry through the supported job flow after resolving configuration or provider failures."
   },
   {
-    q: 'What happens after the free period?',
-    a: "Paid plans are based on inquiry volume and team size. You'll see your options in the dashboard before anything changes. Nothing switches off automatically — you'll get an email with options before any limit is reached.",
+    "q": "What happens after the trial?",
+    "a": "The trial lasts fourteen days. Expired plans and exhausted allowances block additional processing. Usage and billing shows current limits; checkout is available only when a payment provider is configured."
   },
   {
-    q: 'Is this GDPR compliant?',
-    a: 'We store inquiry data on Firebase (Google Cloud infrastructure), do not use it to train models, and provide full deletion on request. If you are processing personal data of EU residents, you should review our Privacy Policy and ensure your inquiry forms include appropriate consent language.',
-  },
+    "q": "What should I review before collecting personal data?",
+    "a": "Read the Privacy Policy, disclose your purposes and processors, and obtain appropriate permissions for the information you collect. Legal obligations depend on your users and region; NodalX does not guarantee regulatory compliance."
+  }
 ];
 
 export default function FAQ() {
   const [open, setOpen] = useState<number | null>(null);
 
   return (
-    <Section id="faq" bg="surface" border innerClassName="max-w-3xl mx-auto px-4 sm:px-6 md:px-12">
+    <Section id="faq" bg="surface" border innerClassName="!max-w-3xl">
       <SectionHeader label="FAQ" heading="Questions we actually get asked" />
       <div className="space-y-3">
         {faqs.map((faq, i) => (
           <div key={i} className={`g-card rounded-2xl px-6 transition-all ${open === i ? 'g-card-open' : ''}`}>
             <button
               onClick={() => setOpen(open === i ? null : i)}
+              aria-expanded={open === i}
+              aria-controls={`faq-answer-${i}`}
               className="w-full flex items-start justify-between gap-6 py-5 text-left group"
             >
               <span className="text-sm font-semibold text-text-primary leading-snug group-hover:text-accent transition-colors">
@@ -66,7 +68,7 @@ export default function FAQ() {
               </span>
             </button>
             {open === i && (
-              <div className="pb-5">
+              <div id={`faq-answer-${i}`} className="pb-5">
                 <p className="text-sm text-text-secondary leading-relaxed">{faq.a}</p>
               </div>
             )}

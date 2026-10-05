@@ -1,7 +1,6 @@
 import { initializeApp } from 'firebase/app';
-import { getAuth, type Auth } from 'firebase/auth';
-import { getFirestore, type Firestore } from 'firebase/firestore';
-import { getAnalytics, isSupported } from 'firebase/analytics';
+import { getAuth, connectAuthEmulator, type Auth } from 'firebase/auth';
+import { getFirestore, connectFirestoreEmulator, type Firestore } from 'firebase/firestore';
 
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
@@ -18,14 +17,21 @@ let auth: Auth | null = null;
 let db: Firestore | null = null;
 
 try {
+  const useEmulators = import.meta.env.DEV && import.meta.env.VITE_USE_FIREBASE_EMULATORS === 'true';
+  if (useEmulators && !firebaseConfig.projectId?.startsWith('demo-')) {
+    throw new Error('Local emulator mode requires a demo- Firebase project ID.');
+  }
   app = initializeApp(firebaseConfig);
   auth = getAuth(app);
   db = getFirestore(app);
-
-  isSupported().then((supported) => {
-    if (supported && app) getAnalytics(app);
-  });
+  if (useEmulators) {
+    connectAuthEmulator(auth, 'http://127.0.0.1:9099');
+    connectFirestoreEmulator(db, '127.0.0.1', 8080);
+  }
 } catch (e) {
+  app = null;
+  auth = null;
+  db = null;
   console.warn('Firebase initialization failed — running without auth:', (e as Error).message);
 }
 

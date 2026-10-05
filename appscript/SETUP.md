@@ -7,18 +7,22 @@
 | **Webhook** | Apps Script `doPost()` receives form submissions |
 | **Classification** | **Embedded text rules** — keyword matching (zero API calls) |
 | **Storage** | Google Sheets (free, no Airtable needed) |
-| **Dashboard API** | Apps Script `doGet()` serves inquiry data as JSON |
-| **Cost** | **$0** |
+| **Owner-only data API** | Secret-protected `doGet()`; not a multi-tenant dashboard API |
+| **Limits** | Subject to Google account, execution and email quotas; no unlimited/free guarantee |
 
 ---
 
-## Deploy in 5 Minutes
+## Deploy and verify
+
+See `../docs/runbooks/aws-migration.md` for the hosting/configuration audit and
+AWS plan. The audited domain returns “Site Not Found”; configuring Apps Script
+alone cannot repair a domain pointing at the wrong hosting destination.
 
 ### 1. Create Apps Script Project
 - Go to [script.google.com](https://script.google.com)
 - **New Project**
 - Delete the default `myFunction()`
-- Paste the entire contents of **`Code.gs`**
+- Paste the entire contents of **`nodalx-intake.gs`**. The other `.gs` files are older alternatives and must not be pasted into the same project because they define the same entry points.
 
 ### 2. Set the Intake Secret (required)
 
@@ -28,10 +32,12 @@ endpoint is guarded by a shared secret. **Do this before deploying.**
 - **Project Settings → Script Properties → Add script property**
 - Property: `INTAKE_SECRET`
 - Value: any long random string, e.g. `openssl rand -hex 32`
+- Property: `SHEET_ID`
+- Value: the ID between `/d/` and `/edit` in your inquiry spreadsheet URL
+- Do not share either value in source, chats or screenshots.
 
-Callers must then send it as either a header or a query parameter:
+Apps Script web app requests must supply it as a query parameter. The server-side proxy adds this parameter; browsers never see it:
 ```
-x-nodalx-secret: <value>     # header, for server-to-server
 ?secret=<value>              # query param
 ```
 
@@ -44,10 +50,14 @@ closed on purpose: an unconfigured deployment must never accept traffic.
 > deployment before creating a new one.
 
 ### 3. Run Setup Once
-- In the editor dropdown, select `setupSheet`
+- In the editor dropdown, select `setupSheetHeaders`
 - Click **Run** (▶️)
 - Grant permissions when prompted
 - Check **Execution log** for the Sheet URL
+- Back up the sheet privately first. The first tab must have the canonical first
+  16 headings. This version adds `Service` and `Payload Hash` without changing
+  those original columns; stop and review if the extension columns have data.
+- Run `healthCheck` and confirm the secret, sheet configuration and access.
 
 ### 4. Deploy as Web App
 - Click **Deploy → New Deployment**
@@ -60,65 +70,83 @@ closed on purpose: an unconfigured deployment must never accept traffic.
 
 > ⚠️ **Important:** After any code change, redeploy (Manage Deployments → Edit → New Version).
 >
-> **Never commit the web app URL.** It is a bearer credential for your customer
-> data. Keep it in `frontend/.env` (git-ignored) or in Firebase Functions
-> environment config.
+> **Never commit the web app URL.** Keep it and the intake secret in server-side
+> deployment environment variables, never in `frontend/.env` or a `VITE_` variable.
 
-### 5. Add URL to Your Frontend
+### 5. Configure the Vercel contact route
 
-Create/edit `frontend/.env`:
-```bash
-VITE_APPSCRIPT_WEBHOOK_URL=https://script.google.com/macros/s/AKfycb.../exec
+Confirm the correct project serves your domain. The locally linked project is
+`nodalx-frontend`; both variables were absent from its production environment
+on 4 October. Set these **server-side Vercel environment variables** there:
+
+```text
+APPS_SCRIPT_WEB_APP_URL=https://script.google.com/macros/s/YOUR_DEPLOYMENT_ID/exec
+APPS_SCRIPT_INTAKE_SECRET=<the same INTAKE_SECRET from Script Properties>
 ```
 
-Then copy `InquiryForm.tsx` into your frontend components folder and import it where needed.
+Redeploy the Vercel project. The site form posts to `/api/contact`, whose Vercel function forwards the inquiry to Apps Script and returns success only after Apps Script confirms a sheet row. Never put the secret in a `VITE_` variable or call the protected Apps Script URL directly from browser code. Add rate limiting for `/api/contact` in your Vercel WAF settings before opening the public form to traffic.
+
+This restores **form intake**. The current Inquiry Desk and Overview still read Firebase, so they will not show Apps Script rows until a secured dashboard read connector is configured. Existing sheet rows remain in Google Sheets.
 
 ---
 
 ## API Endpoints
 
-### POST — Submit Inquiry
-```bash
-curl -X POST "YOUR_APPSCRIPT_URL" \
+### Read-only provider health
+
+After setting the two server variables in an ignored root `.env.local`:
+
+```sh
+node --env-file=.env.local scripts/check-intake.mjs --upstream-health
+```
+
+This uses the protected `action=health` endpoint without writing customer data.
+Do not put secrets in shell arguments or query URLs in logs. The upstream uses
+a secret query parameter for Apps Script compatibility; never expose it to the
+browser. A health success verifies access, not a complete submission.
+
+### POST — Submit Inquiry through the public proxy
+
+Only after owner approval: this writes a row and can send confirmation email.
+Replace the placeholder origin with the verified deployment. Use an inbox you
+control; keep the same key and identical data for retries.
+
+```sh
+curl -X POST "https://YOUR_VERIFIED_SITE/api/contact" \
   -H "Content-Type: application/json" \
-  -H "x-nodalx-secret: YOUR_INTAKE_SECRET" \
+  -H "Idempotency-Key: owner-test-001" \
   -d '{
     "name": "Jane Doe",
-    "email": "jane@company.com",
+    "email": "YOUR_CONTROLLED_TEST_INBOX",
     "company": "Acme Corp",
     "phone": "+1 555-0000",
     "industry": "SaaS",
-    "message": "We need to buy your AI automation solution ASAP.",
-    "source": "https://nodalx.in/contact"
+    "service": "Import processing",
+    "message": "Owner-approved intake verification."
   }'
 ```
 
-**Response:**
+**Public proxy response:** HTTP 202 only after a confirmed Sheet row. The
+classification is rule-based, not an external AI result.
 ```json
 {
-  "success": true,
-  "message": "Inquiry received and classified!",
-  "classification": {
-    "intent": "purchase",
-    "urgency": "high",
-    "fit_score": 10,
-    "summary": "Acme Corp (SaaS) is evaluating a purchase.",
-    "suggested_action": "Schedule executive demo within 24 hours. Prepare enterprise pricing deck.",
-    "category": "enterprise"
-  },
-  "rowId": "550e8400-e29b-41d4-a716-446655440000"
+  "accepted": true,
+  "id": "owner-test-001",
+  "duplicate": false,
+  "processingStatus": "classified",
+  "requestId": "correlation-id"
 }
 ```
 
-### GET — List Inquiries (for Dashboard)
-```bash
-curl "YOUR_APPSCRIPT_URL?action=list&secret=YOUR_INTAKE_SECRET"
-```
+An unchanged retry returns `duplicate: true` and does not append another row or
+send another notification. Reusing the key for different data returns HTTP 409.
+This requires deployment of the new Apps Script code, not just the proxy.
 
-### GET — Stats
-```bash
-curl "YOUR_APPSCRIPT_URL?action=stats&secret=YOUR_INTAKE_SECRET"
-```
+### GET — Owner-only list and stats
+
+`action=list` and `action=stats` remain protected server-only operations. They
+cover the entire configured sheet. Do not expose them as a general signed-in
+user's dashboard connector: they lack per-workspace authorization.
 
 ### Requests without the secret
 ```json
@@ -130,6 +158,10 @@ curl "YOUR_APPSCRIPT_URL?action=stats&secret=YOUR_INTAKE_SECRET"
 ## Classification Logic (Embedded Rules)
 
 No API calls. The script scans the inquiry text for keywords:
+
+These are heuristic labels/suggestions, not measured qualification accuracy or
+automatic follow-up. Storage acceptance does not confirm email delivery. Google
+imposes [Apps Script and email quotas](https://developers.google.com/apps-script/guides/services/quotas).
 
 | Detected Words | Result |
 |----------------|--------|
@@ -154,29 +186,21 @@ No API calls. The script scans the inquiry text for keywords:
 
 | File | Purpose |
 |------|---------|
-| `Code.gs` | Apps Script backend (deploy to Google) |
-| `InquiryForm.tsx` | React form component (drop into your frontend) |
+| `nodalx-intake.gs` | Canonical Apps Script backend (deploy this file alone) |
+| `frontend/components/InquiryForm.tsx` | Live React form; posts to `/api/contact` |
 | `SETUP.md` | This file |
 
 ---
 
 ## Updating Your Dashboard to Read from Apps Script
 
-In your `Dashboard.tsx`, replace the `/api/customers` fetch with:
-
-```tsx
-const APPSCRIPT_URL = import.meta.env.VITE_APPSCRIPT_WEBHOOK_URL;
-
-// Fetch inquiries
-const response = await fetch(`${APPSCRIPT_URL}?action=list`);
-const data = await response.json();
-const inquiries = data.customers; // Array of inquiry objects
-
-// Fetch stats
-const statsRes = await fetch(`${APPSCRIPT_URL}?action=stats`);
-const statsData = await statsRes.json();
-const stats = statsData.stats;
-```
+The current dashboard uses the Firebase inquiry API. Do not fetch the protected
+Apps Script URL from `Dashboard.tsx`: browser bundles expose values from `VITE_`
+variables, and `doGet?action=list` returns customer contact details. A dashboard
+connector must verify the signed-in user's authorization on the server, then call
+the Apps Script list endpoint with the server-side secret and return only the
+inquiries that user is allowed to see. Until that connector exists, use the
+Google Sheet to review inquiries submitted through Apps Script.
 
 The inquiry object shape matches what your dashboard already expects:
 ```ts

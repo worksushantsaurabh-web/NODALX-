@@ -3,19 +3,19 @@ import { Section, SectionHeader } from '../ui';
 
 const problems = [
   {
-    stat: '78%',
-    claim: 'of B2B buyers choose the first vendor that responds.',
-    detail: 'Most teams take hours. Your response time is your competitive moat — or your blind spot.',
+    stat: 'Scattered',
+    claim: 'Requests arrive in different places.',
+    detail: 'A shared view of incoming work helps you decide what to review next.',
   },
   {
-    stat: '20–40 min',
-    claim: 'lost to manual triage per inquiry.',
-    detail: 'Reading, categorizing, copy-pasting into a CRM. Every single time. For every submission.',
+    stat: 'Manual',
+    claim: 'Copying and categorizing takes attention.',
+    detail: 'Import existing records and keep their original messages available for review.',
   },
   {
-    stat: '1 in 3',
-    claim: 'inquiries never gets a personalized reply.',
-    detail: 'Generic templates or silence. Both kill deals before a conversation starts.',
+    stat: 'Unclear',
+    claim: 'Follow-up needs an explicit next step.',
+    detail: 'Record status and follow-up dates instead of relying on memory.',
   },
 ];
 
@@ -29,10 +29,10 @@ export default function Problem() {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-px bg-surface-hover rounded-xl overflow-hidden border border-border">
         {problems.map((p) => (
           <div key={p.stat} className="bg-bg p-8">
-            <p className="text-3xl font-bold text-white mb-3 tracking-tight">
+            <p className="text-3xl font-bold text-text-primary mb-3 tracking-tight">
               {p.stat}
             </p>
-            <p className="font-semibold text-white text-sm mb-2 leading-snug">{p.claim}</p>
+            <p className="font-semibold text-text-primary text-sm mb-2 leading-snug">{p.claim}</p>
             <p className="text-sm text-text-secondary leading-relaxed">{p.detail}</p>
           </div>
         ))}

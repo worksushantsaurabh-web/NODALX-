@@ -2,7 +2,7 @@ import React from 'react';
 import { cn } from './cn';
 
 const bgMap = {
-  bg: 'bg-black',
+  bg: 'bg-bg',
   surface: 'bg-surface',
 };
 
@@ -20,13 +20,13 @@ export function Section({ id, bg = 'bg', border = false, className, innerClassNa
     <section
       id={id}
       className={cn(
-        'py-32 lg:py-40',
+        'scroll-mt-24 py-20 sm:py-24 lg:py-28',
         bgMap[bg],
         border && 'border-t border-border',
         className,
       )}
     >
-      <div className={cn('max-w-6xl mx-auto px-6 md:px-12', innerClassName)}>
+      <div className={cn('min-w-0 max-w-7xl mx-auto px-5 sm:px-6 md:px-12', innerClassName)}>
         {children}
       </div>
     </section>

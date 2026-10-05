@@ -77,6 +77,7 @@ export default function CustomerOnboarding() {
         createdAt: string;
       }>('/api/onboarding/generate-key', { businessName: 'My Company' });
 
+      if (!response.apiKey) throw new Error('A key already exists. Rotate it in Sources & connections if you no longer have your saved key.');
       setApiKey(response.apiKey);
       setBusinessName(response.businessName);
       setPlan(response.plan);

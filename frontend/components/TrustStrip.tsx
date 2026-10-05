@@ -1,26 +1,21 @@
 import React from 'react';
 
-const stats = [
-  { value: '< 3 min', label: 'typical response time' },
-  { value: '94%', label: 'qualification accuracy (beta)' },
-  { value: '15 min', label: 'avg. setup time' },
-  { value: '12+', label: 'countries (early users)' },
+const principles = [
+  { number: '01', label: 'Bring inquiries together' },
+  { number: '02', label: 'Review fit with context' },
+  { number: '03', label: 'Keep people in the loop' },
 ];
 
 export default function TrustStrip() {
   return (
-    <section className="border-y border-border g-panel">
-      <div className="max-w-5xl mx-auto px-4 sm:px-6 md:px-12 py-10">
-        <div className="grid grid-cols-2 lg:grid-cols-4 divide-x divide-border">
-          {stats.map((stat) => (
-            <div key={stat.label} className="flex flex-col items-center text-center px-6 first:pl-0 last:pr-0 gap-1">
-              <span className="text-2xl sm:text-3xl font-bold text-gradient tracking-tight">
-                {stat.value}
-              </span>
-              <span className="text-xs text-text-secondary">{stat.label}</span>
-            </div>
-          ))}
-        </div>
+    <section className="bg-surface border-b border-border" aria-label="NodalX workflow principles">
+      <div className="max-w-7xl mx-auto px-5 sm:px-6 md:px-12 py-6 sm:py-8 grid gap-4 sm:gap-0 sm:grid-cols-3">
+        {principles.map((item) => (
+          <div key={item.number} className="flex items-center gap-3 sm:gap-4 sm:px-6 first:sm:pl-0 last:sm:pr-0 sm:border-r last:sm:border-r-0 border-border">
+            <span className="text-xs font-semibold text-accent tabular-nums">{item.number}</span>
+            <span className="text-sm font-medium text-text-secondary">{item.label}</span>
+          </div>
+        ))}
       </div>
     </section>
   );

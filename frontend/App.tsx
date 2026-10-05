@@ -11,6 +11,7 @@ import Terms from './pages/Terms';
 import Changelog from './pages/Changelog';
 import NotFound from './pages/NotFound';
 import ProtectedRoute from './components/ProtectedRoute';
+import AnalyticsConsent from './components/AnalyticsConsent';
 
 const Dashboard = lazy(() => import('./pages/Dashboard'));
 
@@ -52,6 +53,7 @@ export default function App() {
                 />
                 <Route path="*" element={<NotFound />} />
               </Routes>
+              <AnalyticsConsent />
             </HashRouter>
             <FeedbackWidget />
           </FeedbackProvider>

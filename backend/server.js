@@ -56,6 +56,9 @@ if (!hubspotClient) {
 
 
 const app = express();
+const {requestContext, healthRoutes, errorHandler, notFound, logFailure} = requireCjs('../functions/lib/http.js');
+app.use(requestContext);
+healthRoutes(app, firestore);
 const ALLOWED_ORIGINS = [
   'http://localhost:5173',
   'http://127.0.0.1:5173',
@@ -72,7 +75,16 @@ app.use(cors({
   },
   credentials: true
 }));
-app.use(express.json({limit: process?.env?.API_PAYLOAD_MAX_SIZE || "7mb"}));
+app.use(express.json({limit: process?.env?.API_PAYLOAD_MAX_SIZE || "7mb", verify: (req, res, buffer) => { req.rawBody = buffer; }}));
+const workspace = requireCjs("../functions/lib/workspaceRoutes.js").workspaceRoutes(firestore, firebaseAuth);
+app.use(workspace.router);
+let workspaceWorkerBusy = false;
+const workspaceWorker = setInterval(async () => {
+  if (workspaceWorkerBusy) return;
+  workspaceWorkerBusy = true;
+  try { await workspace.service.recover(); } catch (error) { logFailure("[Workspace worker]"); } finally { workspaceWorkerBusy = false; }
+}, 5000);
+workspaceWorker.unref();
 
 const PORT = process?.env?.API_BACKEND_PORT || 5000;
 const API_BACKEND_HOST = process?.env?.API_BACKEND_HOST || "127.0.0.1";
@@ -220,7 +232,7 @@ async function getAccessToken(res) {
     const token = await authClient.getAccessToken();
     return token.token;
   } catch (error) {
-    console.error('[Node Proxy] Authentication error:', error);
+    logFailure("[Node Proxy] Authentication error:");
     if (!res) return null;
     if (error.code === 'ERR_GCLOUD_NOT_LOGGED_IN' || (error.message && error.message.includes('Could not load the default credentials'))) {
       res.status(401).json({
@@ -275,7 +287,7 @@ app.post('/api-proxy', async (req, res) => {
   });
 
   if (!apiClient) {
-    console.error(`[Node Proxy] No API client handler found for URL: ${originalUrl}`);
+    logFailure("api_failure");
     return res.status(404).json({ error: `No proxy handler found for URL: ${originalUrl}` });
   }
 
@@ -306,11 +318,11 @@ app.post('/api-proxy', async (req, res) => {
     try {
       parsedApiUrl = new URL(apiUrl);
     } catch (e) {
-      console.error(`[Node Proxy] Invalid API URL: ${apiUrl}`);
+      logFailure("api_failure");
       return res.status(400).json({ error: 'Invalid API URL.' });
     }
     if (!ALLOWED_UPSTREAM_HOSTS.has(parsedApiUrl.hostname.toLowerCase())) {
-      console.error(`[Node Proxy] Upstream host not allowed: ${parsedApiUrl.hostname}`);
+      logFailure("api_failure");
       return res.status(400).json({ error: 'Upstream host not allowed.' });
     }
     console.log(`[Node Proxy] Forwarding to Vertex API: ${apiUrl}`);
@@ -361,7 +373,7 @@ app.post('/api-proxy', async (req, res) => {
       res.flushHeaders();
 
       if (!apiResponse.body) {
-        console.error('[Node Proxy] Streaming response has no body.');
+        logFailure("[Node Proxy] Streaming response has no body");
         return res.end(JSON.stringify({ error: 'Streaming response body is null' }));
       }
 
@@ -384,8 +396,8 @@ app.post('/api-proxy', async (req, res) => {
             }
           }
         } catch (error) {
-          console.error(`[Node Proxy] Error processing streaming response for ${apiClient.name}`);
-          console.error(error);
+          logFailure("api_failure");
+          logFailure("api_failure");
         }
       });
 
@@ -396,14 +408,14 @@ app.post('/api-proxy', async (req, res) => {
       });
 
       apiResponse.body.on('error', (streamError) => {
-        console.error('[Node Proxy] Error from Vertex stream:', streamError);
+        logFailure("[Node Proxy] Error from Vertex stream:");
         if (!res.writableEnded) {
           res.end(JSON.stringify({ proxyError: 'Stream error from Vertex AI', details: streamError.message }));
         }
       });
 
       res.on('error', (resError) => {
-        console.error('[Node Proxy] Error writing to client response:', resError);
+        logFailure("[Node Proxy] Error writing to client response:");
         // The source stream might need to be destroyed if an error occurs here.
         if (apiResponse.body && typeof apiResponse.body.destroy === 'function') {
              apiResponse.body.destroy(resError);
@@ -416,8 +428,8 @@ app.post('/api-proxy', async (req, res) => {
       res.status(apiResponse.status).json(data);
     }
   } catch (error) {
-    console.error(`[Node Proxy] Error proxying request for ${apiClient.name}`);
-    console.error(error)
+    logFailure("api_failure");
+    logFailure("api_failure")
     res.status(500).json({ error: error.message || 'Internal proxy error' });
   }
 });
@@ -455,7 +467,7 @@ app.post('/api/inquiries', inquiryLimiter, async (req, res) => {
 
     return res.status(201).json({ success: true, id: inquiryRef.id });
   } catch (error) {
-    console.error('[Inquiries] Failed to save inquiry:', error);
+    logFailure("[Inquiries] Failed to save inquiry:");
     return res.status(500).json({ error: 'Failed to save inquiry.' });
   }
 });
@@ -479,7 +491,7 @@ app.post('/api/contact', contactLimiter, async (req, res) => {
     });
     return res.status(201).json({ accepted: true, id: inquiryRef.id });
   } catch (error) {
-    console.error('[Contact Intake] Failed:', error);
+    logFailure("[Contact Intake] Failed:");
     return res.status(500).json({ error: 'The inquiry could not be saved.' });
   }
 });
@@ -527,7 +539,7 @@ app.get('/api/customers', async (req, res) => {
 
     return res.json(customers);
   } catch (error) {
-    console.error('[Customers] Failed to load customers:', error);
+    logFailure("[Customers] Failed to load customers:");
     return res.status(500).json({ error: 'Failed to load customers.' });
   }
 });
@@ -548,7 +560,7 @@ app.patch('/api/inquiries/:id/status', async (req, res) => {
     await inquiryRef.update({ status, updatedAt: FieldValue.serverTimestamp() });
     return res.json({ success: true, status });
   } catch (error) {
-    console.error('[Inquiries] Failed to update status:', error);
+    logFailure("[Inquiries] Failed to update status:");
     return res.status(500).json({ error: 'Failed to update inquiry status.' });
   }
 });
@@ -584,7 +596,7 @@ function serializeFirestoreValue(value) {
 
 function serializeDocument(document) {
   const data = document.data() || {};
-  return Object.fromEntries(Object.entries(data).map(([key, value]) => [key, serializeFirestoreValue(value)]));
+  return Object.fromEntries(Object.entries(data).map(([key, value]) => [key, key === "apiKeys" && Array.isArray(value) ? value.map(({key: secret, ...metadata}) => metadata) : serializeFirestoreValue(value)]));
 }
 
 // Initialize default data sources for new users
@@ -626,7 +638,7 @@ function getDefaultProfile(uid, user) {
 async function getUserId(req) {
   const authorization = req.headers.authorization || '';
   if (!authorization.startsWith('Bearer ')) {
-    console.error('[Auth] Missing or invalid Authorization header:', authorization ? 'Present but wrong format' : 'Missing');
+    logFailure("[Auth] Missing or invalid Authorization header:");
     const error = new Error('Authentication required');
     error.status = 401;
     throw error;
@@ -634,10 +646,10 @@ async function getUserId(req) {
 
   const token = authorization.slice('Bearer '.length);
   try {
-    const decodedToken = await firebaseAuth.verifyIdToken(token);
+    const decodedToken = await firebaseAuth.verifyIdToken(token, true);
     return decodedToken.uid;
   } catch (verifyError) {
-    console.error('[Auth] Token verification failed:', verifyError.message);
+    logFailure("[Auth] Token verification failed:");
     throw verifyError;
   }
 }
@@ -659,7 +671,7 @@ app.get('/api/flows', async (req, res) => {
     const snapshot = await flowCollection(userId).orderBy('createdAt', 'desc').get();
     res.json(snapshot.docs.map(serializeDocument));
   } catch (error) {
-    console.error('[Server Error] Loading flows failed:', error);
+    logFailure("[Server Error] Loading flows failed:");
     res.status(500).json({ error: 'Failed to load flows' });
   }
 });
@@ -693,7 +705,7 @@ app.post('/api/flows', async (req, res) => {
 
     res.status(201).json(serializeDocument(await flowRef.get()));
   } catch (error) {
-    console.error('[Server Error] Creating flow failed:', error);
+    logFailure("[Server Error] Creating flow failed:");
     res.status(500).json({ error: 'Failed to create flow' });
   }
 });
@@ -711,7 +723,7 @@ app.put('/api/flows/:flowId', async (req, res) => {
     await flowRef.set({ ...updates, updatedAt: FieldValue.serverTimestamp() }, { merge: true });
     res.json(serializeDocument(await flowRef.get()));
   } catch (error) {
-    console.error('[Server Error] Updating flow failed:', error);
+    logFailure("[Server Error] Updating flow failed:");
     res.status(500).json({ error: 'Failed to update flow' });
   }
 });
@@ -728,7 +740,7 @@ app.delete('/api/flows/:flowId', async (req, res) => {
     await flowRef.delete();
     res.json({ success: true });
   } catch (error) {
-    console.error('[Server Error] Deleting flow failed:', error);
+    logFailure("[Server Error] Deleting flow failed:");
     res.status(500).json({ error: 'Failed to delete flow' });
   }
 });
@@ -752,7 +764,7 @@ app.get('/api/user/profile', async (req, res) => {
     }
     res.json(serializeDocument(profileSnapshot));
   } catch (error) {
-    console.error('[Server Error] Loading profile failed:', error);
+    logFailure("[Server Error] Loading profile failed:");
     res.status(500).json({ error: 'Failed to load profile' });
   }
 });
@@ -800,7 +812,7 @@ app.put('/api/user/profile', async (req, res) => {
     }, { merge: true });
     res.json(serializeDocument(await profileRef.get()));
   } catch (error) {
-    console.error('[Server Error] Updating profile failed:', error);
+    logFailure("[Server Error] Updating profile failed:");
     res.status(500).json({ error: 'Failed to update profile' });
   }
 });
@@ -824,7 +836,7 @@ app.get('/api/connectors', async (req, res) => {
     }
     res.json(sourceSnapshot.docs.map(serializeDocument));
   } catch (error) {
-    console.error('[Server Error] Loading connectors failed:', error);
+    logFailure("[Server Error] Loading connectors failed:");
     res.status(500).json({ error: 'Failed to load connectors' });
   }
 });
@@ -850,7 +862,7 @@ app.put('/api/connectors/:connectorId', async (req, res) => {
     const updated = await sourceRef.get();
     res.json(serializeDocument(updated));
   } catch (error) {
-    console.error('[Server Error] Updating connector failed:', error);
+    logFailure("[Server Error] Updating connector failed:");
     res.status(500).json({ error: 'Failed to update connector' });
   }
 });
@@ -902,7 +914,7 @@ app.post('/api/connectors/google-sheets/verify', async (req, res) => {
       serviceAccountEmail: await googleSheets.getServiceAccountEmail(),
     });
   } catch (error) {
-    console.error('[Google Sheets Verify Error]:', error);
+    logFailure("[Google Sheets Verify Error]:");
     return res.status(500).json({ error: 'Failed to verify Google Sheet access.' });
   }
 });
@@ -954,7 +966,7 @@ app.post('/api/connectors/google-sheets/analyze', async (req, res) => {
       totalRows: sheetData.rows.length,
     });
   } catch (error) {
-    console.error('[Google Sheets Analyze Error]:', error);
+    logFailure("[Google Sheets Analyze Error]:");
     return res.status(500).json({ error: 'Failed to analyze Google Sheet.' });
   }
 });
@@ -967,7 +979,7 @@ app.get('/api/connectors/google-sheets/service-account', async (req, res) => {
     const email = await googleSheets.getServiceAccountEmail();
     return res.json({ serviceAccountEmail: email });
   } catch (error) {
-    console.error('[Google Sheets Service Account Error]:', error);
+    logFailure("[Google Sheets Service Account Error]:");
     return res.status(500).json({ error: 'Failed to get service account email.' });
   }
 });
@@ -986,7 +998,7 @@ app.get('/api/integrations/notifications', async (req, res) => {
 
     return res.json(notifDoc.data());
   } catch (error) {
-    console.error('[Server Error] Fetching notifications failed:', error);
+    logFailure("[Server Error] Fetching notifications failed:");
     return res.status(500).json({ error: 'Failed to fetch notification settings' });
   }
 });
@@ -1006,7 +1018,7 @@ app.put('/api/integrations/notifications', async (req, res) => {
 
     return res.json({ success: true, message: 'Notification settings updated successfully' });
   } catch (error) {
-    console.error('[Server Error] Saving notifications failed:', error);
+    logFailure("[Server Error] Saving notifications failed:");
     return res.status(500).json({ error: 'Failed to save notification settings' });
   }
 });
@@ -1044,13 +1056,13 @@ app.post('/api/integrations/notifications/test', async (req, res) => {
       });
     } else {
       const slackError = await slackResponse.text();
-      console.error('[Slack Test Error]:', slackResponse.status, slackError);
+      logFailure("[Slack Test Error]:");
       return res.status(400).json({
         error: `Slack rejected the request (${slackResponse.status}): ${slackError || 'Please verify your Incoming Webhook URL.'}`,
       });
     }
   } catch (error) {
-    console.error('[Test Slack Notification Error]:', error);
+    logFailure("[Test Slack Notification Error]:");
     return res.status(500).json({
       error: 'Failed to send test notification. Please check your network connection and Webhook URL.',
     });
@@ -1084,7 +1096,7 @@ app.get('/api/hubspot/test', async (req, res) => {
       totalContacts: contactsResponse.total,
     });
   } catch (error) {
-    console.error('[HubSpot] Error checking connection:', error);
+    logFailure("[HubSpot] Error checking connection:");
     return res.status(500).json({ error: 'Failed to reach HubSpot.' });
   }
 });
@@ -1131,7 +1143,7 @@ app.post('/api/hubspot/contact', async (req, res) => {
       },
     });
   } catch (error) {
-    console.error('[HubSpot] Error creating contact:', error);
+    logFailure("[HubSpot] Error creating contact:");
 
     // The upstream message is not forwarded: a 409 body contains the existing
     // contact's properties, which in this shared-portal setup belong to whoever
@@ -1177,14 +1189,14 @@ app.get('/api/onboarding/status', async (req, res) => {
 
     return res.json({
       hasApiKey: true,
-      apiKey: activeKey.key,
+      keyPreview: activeKey.keyPreview || null,
       businessName: activeKey.businessName || 'My Company',
       plan: toPlan(userData && userData.plan ? userData.plan : profile.subscription?.tier),
       totalInquiries: activeKey.totalInquiries || 0,
       lastUsedAt: activeKey.lastUsedAt || null,
     });
   } catch (error) {
-    console.error('[Onboarding] Error fetching status:', error);
+    logFailure("[Onboarding] Error fetching status:");
     return res.status(500).json({ error: 'Failed to fetch onboarding status.' });
   }
 });
@@ -1257,7 +1269,7 @@ app.post('/api/onboarding/generate-key', async (req, res) => {
       createdAt: newKeyEntry.createdAt,
     });
   } catch (error) {
-    console.error('[Onboarding] Error generating key:', error);
+    logFailure("[Onboarding] Error generating key:");
     return res.status(500).json({ error: 'Failed to generate API key.' });
   }
 });
@@ -1288,7 +1300,7 @@ app.put('/api/onboarding/business-name', async (req, res) => {
 
     return res.json({ success: true, businessName: businessName.trim() });
   } catch (error) {
-    console.error('[Onboarding] Error updating business name:', error);
+    logFailure("[Onboarding] Error updating business name:");
     return res.status(500).json({ error: 'Failed to update business name.' });
   }
 });
@@ -1299,6 +1311,8 @@ app.post('/api/webhook/:webhookId', (req, res) => {
   return res.status(501).json({ error: 'Use the Firebase Hosting webhook endpoint for authenticated ingestion.' });
 });
 
+app.use(notFound);
+app.use(errorHandler);
 const server = app.listen(PORT, API_BACKEND_HOST, () => {
   console.log(`Vertex AI Backend listening at http://localhost:${PORT}`);
 });
@@ -1450,13 +1464,13 @@ server.on('upgrade', async (request, socket, head) => {
         headers: getRequestHeaders(accessToken)
       });
     } catch (e) {
-      console.error('[Node Proxy] Invalid Upstream URL');
+      logFailure("[Node Proxy] Invalid Upstream URL");
       rejectUpgrade(socket, 400, 'Bad Request');
       return;
     }
 
     const initialErrorHandler = (error) => {
-      console.error('[Node Proxy] Upstream connection failed:', error);
+      logFailure("[Node Proxy] Upstream connection failed:");
       upstreamWs.removeEventListener('open', onUpstreamOpen);
 
       if (socket.writable) {
@@ -1516,7 +1530,7 @@ server.on('upgrade', async (request, socket, head) => {
         });
 
         upstreamWs.on('error', (error) => {
-          console.error('[Node Proxy] Upstream error:', error);
+          logFailure("[Node Proxy] Upstream error:");
           ws.close(1011, error.message);
         });
 
@@ -1528,7 +1542,7 @@ server.on('upgrade', async (request, socket, head) => {
         });
 
         ws.on('error', (error) => {
-          console.error('[Node Proxy] Client error:', error);
+          logFailure("[Node Proxy] Client error:");
           upstreamWs.close(1011, error.message);
         });
 

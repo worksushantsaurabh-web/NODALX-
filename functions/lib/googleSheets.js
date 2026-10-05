@@ -67,8 +67,12 @@ async function getServiceAccountEmail() {
     const credentials = await auth.getCredentials();
     if (!credentials.client_email) throw new Error("Service account email unavailable");
     return credentials.client_email;
-  } catch (error) {
-    throw new Error(`Unable to identify the Google Sheets service account: ${error.message}`);
+  } catch {
+    const error = new Error(
+        "Google Sheets is not configured. Ask the workspace administrator to configure a service account.",
+    );
+    error.status = 503;
+    throw error;
   }
 }
 
@@ -332,6 +336,7 @@ async function writeClassificationsToSheet(spreadsheetId, classifications) {
 }
 
 module.exports = {
+  getSheetsClient,
   appendRow,
   verifyAccess,
   readSheetRows,

@@ -14,6 +14,10 @@ test('status filters normalize whitespace and case without substring matches', (
   }
   assert.ok(matchesFilter(inquiry({ status: ' CONTACTED ' }), 'contacted'));
   assert.ok(matchesFilter(inquiry({ status: ' SPAM ' }), 'spam'));
+  for (const status of [' WON ', 'Lost']) {
+    assert.ok(matchesFilter(inquiry({ status }), 'closed'));
+    assert.equal(matchesFilter(inquiry({ status, intent: 'purchase', urgency: 'high' }), 'priority'), false);
+  }
 });
 
 test('intent and urgency independently establish priority, never fit score', () => {

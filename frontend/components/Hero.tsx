@@ -1,70 +1,61 @@
 import React from 'react';
 import { ArrowRight } from 'lucide-react';
 import ProductMockup from './ProductMockup';
-
 import { Button } from '../ui';
 import { Analytics } from '../lib/analytics';
+import { BlurFade } from '../ui/BlurFade';
 
 interface HeroProps {
   onGetStarted: () => void;
 }
 
 export default function Hero({ onGetStarted }: HeroProps) {
-  const scrollTo = (id: string) => (e: React.MouseEvent) => {
-    e.preventDefault();
-    document.getElementById(id)?.scrollIntoView({ behavior: 'smooth' });
+  const showHowItWorks = () => {
+    Analytics.navScrollClick('how-it-works');
+    document.getElementById('how-it-works')?.scrollIntoView({
+      behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth',
+    });
   };
 
   return (
-    <section className="pt-32 pb-24 sm:pt-40 sm:pb-32 lg:pt-48 lg:pb-32 bg-bg relative overflow-hidden">
-      <div className="max-w-6xl mx-auto px-6 md:px-12 relative z-10">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-16 items-center">
-
-          <div className="max-w-xl">
-            <div className="g-chip inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full text-text-tertiary text-xs font-medium uppercase tracking-cosmos mb-8">
-              <span className="w-1.5 h-1.5 rounded-full bg-accent animate-pulse-dot" />
-              Now live
-            </div>
-
-            <h1 className="text-5xl sm:text-6xl lg:text-[4rem] font-bold tracking-tight text-text-primary leading-[1.05] mb-6">
-              Every inquiry answered.{' '}
-              Every lead scored.{' '}
-              <span className="text-gradient">Nothing missed.</span>
-            </h1>
-
-            <p className="text-lg text-text-secondary leading-relaxed mb-10">
-              NodalX reads every incoming inquiry, scores it against your criteria, and drafts a reply — automatically. Average first response: under 3 minutes.
-            </p>
-
-            <div className="flex flex-col sm:flex-row gap-4">
+    <section className="bg-bg border-b border-border pt-32 pb-20 sm:pt-40 sm:pb-24 lg:pt-44 lg:pb-28">
+      <div className="max-w-7xl mx-auto px-5 sm:px-6 md:px-12">
+        <div className="grid lg:grid-cols-[minmax(0,0.92fr)_minmax(0,1.08fr)] gap-12 lg:gap-14 xl:gap-20 items-center">
+          <div className="max-w-2xl">
+            <BlurFade><p className="text-xs font-semibold tracking-[0.16em] uppercase text-accent mb-6">Inquiry operations, made clearer</p></BlurFade>
+            <BlurFade delay={0.06}>
+              <h1 className="text-[clamp(2.8rem,5vw,4.75rem)] font-semibold tracking-[-0.045em] leading-[1.08] text-text-primary mb-7">
+                Give every inquiry a thoughtful next step.
+              </h1>
+            </BlurFade>
+            <BlurFade delay={0.12}>
+              <p className="text-lg sm:text-xl text-text-secondary leading-relaxed max-w-xl">
+                NodalX helps your team review incoming inquiries, identify fit against your criteria, and prepare a relevant reply—all in one place.
+              </p>
+            </BlurFade>
+            <BlurFade delay={0.18} className="flex flex-col sm:flex-row sm:items-center gap-3 mt-9">
               <Button
                 variant="primary"
                 size="lg"
+                className="!rounded-lg !bg-accent !shadow-none hover:!shadow-none hover:!translate-y-0 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
                 onClick={() => { Analytics.ctaClick('hero'); onGetStarted(); }}
               >
-                Get Early Access
-                <ArrowRight className="w-4 h-4" />
+                Get Early Access <ArrowRight className="w-4 h-4" aria-hidden="true" />
               </Button>
               <Button
                 variant="secondary"
                 size="lg"
-                onClick={(e) => { Analytics.navScrollClick('how-it-works'); scrollTo('how-it-works')(e); }}
+                className="!rounded-lg !bg-surface !border-border !backdrop-blur-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+                onClick={showHowItWorks}
               >
                 See how it works
               </Button>
-            </div>
-
-            <p className="mt-8 text-xs text-text-tertiary tracking-wide uppercase">
-              Free to start. No credit card required.
-            </p>
+            </BlurFade>
+            <p className="mt-5 text-sm text-text-tertiary">Explore the workflow before requesting access.</p>
           </div>
-
-          <div className="hidden sm:block w-full relative">
-            <div className="relative">
-              <ProductMockup />
-            </div>
+          <div className="min-w-0 w-full">
+            <BlurFade delay={0.14}><ProductMockup /></BlurFade>
           </div>
-
         </div>
       </div>
     </section>

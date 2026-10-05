@@ -109,6 +109,13 @@ _archive/
 
 # Local assistant/editor tool config (not source code)
 .claude/
+.opencode/
 
 # Local verified backups contain customer data and authentication hashes.
 .private-backups/
+.vercel
+.env*
+!.env.example
+!**/.env.example
+aws/build/
+.aws-sam/

@@ -43,7 +43,8 @@ service cloud.firestore {
     // Rule 4: User Data Sources collection (user-scoped)
     // - Users can read/write their own data sources
     match /users/{userId}/data-sources/{sourceId} {
-      allow read, write: if request.auth != null && request.auth.uid == userId;
+      allow read: if request.auth != null && request.auth.uid == userId;
+      allow write: if false;
     }
 
     // Rule 5: ApiKeys collection
@@ -78,6 +79,19 @@ service cloud.firestore {
 
     // Rate limits collection - backend only (no client access)
     match /rateLimits/{userId} {
+      allow read, write: if false;
+    }
+
+    // Import recipes and their runtime state are server-only. Client writes are
+    // denied even between permissions granted here: recipes carry automation
+    // budgets (row caps, daily credit caps, enabled state) and approval grants
+    // that must not be client-editable. The management API authenticates the
+    // owner and writes through the Admin SDK. The default deny rule above would
+    // already cover these; the explicit blocks keep that contract testable.
+    match /importRecipes/{recipeId} {
+      allow read, write: if false;
+    }
+    match /importExceptions/{exceptionId} {
       allow read, write: if false;
     }
   }

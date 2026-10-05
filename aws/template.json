@@ -1,0 +1,39 @@
+{
+  "AWSTemplateFormatVersion": "2010-09-09",
+  "Transform": "AWS::Serverless-2016-10-31",
+  "Description": "NodalX contact intake pilot only. Does not migrate authenticated workspace APIs or data.",
+  "Parameters": {
+    "IntakeSecretArn": {"Type": "String", "AllowedPattern": "arn:[a-z-]+:secretsmanager:[a-z0-9-]+:[0-9]{12}:secret:.+", "Description": "Existing owner-approved secret with webAppUrl and intakeSecret JSON keys"}
+  },
+  "Resources": {
+    "ContactApi": {
+      "Type": "AWS::Serverless::HttpApi",
+      "Properties": {
+        "StageName": "$default",
+        "DefaultRouteSettings": {"ThrottlingBurstLimit": 3, "ThrottlingRateLimit": 1}
+      }
+    },
+    "ContactFunction": {
+      "Type": "AWS::Serverless::Function",
+      "Properties": {
+        "CodeUri": "build/intake/",
+        "Handler": "aws/handlers/contact.handler",
+        "Runtime": "nodejs22.x",
+        "Timeout": 20,
+        "MemorySize": 128,
+        "Environment": {"Variables": {
+          "APPS_SCRIPT_WEB_APP_URL": {"Fn::Sub": "{{resolve:secretsmanager:${IntakeSecretArn}:SecretString:webAppUrl}}"},
+          "APPS_SCRIPT_INTAKE_SECRET": {"Fn::Sub": "{{resolve:secretsmanager:${IntakeSecretArn}:SecretString:intakeSecret}}"}
+        }},
+        "Events": {"Contact": {"Type": "HttpApi", "Properties": {"ApiId": {"Ref": "ContactApi"}, "Path": "/api/contact", "Method": "POST", "PayloadFormatVersion": "2.0"}}}
+      }
+    },
+    "ContactLogs": {
+      "Type": "AWS::Logs::LogGroup",
+      "Properties": {"LogGroupName": {"Fn::Sub": "/aws/lambda/${ContactFunction}"}, "RetentionInDays": 14}
+    }
+  },
+  "Outputs": {
+    "ContactApiUrl": {"Value": {"Fn::Sub": "https://${ContactApi}.execute-api.${AWS::Region}.${AWS::URLSuffix}/api/contact"}}
+  }
+}

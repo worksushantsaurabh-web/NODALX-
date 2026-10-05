@@ -8,16 +8,16 @@ deploys_to: Google Apps Script (Web App)
 
 # Apps Script
 
-> Google Apps Script web app that replaces the old n8n workflow. Receives inquiry form submissions, classifies them using keyword rules, and stores results in Google Sheets.
+> Google Apps Script web app for inquiry intake. The canonical source is `appscript/nodalx-intake.gs`; the other script examples are older alternatives.
 
 ---
 
 ## What It Does
 
-1. **Receives** POST webhooks from [[Frontend]] `InquiryForm.tsx`
+1. **Receives** POST webhooks from the server-side Vercel `/api/contact` route
 2. **Classifies** inquiry by intent, urgency, fit score, category
 3. **Stores** in Google Sheets (free, no database needed)
-4. **Serves** data back to dashboard via GET endpoints
+4. **Serves** protected data through GET endpoints; the current dashboard has not been reconnected to this data source
 
 ---
 
@@ -25,8 +25,9 @@ deploys_to: Google Apps Script (Web App)
 
 ```
 appscript/
-├── Code.gs                   # Main Apps Script (deploy this)
-├── InquiryPipeline.gs        # Enhanced version with Gemini AI
+├── nodalx-intake.gs          # Canonical Apps Script (deploy this alone)
+├── Code.gs                   # Older alternative
+├── InquiryPipeline.gs        # Older Gemini alternative
 ├── InquiryForm.tsx           # Reference: React form component
 ├── dashboard-integration.tsx # Reference: Dashboard fetch code
 ├── frontend-integration.tsx  # Reference: Full frontend example
@@ -44,7 +45,7 @@ appscript/
 | `GET` | `{WEBAPP_URL}?action=list` | List all inquiries |
 | `GET` | `{WEBAPP_URL}?action=stats` | Aggregated statistics |
 
-Live URL: see `VITE_APPSCRIPT_WEBHOOK_URL` in [[Environment]]
+Keep the live `/exec` URL in the server-side `APPS_SCRIPT_WEB_APP_URL` variable. The repository does not contain the deployed URL.
 
 ---
 
@@ -65,10 +66,10 @@ Fit score: 1-10 (calculated from intent + category + urgency signals)
 
 ## Deployment
 
-1. Paste `Code.gs` into [script.google.com](https://script.google.com)
-2. Run `setupSheet()` once
+1. Paste `nodalx-intake.gs` into [script.google.com](https://script.google.com)
+2. Set Script Properties `INTAKE_SECRET` and `SHEET_ID`, then run `setupSheetHeaders()` once
 3. Deploy as Web App (Execute as: Me, Access: Anyone)
-4. Copy URL → set as `VITE_APPSCRIPT_WEBHOOK_URL`
+4. Set the URL and secret as server-side Vercel environment variables `APPS_SCRIPT_WEB_APP_URL` and `APPS_SCRIPT_INTAKE_SECRET`
 
 See `appscript/SETUP.md` for full instructions.
 

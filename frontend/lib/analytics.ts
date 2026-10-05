@@ -12,16 +12,37 @@
  *   https://console.firebase.google.com → Analytics → DebugView
  */
 
-import { getAnalytics, logEvent } from 'firebase/analytics';
+import { getAnalytics, logEvent, setAnalyticsCollectionEnabled, setConsent, type Analytics as FirebaseAnalytics } from 'firebase/analytics';
 import app from './firebase';
+import {analyticsEnabled, readAnalyticsConsent, writeAnalyticsConsent} from './analyticsConsent';
+
+let analyticsInstance: FirebaseAnalytics | null = null;
+
+export function syncAnalyticsConsent() {
+  const allowed = analyticsEnabled() && readAnalyticsConsent() === true;
+  if (analyticsInstance) {
+    setConsent({analytics_storage: allowed ? 'granted' : 'denied', ad_storage: 'denied', ad_user_data: 'denied', ad_personalization: 'denied'});
+    setAnalyticsCollectionEnabled(analyticsInstance, allowed);
+  }
+}
+
+export function updateAnalyticsConsent(allowed: boolean): boolean {
+  const saved = writeAnalyticsConsent(allowed);
+  syncAnalyticsConsent();
+  return saved;
+}
 
 // ─── Internals ─────────────────────────────────────────────────────────────
 
 function getAnalyticsInstance() {
   try {
     // `app` is null when Firebase failed to initialize.
-    if (!app) return null;
-    return getAnalytics(app);
+    if (!app || !analyticsEnabled() || readAnalyticsConsent() !== true) return null;
+    if (!analyticsInstance) {
+      setConsent({analytics_storage: 'granted', ad_storage: 'denied', ad_user_data: 'denied', ad_personalization: 'denied'});
+      analyticsInstance = getAnalytics(app);
+    }
+    return analyticsInstance;
   } catch {
     return null;
   }
@@ -80,8 +101,8 @@ export const Analytics = {
   },
 
   /** Submission failed (network or server error) */
-  formError(errorMessage: string) {
-    track('form_error', { error: errorMessage.slice(0, 100) });
+  formError(_errorMessage: string) {
+    track('form_error', { reason: 'submission_failed' });
   },
 
   // ── Onboarding modal ──────────────────────────────────────────────────────

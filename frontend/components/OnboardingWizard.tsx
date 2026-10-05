@@ -63,6 +63,7 @@ function StepKey({
       const res = await api.post<{ apiKey: string; businessName: string; plan: string }>('/api/onboarding/generate-key', {
         businessName: 'My Company',
       });
+      if (!res.apiKey) throw new Error('A workspace key already exists. Use your saved key, or skip setup and rotate it in Sources & connections.');
       setKey(res.apiKey);
       Analytics.apiKeyGenerated();
     } catch (e: any) {

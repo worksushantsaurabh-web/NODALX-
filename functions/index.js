@@ -9,19 +9,24 @@
 
 const {setGlobalOptions} = require("firebase-functions/v2");
 const admin = require("firebase-admin");
-const {onRequest, onCall, HttpsError} = require("firebase-functions/v2/https");
 const {
-  getFirestore,
-  FieldValue,
-} = require("firebase-admin/firestore");
+  onRequest,
+  onCall,
+  HttpsError,
+} = require("firebase-functions/v2/https");
+const {getFirestore, FieldValue} = require("firebase-admin/firestore");
 const {getAuth} = require("firebase-admin/auth");
 const crypto = require("crypto");
 const {parse: csvParse} = require("csv-parse/sync");
 const XLSX = require("xlsx");
 const busboy = require("busboy");
 const googleSheets = require("./lib/googleSheets");
-const {entitlementFromKey, toPlan, resolveTier, isRedeemed} = require("./lib/tier");
-
+const {
+  entitlementFromKey,
+  toPlan,
+  resolveTier,
+  isRedeemed,
+} = require("./lib/tier");
 
 admin.initializeApp();
 
@@ -63,7 +68,8 @@ async function validateApiKey(req) {
   const apiKey = req.headers["x-api-key"];
   if (!apiKey) return null;
 
-  const keyDoc = await db.collection("apiKeys")
+  const keyDoc = await db
+      .collection("apiKeys")
       .where("key", "==", apiKey)
       .where("active", "==", true)
       .limit(1)
@@ -213,109 +219,34 @@ function parseSpreadsheet(buffer, fileName) {
 
 // checkAllowedUser disabled for standard Firebase Auth compatibility
 
-exports.redeemKey = onCall({invoker: "public"}, async (request) => {
-  // 1. Require the caller to be signed in
-  if (!request.auth) {
-    throw new HttpsError(
-        "unauthenticated",
-        "You must be signed in to redeem a key.",
-    );
-  }
-
-  const {key} = request.data || {};
-  const {uid} = request.auth;
-
-  // 2. Read "key" string from the request data
-  if (typeof key !== "string" || key.length === 0) {
-    throw new HttpsError(
-        "invalid-argument",
-        "The function must be called with a 'key' string argument.",
-    );
-  }
-
-  const db = getFirestore();
-  const userRef = db.collection("users").doc(uid);
-
-  try {
-    const result = await db.runTransaction(async (transaction) => {
-      // 3. Look up the key by its 'key' field in the apiKeys collection.
-      // The read MUST go through the transaction: a plain db.collection() query
-      // is outside the transaction's read set, so Firestore would not detect the
-      // conflict and two concurrent requests could both see redeemed === false
-      // and both grant the paid entitlement from one single-use key.
-      const keyQuery = db.collection("apiKeys").where("key", "==", key).limit(1);
-      const keySnapshot = await transaction.get(keyQuery);
-
-      if (keySnapshot.empty) {
-        throw new HttpsError(
-            "not-found",
-            "The access key you provided does not exist.",
-        );
-      }
-
-      const accessKeyRef = keySnapshot.docs[0].ref;
-      const keyData = keySnapshot.docs[0].data();
-
-      // 4. Throw an error if it's already redeemed
-      if (isRedeemed(keyData)) {
-        throw new HttpsError(
-            "already-exists",
-            "This access key has already been redeemed.",
-        );
-      }
-
-      // 5. Mark the key document as redeemed and set the user's entitlement.
-      // `tier` is normalized to the canonical free/full vocabulary so paid
-      // accounts satisfy the premiumContent Firestore rule, while the original
-      // commercial plan is preserved on `plan`.
-      transaction.update(accessKeyRef, {
-        redeemed: true,
-        redeemedBy: uid,
-        redeemedAt: FieldValue.serverTimestamp(),
-      });
-
-      const entitlement = entitlementFromKey(keyData.plan || keyData.tier);
-      const plan = toPlan(keyData.plan, toPlan(keyData.tier));
-      transaction.set(userRef, {tier: entitlement, plan}, {merge: true});
-      transaction.set(
-          userRef.collection("profile").doc("main"),
-          {subscription: {tier: plan, status: "active"}, updatedAt: FieldValue.serverTimestamp()},
-          {merge: true},
-      );
-
-      return {tier: entitlement, plan};
-    });
-
-    // 6. Log the redemption for audit purposes
-    await db.collection("auditLogs").add({
-      action: "key_redeemed",
-      userId: uid,
-      tier: result.tier,
-      plan: result.plan,
-      keyId: key,
-      timestamp: FieldValue.serverTimestamp(),
-    });
-
-    // 7. Return success and the new tier
-    return {success: true, tier: result.tier, plan: result.plan};
-  } catch (error) {
-    if (error instanceof HttpsError) {
-      throw error;
-    }
-    console.error("Transaction failed: ", error);
-    throw new HttpsError(
-        "internal",
-        "An unexpected error occurred while redeeming the key.",
-    );
-  }
+exports.redeemKey = onCall({invoker: "public"}, async () => {
+  throw new HttpsError(
+      "failed-precondition",
+      "Integration keys cannot activate subscriptions. Use Usage & billing.",
+  );
 });
 
 const express = require("express");
 const cors = require("cors");
 
 const app = express();
+const {requestContext, healthRoutes, errorHandler, notFound, logFailure} = require("./lib/http");
+app.use(requestContext);
 app.use(cors({origin: true}));
-app.use(express.json({limit: "7mb"}));
+healthRoutes(app, db);
+app.use(
+    express.json({
+      limit: "7mb",
+      verify: (req, res, buffer) => {
+        req.rawBody = buffer;
+      },
+    }),
+);
+const workspace = require("./lib/workspaceRoutes").workspaceRoutes(
+    db,
+    getAuth(),
+);
+app.use(workspace.router);
 
 /**
  * Check and enforce rate limit using Firestore as a shared store.
@@ -333,8 +264,9 @@ async function checkRateLimit(userId, maxRequests = 10, windowMs = 60000) {
 
   return db.runTransaction(async (tx) => {
     const doc = await tx.get(ref);
-    const timestamps = (doc.exists ? doc.data().timestamps : [])
-        .filter((t) => t > cutoff);
+    const timestamps = (doc.exists ? doc.data().timestamps : []).filter(
+        (t) => t > cutoff,
+    );
 
     if (timestamps.length >= maxRequests) {
       return false;
@@ -357,7 +289,9 @@ const WEBHOOK_TIMEOUT_MS = Number(process.env.WEBHOOK_TIMEOUT_MS || 30000);
 // Inquiry intake quotas. Defaults: 120 requests per minute per API key, with
 // wider per-IP ceilings layered on top to bound abuse from leaked keys.
 const INQUIRY_RATE_MAX = Number(process.env.INQUIRY_RATE_MAX || 120);
-const INQUIRY_RATE_WINDOW_MS = Number(process.env.INQUIRY_RATE_WINDOW_MS || 60000);
+const INQUIRY_RATE_WINDOW_MS = Number(
+    process.env.INQUIRY_RATE_WINDOW_MS || 60000,
+);
 
 /**
  * Send a request to a webhook.
@@ -367,7 +301,10 @@ const INQUIRY_RATE_WINDOW_MS = Number(process.env.INQUIRY_RATE_WINDOW_MS || 6000
  */
 async function requestWebhook(webhookUrl, {method = "POST", body} = {}) {
   const timeoutController = new AbortController();
-  const timeout = setTimeout(() => timeoutController.abort(), WEBHOOK_TIMEOUT_MS);
+  const timeout = setTimeout(
+      () => timeoutController.abort(),
+      WEBHOOK_TIMEOUT_MS,
+  );
 
   try {
     const response = await fetch(webhookUrl, {
@@ -386,7 +323,11 @@ async function requestWebhook(webhookUrl, {method = "POST", body} = {}) {
     }
 
     if (!response.ok) {
-      const error = new Error(data?.message || data?.error || `Webhook responded with status ${response.status}`);
+      const error = new Error(
+          data?.message ||
+          data?.error ||
+          `Webhook responded with status ${response.status}`,
+      );
       error.status = response.status;
       throw error;
     }
@@ -402,7 +343,11 @@ async function requestWebhook(webhookUrl, {method = "POST", body} = {}) {
  * @param {Object} inquiry The inquiry data.
  * @param {Object} classification The classification result.
  */
-async function sendSlackNotification(slackWebhookUrl, inquiry, classification = {}) {
+async function sendSlackNotification(
+    slackWebhookUrl,
+    inquiry,
+    classification = {},
+) {
   if (!slackWebhookUrl) return;
   try {
     // Inquiry fields are attacker-controlled and are interpolated into Slack
@@ -410,13 +355,15 @@ async function sendSlackNotification(slackWebhookUrl, inquiry, classification = 
     // customer channel, and the values are plain_text/mrkdwn injected verbatim.
     const slackSafe = (value, maxLength = 300) => {
       const text = value === null || value === undefined ? "" : String(value);
-      return text
-      // Neutralize mentions, channel links and entity refs.
-          .replace(/<[!@#][^>]*>/g, "")
-          .replace(/&/g, "&amp;")
-          .replace(/</g, "&lt;")
-          .replace(/>/g, "&gt;")
-          .slice(0, maxLength);
+      return (
+        text
+        // Neutralize mentions, channel links and entity refs.
+            .replace(/<[!@#][^>]*>/g, "")
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;")
+            .slice(0, maxLength)
+      );
     };
 
     const payload = {
@@ -433,13 +380,23 @@ async function sendSlackNotification(slackWebhookUrl, inquiry, classification = 
         {
           type: "section",
           fields: [
-            {type: "mrkdwn", text: `*Lead Name:*\n${slackSafe(inquiry.name)}`},
-            {type: "mrkdwn", text: `*Company:*\n${slackSafe(inquiry.company) || "N/A"}`},
-            {type: "mrkdwn", text: `*Email:*\n${slackSafe(inquiry.email, 200)}`},
+            {
+              type: "mrkdwn",
+              text: `*Lead Name:*\n${slackSafe(inquiry.name)}`,
+            },
+            {
+              type: "mrkdwn",
+              text: `*Company:*\n${slackSafe(inquiry.company) || "N/A"}`,
+            },
+            {
+              type: "mrkdwn",
+              text: `*Email:*\n${slackSafe(inquiry.email, 200)}`,
+            },
             {
               type: "mrkdwn",
               text: `*Intent / Score:*\n${slackSafe(classification.intent, 80) || "Unknown"} / ${
-                classification.fit_score ?? "Unknown"}`,
+                classification.fit_score ?? "Unknown"
+              }`,
             },
           ],
         },
@@ -457,50 +414,98 @@ async function sendSlackNotification(slackWebhookUrl, inquiry, classification = 
       headers: {"Content-Type": "application/json"},
       body: JSON.stringify(payload),
     });
-    if (!response.ok) throw new Error(`Slack responded with ${response.status}`);
+    if (!response.ok) {
+      throw new Error(`Slack responded with ${response.status}`);
+    }
   } catch (err) {
-    console.error("[Slack Notification Error]", err);
+    logFailure("[Slack Notification Error]");
   }
 }
 
 const handleInquiry = async (req, res, expectedCustomerId = null) => {
   const {name, email, company, message} = req.body || {};
-  if ([name, email, company, message].some((value) => typeof value !== "string" || !value.trim())) {
-    return res.status(400).json({error: "Name, email, company, and message are required."});
+  if (
+    [name, email, company, message].some(
+        (value) => typeof value !== "string" || !value.trim(),
+    )
+  ) {
+    return res
+        .status(400)
+        .json({error: "Name, email, company, and message are required."});
   }
   try {
     // Pre-authentication per-IP ceiling. This runs before the apiKeys lookup so
     // a flood of invalid keys cannot drive unbounded Firestore reads.
-    const preAuthIp = crypto.createHash("sha256")
-        .update(`preauth:${req.ip || "unknown"}`).digest("hex").slice(0, 40);
-    if (!await checkRateLimit(`inquiry-preauth-${preAuthIp}`, INQUIRY_RATE_MAX * 10, INQUIRY_RATE_WINDOW_MS)) {
+    const preAuthIp = crypto
+        .createHash("sha256")
+        .update(`preauth:${req.ip || "unknown"}`)
+        .digest("hex")
+        .slice(0, 40);
+    if (
+      !(await checkRateLimit(
+          `inquiry-preauth-${preAuthIp}`,
+          INQUIRY_RATE_MAX * 10,
+          INQUIRY_RATE_WINDOW_MS,
+      ))
+    ) {
       res.set("Retry-After", String(Math.ceil(INQUIRY_RATE_WINDOW_MS / 1000)));
-      return res.status(429).json({error: "Too many requests from this address. Please retry shortly."});
+      return res
+          .status(429)
+          .json({
+            error: "Too many requests from this address. Please retry shortly.",
+          });
     }
     const customer = await validateApiKey(req);
     if (!customer) {
-      return res.status(401).json({error: "A valid X-API-Key is required for inquiry intake."});
+      return res
+          .status(401)
+          .json({error: "A valid X-API-Key is required for inquiry intake."});
     }
     if (expectedCustomerId && customer.customerId !== expectedCustomerId) {
-      return res.status(403).json({error: "This API key does not belong to the webhook owner."});
+      return res
+          .status(403)
+          .json({error: "This API key does not belong to the webhook owner."});
     }
     // Rate limits are keyed on a salted hash of the presented key so a leaked
     // counter document can never be reversed into a usable credential.
-    const keyFingerprint = crypto.createHash("sha256")
-        .update(`rate:${String(req.headers["x-api-key"] || "")}`).digest("hex").slice(0, 40);
-    if (!await checkRateLimit(`inquiry-key-${keyFingerprint}`, INQUIRY_RATE_MAX, INQUIRY_RATE_WINDOW_MS)) {
+    const keyFingerprint = crypto
+        .createHash("sha256")
+        .update(`rate:${String(req.headers["x-api-key"] || "")}`)
+        .digest("hex")
+        .slice(0, 40);
+    if (
+      !(await checkRateLimit(
+          `inquiry-key-${keyFingerprint}`,
+          INQUIRY_RATE_MAX,
+          INQUIRY_RATE_WINDOW_MS,
+      ))
+    ) {
       res.set("Retry-After", String(Math.ceil(INQUIRY_RATE_WINDOW_MS / 1000)));
       return res.status(429).json({
-        error: "This API key exceeded its inquiry rate limit. Please retry shortly.",
+        error:
+          "This API key exceeded its inquiry rate limit. Please retry shortly.",
       });
     }
     // Secondary per-IP ceiling. Keys are long lived and a leaked one can be
     // rotated to a fresh IP range, so this backstop caps total abuse volume.
-    const ipFingerprint = crypto.createHash("sha256")
-        .update(`ip:${req.ip || "unknown"}`).digest("hex").slice(0, 40);
-    if (!await checkRateLimit(`inquiry-ip-${ipFingerprint}`, INQUIRY_RATE_MAX * 5, INQUIRY_RATE_WINDOW_MS)) {
+    const ipFingerprint = crypto
+        .createHash("sha256")
+        .update(`ip:${req.ip || "unknown"}`)
+        .digest("hex")
+        .slice(0, 40);
+    if (
+      !(await checkRateLimit(
+          `inquiry-ip-${ipFingerprint}`,
+          INQUIRY_RATE_MAX * 5,
+          INQUIRY_RATE_WINDOW_MS,
+      ))
+    ) {
       res.set("Retry-After", String(Math.ceil(INQUIRY_RATE_WINDOW_MS / 1000)));
-      return res.status(429).json({error: "Too many requests from this address. Please retry shortly."});
+      return res
+          .status(429)
+          .json({
+            error: "Too many requests from this address. Please retry shortly.",
+          });
     }
     const enrichedBody = {
       ...req.body,
@@ -510,26 +515,46 @@ const handleInquiry = async (req, res, expectedCustomerId = null) => {
       receivedAt: new Date().toISOString(),
     };
     const idempotencyKey = req.headers["idempotency-key"];
-    if (idempotencyKey && (typeof idempotencyKey !== "string" || idempotencyKey.length > 128)) {
-      return res.status(400).json({error: "Idempotency-Key must be a string of at most 128 characters."});
+    if (
+      idempotencyKey &&
+      (typeof idempotencyKey !== "string" || idempotencyKey.length > 128)
+    ) {
+      return res
+          .status(400)
+          .json({
+            error: "Idempotency-Key must be a string of at most 128 characters.",
+          });
     }
-    const inquiryId = idempotencyKey ? crypto.createHash("sha256")
-        .update(`${customer.customerId}:${idempotencyKey}`).digest("hex") : null;
-    const inquiryRef = inquiryId ? db.collection("inquiries").doc(inquiryId) : db.collection("inquiries").doc();
+    const inquiryId = idempotencyKey ?
+      crypto
+          .createHash("sha256")
+          .update(`${customer.customerId}:${idempotencyKey}`)
+          .digest("hex") :
+      null;
+    const inquiryRef = inquiryId ?
+      db.collection("inquiries").doc(inquiryId) :
+      db.collection("inquiries").doc();
     try {
       await inquiryRef.create({
-        name: name.trim(), email: email.trim().toLowerCase(), company: company.trim(),
-        message: message.trim(), customerId: customer.customerId,
-        businessName: customer.businessName || "", status: "Pending",
+        name: name.trim(),
+        email: email.trim().toLowerCase(),
+        company: company.trim(),
+        message: message.trim(),
+        customerId: customer.customerId,
+        businessName: customer.businessName || "",
+        status: "Pending",
         processingStatus: MAKE_WEBHOOK_URL ? "pending" : "not_configured",
-        createdAt: FieldValue.serverTimestamp(), last_active: enrichedBody.receivedAt,
+        createdAt: FieldValue.serverTimestamp(),
+        last_active: enrichedBody.receivedAt,
       });
     } catch (error) {
       if (inquiryId && (error.code === 6 || error.code === "already-exists")) {
         const existing = await inquiryRef.get();
         return res.status(202).json({
-          accepted: true, id: inquiryRef.id,
-          processingStatus: existing.data()?.processingStatus || "pending", duplicate: true,
+          accepted: true,
+          id: inquiryRef.id,
+          processingStatus: existing.data()?.processingStatus || "pending",
+          duplicate: true,
         });
       }
       throw error;
@@ -538,54 +563,91 @@ const handleInquiry = async (req, res, expectedCustomerId = null) => {
     let processingStatus = "not_configured";
     if (MAKE_WEBHOOK_URL) {
       try {
-        const response = await requestWebhook(MAKE_WEBHOOK_URL, {body: {...enrichedBody, inquiryId: inquiryRef.id}});
-        classification = response && typeof response === "object" &&
-          response.classification && typeof response.classification === "object" ?
-          response.classification : {};
-        processingStatus = Object.keys(classification).length ? "classified" : "no_classification";
+        const response = await requestWebhook(MAKE_WEBHOOK_URL, {
+          body: {...enrichedBody, inquiryId: inquiryRef.id},
+        });
+        classification =
+          response &&
+          typeof response === "object" &&
+          response.classification &&
+          typeof response.classification === "object" ?
+            response.classification :
+            {};
+        processingStatus = Object.keys(classification).length ?
+          "classified" :
+          "no_classification";
       } catch (error) {
         processingStatus = "failed";
-        console.error("[Make Webhook] Inquiry processing failed:", error);
+        logFailure("[Make Webhook] Inquiry processing failed:");
       }
     }
     try {
       await inquiryRef.update({
         processingStatus,
-        intent: classification.intent || "", urgency: classification.urgency || "",
-        fit_score: classification.fit_score ?? "", category: classification.category || "",
-        summary: classification.summary || "", suggested_action: classification.suggested_action || "",
+        intent: classification.intent || "",
+        urgency: classification.urgency || "",
+        fit_score: classification.fit_score ?? "",
+        category: classification.category || "",
+        summary: classification.summary || "",
+        suggested_action: classification.suggested_action || "",
       });
     } catch (error) {
-      console.error("[Inquiry Intake] Failed to save classification:", error);
+      logFailure("[Inquiry Intake] Failed to save classification:");
       processingStatus = "failed";
     }
     try {
-      const keySnapshot = await db.collection("apiKeys").where("key", "==", req.headers["x-api-key"]).limit(1).get();
+      const keySnapshot = await db
+          .collection("apiKeys")
+          .where("key", "==", req.headers["x-api-key"])
+          .limit(1)
+          .get();
       if (!keySnapshot.empty) {
         await keySnapshot.docs[0].ref.update({
-          totalInquiries: FieldValue.increment(1), lastUsedAt: FieldValue.serverTimestamp(),
+          totalInquiries: FieldValue.increment(1),
+          lastUsedAt: FieldValue.serverTimestamp(),
         });
       }
-      const notification = await db.collection("users").doc(customer.customerId)
-          .collection("data-sources").doc("notifications").get();
+      const notification = await db
+          .collection("users")
+          .doc(customer.customerId)
+          .collection("data-sources")
+          .doc("notifications")
+          .get();
       if (notification.exists && notification.data().slackWebhookUrl) {
-        await sendSlackNotification(notification.data().slackWebhookUrl, req.body, classification);
+        await sendSlackNotification(
+            notification.data().slackWebhookUrl,
+            req.body,
+            classification,
+        );
       }
     } catch (error) {
-      console.error("[Inquiry Intake] Usage or notification update failed:", error);
+      logFailure("[Inquiry Intake] Usage or notification update failed:");
     }
     try {
-      const sheetSource = await db.collection("users").doc(customer.customerId)
-          .collection("data-sources").doc("google-sheets").get();
-      if (sheetSource.exists && sheetSource.data().connected && sheetSource.data().config?.spreadsheetId) {
-        await googleSheets.appendRow(sheetSource.data().config.spreadsheetId, {...enrichedBody, ...classification});
+      const sheetSource = await db
+          .collection("users")
+          .doc(customer.customerId)
+          .collection("data-sources")
+          .doc("google-sheets")
+          .get();
+      if (
+        sheetSource.exists &&
+        sheetSource.data().connected &&
+        sheetSource.data().config?.spreadsheetId
+      ) {
+        await googleSheets.appendRow(sheetSource.data().config.spreadsheetId, {
+          ...enrichedBody,
+          ...classification,
+        });
       }
     } catch (error) {
-      console.error("[Google Sheets] Failed to append inquiry:", error);
+      logFailure("[Google Sheets] Failed to append inquiry:");
     }
-    return res.status(202).json({accepted: true, id: inquiryRef.id, processingStatus});
+    return res
+        .status(202)
+        .json({accepted: true, id: inquiryRef.id, processingStatus});
   } catch (error) {
-    console.error("[Inquiry Intake] Failed to save inquiry:", error);
+    logFailure("[Inquiry Intake] Failed to save inquiry:");
     return res.status(500).json({error: "The inquiry could not be saved."});
   }
 };
@@ -594,28 +656,48 @@ app.post("/api/inquiries", (req, res) => handleInquiry(req, res));
 
 app.post("/api/contact", async (req, res) => {
   const ownerId = process.env.NODALX_OWNER_UID;
-  if (!ownerId) return res.status(503).json({error: "Contact intake is not configured."});
-  const {name, email, company, message, phone, industry, service} = req.body || {};
-  if ([name, email, company, message].some((value) => typeof value !== "string" || !value.trim())) {
-    return res.status(400).json({error: "Name, email, company, and message are required."});
+  if (!ownerId) {
+    return res.status(503).json({error: "Contact intake is not configured."});
+  }
+  const {name, email, company, message, phone, industry, service} =
+    req.body || {};
+  if (
+    [name, email, company, message].some(
+        (value) => typeof value !== "string" || !value.trim(),
+    )
+  ) {
+    return res
+        .status(400)
+        .json({error: "Name, email, company, and message are required."});
   }
   try {
-    const visitorId = crypto.createHash("sha256").update(req.ip || "unknown").digest("hex");
-    if (!await checkRateLimit(`contact-${visitorId}`, 5, 60000)) {
-      return res.status(429).json({error: "Too many submissions. Please try again later."});
+    const visitorId = crypto
+        .createHash("sha256")
+        .update(req.ip || "unknown")
+        .digest("hex");
+    if (!(await checkRateLimit(`contact-${visitorId}`, 5, 60000))) {
+      return res
+          .status(429)
+          .json({error: "Too many submissions. Please try again later."});
     }
     const inquiryRef = await db.collection("inquiries").add({
-      name: name.trim(), email: email.trim().toLowerCase(), company: company.trim(),
-      message: message.trim(), phone: typeof phone === "string" ? phone.trim() : "",
+      name: name.trim(),
+      email: email.trim().toLowerCase(),
+      company: company.trim(),
+      message: message.trim(),
+      phone: typeof phone === "string" ? phone.trim() : "",
       industry: typeof industry === "string" ? industry.trim() : "",
       service: typeof service === "string" ? service.trim() : "",
-      customerId: ownerId, source: "site_contact",
-      status: "Pending", processingStatus: "not_requested",
-      createdAt: FieldValue.serverTimestamp(), last_active: new Date().toISOString(),
+      customerId: ownerId,
+      source: "site_contact",
+      status: "Pending",
+      processingStatus: "not_requested",
+      createdAt: FieldValue.serverTimestamp(),
+      last_active: new Date().toISOString(),
     });
     return res.status(201).json({accepted: true, id: inquiryRef.id});
   } catch (error) {
-    console.error("[Contact Intake] Failed:", error);
+    logFailure("[Contact Intake] Failed:");
     return res.status(500).json({error: "The inquiry could not be saved."});
   }
 });
@@ -648,7 +730,7 @@ app.patch("/api/inquiries/:id/status", async (req, res) => {
     });
     return res.json({success: true, status});
   } catch (error) {
-    console.error("[Status Update Error]", error);
+    logFailure("[Status Update Error]");
     return res.status(500).json({error: "Failed to update status"});
   }
 });
@@ -658,12 +740,21 @@ app.get("/api/integrations/notifications", async (req, res) => {
     const userId = await requireUserId(req, res);
     if (!userId) return;
 
-    const notifDoc = await db.collection("users").doc(userId).collection("data-sources").doc("notifications").get();
-    if (!notifDoc.exists) return res.json({slackWebhookUrl: "", emailAlerts: true});
+    const notifDoc = await db
+        .collection("users")
+        .doc(userId)
+        .collection("data-sources")
+        .doc("notifications")
+        .get();
+    if (!notifDoc.exists) {
+      return res.json({slackWebhookUrl: "", emailAlerts: true});
+    }
 
     return res.json(notifDoc.data());
   } catch (error) {
-    return res.status(500).json({error: "Failed to fetch notification settings"});
+    return res
+        .status(500)
+        .json({error: "Failed to fetch notification settings"});
   }
 });
 
@@ -673,15 +764,28 @@ app.put("/api/integrations/notifications", async (req, res) => {
     if (!userId) return;
     const {slackWebhookUrl, emailAlerts} = req.body;
 
-    await db.collection("users").doc(userId).collection("data-sources").doc("notifications").set({
-      slackWebhookUrl: slackWebhookUrl || "",
-      emailAlerts: emailAlerts !== false,
-      updatedAt: FieldValue.serverTimestamp(),
-    }, {merge: true});
+    await db
+        .collection("users")
+        .doc(userId)
+        .collection("data-sources")
+        .doc("notifications")
+        .set(
+            {
+              slackWebhookUrl: slackWebhookUrl || "",
+              emailAlerts: emailAlerts !== false,
+              updatedAt: FieldValue.serverTimestamp(),
+            },
+            {merge: true},
+        );
 
-    return res.json({success: true, message: "Notification settings updated successfully"});
+    return res.json({
+      success: true,
+      message: "Notification settings updated successfully",
+    });
   } catch (error) {
-    return res.status(500).json({error: "Failed to save notification settings"});
+    return res
+        .status(500)
+        .json({error: "Failed to save notification settings"});
   }
 });
 
@@ -692,7 +796,11 @@ app.post("/api/integrations/notifications/test", async (req, res) => {
 
     const slackWebhookUrl = req.body.slackWebhookUrl;
 
-    if (!slackWebhookUrl || typeof slackWebhookUrl !== "string" || !slackWebhookUrl.trim()) {
+    if (
+      !slackWebhookUrl ||
+      typeof slackWebhookUrl !== "string" ||
+      !slackWebhookUrl.trim()
+    ) {
       return res.status(400).json({
         error: "Slack Webhook URL is required.",
       });
@@ -701,7 +809,8 @@ app.post("/api/integrations/notifications/test", async (req, res) => {
     const trimmedUrl = slackWebhookUrl.trim();
     if (!trimmedUrl.startsWith("https://hooks.slack.com/")) {
       return res.status(400).json({
-        error: "Invalid Slack Webhook URL. It must start with https://hooks.slack.com/",
+        error:
+          "Invalid Slack Webhook URL. It must start with https://hooks.slack.com/",
       });
     }
 
@@ -722,16 +831,18 @@ app.post("/api/integrations/notifications/test", async (req, res) => {
       });
     } else {
       const slackError = await slackResponse.text();
-      console.error("[Slack Test Error]:", slackResponse.status, slackError);
+      logFailure("[Slack Test Error]:");
       return res.status(400).json({
         error: `Slack rejected the request (${slackResponse.status}): ${
-          slackError || "Please verify your Incoming Webhook URL."}`,
+          slackError || "Please verify your Incoming Webhook URL."
+        }`,
       });
     }
   } catch (error) {
-    console.error("[Test Slack Notification Error]:", error);
+    logFailure("[Test Slack Notification Error]:");
     return res.status(500).json({
-      error: "Failed to send test notification. Please check your network connection and Webhook URL.",
+      error:
+        "Failed to send test notification. Please check your network connection and Webhook URL.",
     });
   }
 });
@@ -742,7 +853,8 @@ app.get("/api/customers", async (req, res) => {
     if (!userId) return;
 
     // Read stored inquiries from Firestore
-    const snapshot = await db.collection("inquiries")
+    const snapshot = await db
+        .collection("inquiries")
         .where("customerId", "==", userId)
         .orderBy("createdAt", "desc")
         .limit(100)
@@ -771,16 +883,16 @@ app.get("/api/customers", async (req, res) => {
         suggested_action: data.suggested_action || "",
         processing_status: data.processingStatus || "unknown",
         status: data.status || "Pending",
-        last_active: data.last_active || (
-          data.createdAt ? data.createdAt.toDate().toISOString() : ""
-        ),
+        last_active:
+          data.last_active ||
+          (data.createdAt ? data.createdAt.toDate().toISOString() : ""),
       };
     });
 
     res.set("X-NodalX-Data-Source", "firestore");
     return res.json(customers);
   } catch (error) {
-    console.error("[Server Error] Loading customers failed:", error);
+    logFailure("[Server Error] Loading customers failed:");
     return res.status(502).json({error: "Failed to load customer data."});
   }
 });
@@ -788,8 +900,10 @@ app.get("/api/customers", async (req, res) => {
 const firebaseAuth = getAuth();
 const userCollection = (userId) => db.collection("users").doc(userId);
 const flowCollection = (userId) => userCollection(userId).collection("flows");
-const profileDocument = (userId) => userCollection(userId).collection("profile").doc("main");
-const dataSourceCollection = (userId) => userCollection(userId).collection("data-sources");
+const profileDocument = (userId) =>
+  userCollection(userId).collection("profile").doc("main");
+const dataSourceCollection = (userId) =>
+  userCollection(userId).collection("data-sources");
 
 /**
  * Convert Firestore timestamp to ISO string if applicable.
@@ -797,7 +911,9 @@ const dataSourceCollection = (userId) => userCollection(userId).collection("data
  * @return {*} The serialized value.
  */
 function serializeFirestoreValue(value) {
-  if (value && typeof value.toDate === "function") return value.toDate().toISOString();
+  if (value && typeof value.toDate === "function") {
+    return value.toDate().toISOString();
+  }
   return value;
 }
 
@@ -808,7 +924,13 @@ function serializeFirestoreValue(value) {
  */
 function serializeDocument(document) {
   const data = document.data() || {};
-  return Object.fromEntries(Object.entries(data).map(([key, value]) => [key, serializeFirestoreValue(value)]));
+  return Object.fromEntries(
+      Object.entries(data).map(([key, value]) => [
+        key,
+        key === "apiKeys" && Array.isArray(value) ? value.map(({key: secret, ...metadata}) => metadata) :
+          serializeFirestoreValue(value),
+      ]),
+  );
 }
 
 /**
@@ -817,8 +939,18 @@ function serializeDocument(document) {
  */
 function getDefaultDataSources() {
   return [
-    {id: "google-sheets", name: "Google Sheets", connected: false, config: {}},
-    {id: "webhooks", name: "Webhooks", connected: false, config: {url: "/api/inquiries"}},
+    {
+      id: "google-sheets",
+      name: "Google Sheets",
+      connected: false,
+      config: {},
+    },
+    {
+      id: "webhooks",
+      name: "Webhooks",
+      connected: false,
+      config: {url: "/api/inquiries"},
+    },
   ];
 }
 
@@ -837,8 +969,18 @@ function getDefaultProfile(uid, user) {
     workspace: "My Workspace",
     role: "Founder",
     timezone: "UTC",
-    notifications: {flowFailure: true, weeklySummary: true, securityAlerts: true},
-    subscription: {tier: "starter", status: "active", executionsUsed: 0, executionsLimit: 1000, nextInvoiceDate: ""},
+    notifications: {
+      flowFailure: true,
+      weeklySummary: true,
+      securityAlerts: true,
+    },
+    subscription: {
+      tier: "starter",
+      status: "active",
+      executionsUsed: 0,
+      executionsLimit: 1000,
+      nextInvoiceDate: "",
+    },
     apiKeys: [],
   };
 }
@@ -856,7 +998,7 @@ async function getUserId(req) {
     throw error;
   }
   const token = authorization.slice("Bearer ".length);
-  const decodedToken = await firebaseAuth.verifyIdToken(token);
+  const decodedToken = await firebaseAuth.verifyIdToken(token, true);
   return decodedToken.uid;
 }
 
@@ -879,7 +1021,9 @@ app.get("/api/flows", async (req, res) => {
   try {
     const userId = await requireUserId(req, res);
     if (!userId) return;
-    const snapshot = await flowCollection(userId).orderBy("createdAt", "desc").get();
+    const snapshot = await flowCollection(userId)
+        .orderBy("createdAt", "desc")
+        .get();
     res.json(snapshot.docs.map(serializeDocument));
   } catch (error) {
     res.status(500).json({error: "Failed to load flows"});
@@ -891,7 +1035,9 @@ app.post("/api/flows", async (req, res) => {
     const userId = await requireUserId(req, res);
     if (!userId) return;
     const {name, steps, status = "inactive"} = req.body;
-    if (!name || !steps) return res.status(400).json({error: "Name and steps are required"});
+    if (!name || !steps) {
+      return res.status(400).json({error: "Name and steps are required"});
+    }
     const flowRef = flowCollection(userId).doc();
     await flowRef.set({
       id: flowRef.id,
@@ -901,7 +1047,10 @@ app.post("/api/flows", async (req, res) => {
       lastRun: "Never",
       primaryMetric: "0 Executions",
       actions: Array.isArray(steps) ? steps.length : 0,
-      subMetrics: [{label: "Avg Duration", value: "0s"}, {label: "Success Rate", value: "0%"}],
+      subMetrics: [
+        {label: "Avg Duration", value: "0s"},
+        {label: "Success Rate", value: "0%"},
+      ],
       createdAt: FieldValue.serverTimestamp(),
       updatedAt: FieldValue.serverTimestamp(),
     });
@@ -916,12 +1065,17 @@ app.put("/api/flows/:flowId", async (req, res) => {
     const userId = await requireUserId(req, res);
     if (!userId) return;
     const flowRef = flowCollection(userId).doc(req.params.flowId);
-    if (!(await flowRef.get()).exists) return res.status(404).json({error: "Flow not found"});
+    if (!(await flowRef.get()).exists) {
+      return res.status(404).json({error: "Flow not found"});
+    }
     // `const {...updates} = req.body` is a no-op rest destructure that forwards
     // everything, letting the caller rewrite server-owned id/createdAt fields.
     // Explicitly drop them; the backend twin already did.
     const {id, createdAt, ...updates} = req.body || {};
-    await flowRef.set({...updates, updatedAt: FieldValue.serverTimestamp()}, {merge: true});
+    await flowRef.set(
+        {...updates, updatedAt: FieldValue.serverTimestamp()},
+        {merge: true},
+    );
     res.json(serializeDocument(await flowRef.get()));
   } catch (error) {
     res.status(500).json({error: "Failed to update flow"});
@@ -933,7 +1087,9 @@ app.delete("/api/flows/:flowId", async (req, res) => {
     const userId = await requireUserId(req, res);
     if (!userId) return;
     const flowRef = flowCollection(userId).doc(req.params.flowId);
-    if (!(await flowRef.get()).exists) return res.status(404).json({error: "Flow not found"});
+    if (!(await flowRef.get()).exists) {
+      return res.status(404).json({error: "Flow not found"});
+    }
     await flowRef.delete();
     res.json({success: true});
   } catch (error) {
@@ -968,13 +1124,21 @@ app.put("/api/user/profile", async (req, res) => {
     if (!userId) return;
     const profileRef = profileDocument(userId);
     const currentSnapshot = await profileRef.get();
-    const currentProfile = currentSnapshot.exists ? currentSnapshot.data() : getDefaultProfile(userId, {});
+    const currentProfile = currentSnapshot.exists ?
+      currentSnapshot.data() :
+      getDefaultProfile(userId, {});
 
     // SECURITY: field-level allow-list. Spreading req.body would let a caller set
     // billing-owned fields, and `subscription` in particular is read as the
     // entitlement fallback by resolveTier, so accepting it here would be a
     // self-service upgrade to the paid tier.
-    const EDITABLE_PROFILE_FIELDS = ["displayName", "photoURL", "workspace", "role", "timezone"];
+    const EDITABLE_PROFILE_FIELDS = [
+      "displayName",
+      "photoURL",
+      "workspace",
+      "role",
+      "timezone",
+    ];
     const body = req.body && typeof req.body === "object" ? req.body : {};
     const safeUpdates = {};
     for (const field of EDITABLE_PROFILE_FIELDS) {
@@ -985,24 +1149,34 @@ app.put("/api/user/profile", async (req, res) => {
 
     const safeNotifications = {};
     const requestedNotifications =
-      body.notifications && typeof body.notifications === "object" ? body.notifications : {};
+      body.notifications && typeof body.notifications === "object" ?
+        body.notifications :
+        {};
     for (const key of ["flowFailure", "weeklySummary", "securityAlerts"]) {
       if (typeof requestedNotifications[key] === "boolean") {
         safeNotifications[key] = requestedNotifications[key];
       }
     }
 
-    await profileRef.set({
-      ...currentProfile,
-      ...safeUpdates,
-      uid: userId,
-      email: currentProfile.email || "",
-      apiKeys: currentProfile.apiKeys || [],
-      // subscription is server-owned: preserved verbatim, never taken from the body.
-      subscription: currentProfile.subscription || getDefaultProfile(userId, {}).subscription,
-      notifications: {...(currentProfile.notifications || {}), ...safeNotifications},
-      updatedAt: FieldValue.serverTimestamp(),
-    }, {merge: true});
+    await profileRef.set(
+        {
+          ...currentProfile,
+          ...safeUpdates,
+          uid: userId,
+          email: currentProfile.email || "",
+          apiKeys: currentProfile.apiKeys || [],
+          // subscription is server-owned: preserved verbatim, never taken from the body.
+          subscription:
+          currentProfile.subscription ||
+          getDefaultProfile(userId, {}).subscription,
+          notifications: {
+            ...(currentProfile.notifications || {}),
+            ...safeNotifications,
+          },
+          updatedAt: FieldValue.serverTimestamp(),
+        },
+        {merge: true},
+    );
     res.json(serializeDocument(await profileRef.get()));
   } catch (error) {
     res.status(500).json({error: "Failed to update profile"});
@@ -1016,11 +1190,13 @@ app.get("/api/connectors", async (req, res) => {
     const sourceSnapshot = await dataSourceCollection(userId).get();
     if (sourceSnapshot.empty) {
       const batch = db.batch();
-      getDefaultDataSources().forEach((source) => batch.set(dataSourceCollection(userId).doc(source.id), {
-        ...source,
-        createdAt: FieldValue.serverTimestamp(),
-        updatedAt: FieldValue.serverTimestamp(),
-      }));
+      getDefaultDataSources().forEach((source) =>
+        batch.set(dataSourceCollection(userId).doc(source.id), {
+          ...source,
+          createdAt: FieldValue.serverTimestamp(),
+          updatedAt: FieldValue.serverTimestamp(),
+        }),
+      );
       await batch.commit();
       return res.json(getDefaultDataSources());
     }
@@ -1035,13 +1211,18 @@ app.put("/api/connectors/:connectorId", async (req, res) => {
     const userId = await requireUserId(req, res);
     if (!userId) return;
     const sourceRef = dataSourceCollection(userId).doc(req.params.connectorId);
-    if (!(await sourceRef.get()).exists) return res.status(404).json({error: "Connector not found"});
+    if (!(await sourceRef.get()).exists) {
+      return res.status(404).json({error: "Connector not found"});
+    }
     const currentSource = (await sourceRef.get()).data();
-    await sourceRef.set({
-      ...req.body,
-      config: {...currentSource.config, ...req.body.config},
-      updatedAt: FieldValue.serverTimestamp(),
-    }, {merge: true});
+    await sourceRef.set(
+        {
+          ...req.body,
+          config: {...currentSource.config, ...req.body.config},
+          updatedAt: FieldValue.serverTimestamp(),
+        },
+        {merge: true},
+    );
     res.json(serializeDocument(await sourceRef.get()));
   } catch (error) {
     res.status(500).json({error: "Failed to update connector"});
@@ -1054,8 +1235,14 @@ app.post("/api/connectors/google-sheets/verify", async (req, res) => {
     if (!userId) return;
 
     const {spreadsheetId} = req.body;
-    if (!spreadsheetId || typeof spreadsheetId !== "string" || !spreadsheetId.trim()) {
-      return res.status(400).json({error: "Spreadsheet ID or URL is required"});
+    if (
+      !spreadsheetId ||
+      typeof spreadsheetId !== "string" ||
+      !spreadsheetId.trim()
+    ) {
+      return res
+          .status(400)
+          .json({error: "Spreadsheet ID or URL is required"});
     }
 
     // Extract and sanitize spreadsheet ID (handles both URLs and raw IDs)
@@ -1071,7 +1258,8 @@ app.post("/api/connectors/google-sheets/verify", async (req, res) => {
     try {
       result = await googleSheets.verifyAccess(sanitizedId);
     } catch (verifyError) {
-      const message = verifyError.message || "Failed to verify Google Sheet access";
+      const message =
+        verifyError.message || "Failed to verify Google Sheet access";
       if (message.includes("Permission denied")) {
         return res.status(403).json({error: message});
       }
@@ -1083,11 +1271,14 @@ app.post("/api/connectors/google-sheets/verify", async (req, res) => {
 
     // Save it if successful
     const sourceRef = dataSourceCollection(userId).doc("google-sheets");
-    await sourceRef.set({
-      connected: true,
-      config: {spreadsheetId: sanitizedId},
-      updatedAt: FieldValue.serverTimestamp(),
-    }, {merge: true});
+    await sourceRef.set(
+        {
+          connected: true,
+          config: {spreadsheetId: sanitizedId},
+          updatedAt: FieldValue.serverTimestamp(),
+        },
+        {merge: true},
+    );
 
     return res.json({
       success: true,
@@ -1096,8 +1287,12 @@ app.post("/api/connectors/google-sheets/verify", async (req, res) => {
       message: "Google Sheet connected successfully!",
     });
   } catch (error) {
-    console.error("[Google Sheets Verify Error]:", error);
-    return res.status(500).json({error: "An unexpected error occurred while verifying the Google Sheet"});
+    logFailure("[Google Sheets Verify Error]:");
+    return res
+        .status(500)
+        .json({
+          error: "An unexpected error occurred while verifying the Google Sheet",
+        });
   }
 });
 
@@ -1108,8 +1303,10 @@ app.get("/api/connectors/google-sheets/service-account", async (req, res) => {
     const serviceAccountEmail = await googleSheets.getServiceAccountEmail();
     return res.json({serviceAccountEmail});
   } catch (error) {
-    console.error("[Google Sheets Service Account Error]", error);
-    return res.status(500).json({error: "Failed to identify the Google Sheets service account."});
+    logFailure("[Google Sheets Service Account Error]");
+    return res
+        .status(500)
+        .json({error: "Failed to identify the Google Sheets service account."});
   }
 });
 
@@ -1119,13 +1316,24 @@ app.post("/api/connectors/google-sheets/analyze", async (req, res) => {
     if (!userId) return;
     if (!MAKE_WEBHOOK_URL) {
       return res.status(503).json({
-        error: "AI classification is not configured. Connect the workflow before analyzing a sheet.",
+        error:
+          "AI classification is not configured. Connect the workflow before analyzing a sheet.",
       });
     }
 
-    const sourceDoc = await dataSourceCollection(userId).doc("google-sheets").get();
-    if (!sourceDoc.exists || !sourceDoc.data().connected || !sourceDoc.data().config?.spreadsheetId) {
-      return res.status(400).json({error: "Connect and verify a Google Sheet before analyzing it."});
+    const sourceDoc = await dataSourceCollection(userId)
+        .doc("google-sheets")
+        .get();
+    if (
+      !sourceDoc.exists ||
+      !sourceDoc.data().connected ||
+      !sourceDoc.data().config?.spreadsheetId
+    ) {
+      return res
+          .status(400)
+          .json({
+            error: "Connect and verify a Google Sheet before analyzing it.",
+          });
     }
     const spreadsheetId = sourceDoc.data().config.spreadsheetId;
 
@@ -1147,7 +1355,8 @@ app.post("/api/connectors/google-sheets/analyze", async (req, res) => {
     const {rows, isEmpty} = sheetData;
     if (isEmpty || !rows || rows.length === 0) {
       return res.status(400).json({
-        error: "Google Sheet contains no data rows in Sheet1. Please add data and try again.",
+        error:
+          "Google Sheet contains no data rows in Sheet1. Please add data and try again.",
       });
     }
 
@@ -1156,25 +1365,44 @@ app.post("/api/connectors/google-sheets/analyze", async (req, res) => {
 
     for (let i = 0; i < Math.min(rows.length, 50); i++) {
       const row = rows[i];
-      const name = row["Name"] || row["Full Name"] || row["First Name"] || row["name"] || "";
+      const name =
+        row["Name"] ||
+        row["Full Name"] ||
+        row["First Name"] ||
+        row["name"] ||
+        "";
       const email = row["Email"] || row["Email Address"] || row["email"] || "";
-      const company = row["Company"] || row["Organization"] || row["company"] || "";
-      const message = row["Message"] || row["Inquiry"] || row["Notes"] || row["Description"] ||
-          row["message"] || JSON.stringify(row);
+      const company =
+        row["Company"] || row["Organization"] || row["company"] || "";
+      const message =
+        row["Message"] ||
+        row["Inquiry"] ||
+        row["Notes"] ||
+        row["Description"] ||
+        row["message"] ||
+        JSON.stringify(row);
 
       const inquiryData = {name, email, company, message};
 
       let classification;
       try {
         const workflowResponse = await requestWebhook(MAKE_WEBHOOK_URL, {
-          body: {...inquiryData, receivedAt: new Date().toISOString(), source: "google_sheets_bulk"},
+          body: {
+            ...inquiryData,
+            receivedAt: new Date().toISOString(),
+            source: "google_sheets_bulk",
+          },
         });
         classification = workflowResponse?.classification;
-        if (!classification || typeof classification !== "object" || !Object.keys(classification).length) {
+        if (
+          !classification ||
+          typeof classification !== "object" ||
+          !Object.keys(classification).length
+        ) {
           throw new Error("Workflow returned no classification");
         }
       } catch (error) {
-        console.error("[Make Webhook Sheet Error]", error);
+        logFailure("[Make Webhook Sheet Error]");
         return res.status(502).json({
           error: `Classification stopped at sheet row ${row._rowIndex}. No AI results were written.`,
         });
@@ -1195,11 +1423,15 @@ app.post("/api/connectors/google-sheets/analyze", async (req, res) => {
     }
 
     try {
-      await googleSheets.writeClassificationsToSheet(spreadsheetId, classificationsToWrite);
+      await googleSheets.writeClassificationsToSheet(
+          spreadsheetId,
+          classificationsToWrite,
+      );
     } catch (writeErr) {
-      console.error("[Sheet Writeback Error]", writeErr);
+      logFailure("[Sheet Writeback Error]");
       return res.status(502).json({
-        error: "AI analysis finished, but the results could not be written to Google Sheets.",
+        error:
+          "AI analysis finished, but the results could not be written to Google Sheets.",
       });
     }
 
@@ -1213,19 +1445,26 @@ app.post("/api/connectors/google-sheets/analyze", async (req, res) => {
       spreadsheetId,
     });
   } catch (error) {
-    console.error("[Google Sheets Analysis Error]:", error);
-    return res.status(500).json({error: "An unexpected error occurred while analyzing the Google Sheet"});
+    logFailure("[Google Sheets Analysis Error]:");
+    return res
+        .status(500)
+        .json({
+          error: "An unexpected error occurred while analyzing the Google Sheet",
+        });
   }
 });
 
-app.post("/api/webhook/:webhookId", (req, res) => handleInquiry(req, res, req.params.webhookId));
+app.post("/api/webhook/:webhookId", (req, res) =>
+  handleInquiry(req, res, req.params.webhookId),
+);
 
 app.post("/api/onboarding/generate-key", async (req, res) => {
   try {
     const userId = await requireUserId(req, res);
     if (!userId) return;
 
-    const existingKeyDoc = await db.collection("apiKeys")
+    const existingKeyDoc = await db
+        .collection("apiKeys")
         .where("customerId", "==", userId)
         .where("active", "==", true)
         .limit(1)
@@ -1262,7 +1501,7 @@ app.post("/api/onboarding/generate-key", async (req, res) => {
       createdAt: new Date().toISOString(),
     });
   } catch (error) {
-    console.error("Error generating API key:", error);
+    logFailure("Error generating API key:");
     res.status(500).json({error: "Failed to generate API key"});
   }
 });
@@ -1272,7 +1511,8 @@ app.get("/api/onboarding/status", async (req, res) => {
     const userId = await requireUserId(req, res);
     if (!userId) return;
 
-    const keyDoc = await db.collection("apiKeys")
+    const keyDoc = await db
+        .collection("apiKeys")
         .where("customerId", "==", userId)
         .where("active", "==", true)
         .limit(1)
@@ -1288,14 +1528,14 @@ app.get("/api/onboarding/status", async (req, res) => {
     const keyData = keyDoc.docs[0].data();
     return res.json({
       hasApiKey: true,
-      apiKey: keyData.key,
+      keyPreview: keyData.keyPreview || null,
       businessName: keyData.businessName,
       plan: keyData.plan,
       totalInquiries: keyData.totalInquiries || 0,
       createdAt: serializeFirestoreValue(keyData.createdAt),
     });
   } catch (error) {
-    console.error("Error getting onboarding status:", error);
+    logFailure("Error getting onboarding status:");
     res.status(500).json({error: "Failed to get onboarding status"});
   }
 });
@@ -1307,13 +1547,18 @@ app.put("/api/onboarding/business-name", async (req, res) => {
 
     const {businessName} = req.body;
     if (!businessName || typeof businessName !== "string") {
-      return res.status(400).json({error: "businessName must be a non-empty string"});
+      return res
+          .status(400)
+          .json({error: "businessName must be a non-empty string"});
     }
     if (businessName.length > 100) {
-      return res.status(400).json({error: "businessName must be under 100 characters"});
+      return res
+          .status(400)
+          .json({error: "businessName must be under 100 characters"});
     }
 
-    const keyQuery = await db.collection("apiKeys")
+    const keyQuery = await db
+        .collection("apiKeys")
         .where("customerId", "==", userId)
         .where("active", "==", true)
         .limit(1)
@@ -1330,7 +1575,7 @@ app.put("/api/onboarding/business-name", async (req, res) => {
 
     return res.json({success: true, businessName});
   } catch (error) {
-    console.error("Error updating business name:", error);
+    logFailure("Error updating business name:");
     res.status(500).json({error: "Failed to update business name"});
   }
 });
@@ -1340,8 +1585,12 @@ app.post("/api/analyze/upload", async (req, res) => {
     const userId = await requireUserId(req, res);
     if (!userId) return;
 
-    if (!await checkRateLimit(userId, 5, 60000)) {
-      return res.status(429).json({error: "Too many uploads. Please wait before uploading again."});
+    if (!(await checkRateLimit(userId, 5, 60000))) {
+      return res
+          .status(429)
+          .json({
+            error: "Too many uploads. Please wait before uploading again.",
+          });
     }
 
     // An X-API-Key may be presented for attribution, but it must belong to the
@@ -1352,7 +1601,8 @@ app.post("/api/analyze/upload", async (req, res) => {
     const customer = await validateApiKey(req);
     if (customer && customer.customerId && customer.customerId !== userId) {
       return res.status(403).json({
-        error: "The supplied API key does not belong to the authenticated user.",
+        error:
+          "The supplied API key does not belong to the authenticated user.",
       });
     }
 
@@ -1366,8 +1616,10 @@ app.post("/api/analyze/upload", async (req, res) => {
       if (uploadError && uploadError.status === 413) {
         return res.status(413).json({error: uploadError.message});
       }
-      console.error("Error reading upload:", uploadError);
-      return res.status(400).json({error: "Could not read the uploaded file."});
+      logFailure("Error reading upload:");
+      return res
+          .status(400)
+          .json({error: "Could not read the uploaded file."});
     }
 
     if (!fileBuffer || fileBuffer.length === 0) {
@@ -1379,7 +1631,9 @@ app.post("/api/analyze/upload", async (req, res) => {
     try {
       rows = parseSpreadsheet(fileBuffer, fileName);
     } catch (parseError) {
-      return res.status(400).json({error: `Failed to parse file: ${parseError.message}`});
+      return res
+          .status(400)
+          .json({error: `Failed to parse file: ${parseError.message}`});
     }
 
     if (!rows || rows.length === 0) {
@@ -1419,9 +1673,16 @@ app.post("/api/analyze/upload", async (req, res) => {
       const row = limitedRows[i];
 
       // Skip rows with no meaningful data (all empty values)
-      const hasData = Object.values(row).some((v) => v !== null && v !== undefined && String(v).trim() !== "");
+      const hasData = Object.values(row).some(
+          (v) => v !== null && v !== undefined && String(v).trim() !== "",
+      );
       if (!hasData) {
-        results.push({raw_data: row, row: i + 1, status: "skipped", reason: "Empty row"});
+        results.push({
+          raw_data: row,
+          row: i + 1,
+          status: "skipped",
+          reason: "Empty row",
+        });
         continue;
       }
 
@@ -1429,17 +1690,21 @@ app.post("/api/analyze/upload", async (req, res) => {
         if (MAKE_WEBHOOK_URL) {
           const enrichedBody = {
             raw_data: row,
-            ...(customer ? {
-              customerId: customer.customerId,
-              businessName: customer.businessName,
-              plan: customer.plan,
-            } : {}),
+            ...(customer ?
+              {
+                customerId: customer.customerId,
+                businessName: customer.businessName,
+                plan: customer.plan,
+              } :
+              {}),
             receivedAt: new Date().toISOString(),
             source: "bulk_upload",
             batchId,
           };
 
-          const webhookResponse = await requestWebhook(MAKE_WEBHOOK_URL, {body: enrichedBody});
+          const webhookResponse = await requestWebhook(MAKE_WEBHOOK_URL, {
+            body: enrichedBody,
+          });
           const classification = webhookResponse?.classification || {};
           if (!Object.keys(classification).length) {
             throw new Error("Workflow returned no classification");
@@ -1453,7 +1718,7 @@ app.post("/api/analyze/upload", async (req, res) => {
                 ...classification,
               });
             } catch (err) {
-              console.error("[Google Sheets] Bulk upload append failed for row:", err);
+              logFailure("[Google Sheets] Bulk upload append failed for row:");
             }
           }
 
@@ -1462,7 +1727,8 @@ app.post("/api/analyze/upload", async (req, res) => {
             raw_data: row,
             name: classification.extracted_name || classification.name || "",
             email: classification.extracted_email || classification.email || "",
-            company: classification.extracted_company || classification.company || "",
+            company:
+              classification.extracted_company || classification.company || "",
             intent: classification.intent || "",
             urgency: classification.urgency || "",
             fit_score: classification.fit_score ?? "",
@@ -1472,10 +1738,20 @@ app.post("/api/analyze/upload", async (req, res) => {
             status: "classified",
           });
         } else {
-          results.push({raw_data: row, row: i + 1, status: "error", reason: "Workflow not configured"});
+          results.push({
+            raw_data: row,
+            row: i + 1,
+            status: "error",
+            reason: "Workflow not configured",
+          });
         }
       } catch (err) {
-        results.push({raw_data: row, row: i + 1, status: "error", reason: err.message});
+        results.push({
+          raw_data: row,
+          row: i + 1,
+          status: "error",
+          reason: err.message,
+        });
       }
 
       // Update progress every 5 rows
@@ -1495,17 +1771,22 @@ app.post("/api/analyze/upload", async (req, res) => {
     const resultChunkSize = 100;
     for (let i = 0; i < results.length; i += resultChunkSize) {
       const chunk = results.slice(i, i + resultChunkSize);
-      await batchRef.collection("results").doc(`chunk_${Math.floor(i / resultChunkSize)}`).set({items: chunk});
+      await batchRef
+          .collection("results")
+          .doc(`chunk_${Math.floor(i / resultChunkSize)}`)
+          .set({items: chunk});
     }
 
     // Track usage on the caller's own key. customer.customerId is guaranteed to
     // equal userId by the ownership check at the top of the handler, so this can
     // no longer increment another tenant's quota.
     if (customer) {
-      const keyQuery = await db.collection("apiKeys")
+      const keyQuery = await db
+          .collection("apiKeys")
           .where("customerId", "==", userId)
           .where("active", "==", true)
-          .limit(1).get();
+          .limit(1)
+          .get();
       if (!keyQuery.empty) {
         await keyQuery.docs[0].ref.update({
           totalInquiries: FieldValue.increment(limitedRows.length),
@@ -1524,7 +1805,7 @@ app.post("/api/analyze/upload", async (req, res) => {
       results,
     });
   } catch (error) {
-    console.error("Error in bulk analysis:", error);
+    logFailure("Error in bulk analysis:");
     res.status(500).json({error: "Failed to process file: " + error.message});
   }
 });
@@ -1534,7 +1815,8 @@ app.get("/api/analyze/history", async (req, res) => {
     const userId = await requireUserId(req, res);
     if (!userId) return;
 
-    const snapshot = await db.collection("analyses")
+    const snapshot = await db
+        .collection("analyses")
         .where("userId", "==", userId)
         .orderBy("createdAt", "desc")
         .limit(20)
@@ -1549,7 +1831,7 @@ app.get("/api/analyze/history", async (req, res) => {
 
     return res.json({analyses});
   } catch (error) {
-    console.error("Error fetching analysis history:", error);
+    logFailure("Error fetching analysis history:");
     res.status(500).json({error: "Failed to fetch analysis history"});
   }
 });
@@ -1559,7 +1841,10 @@ app.get("/api/analyze/:batchId", async (req, res) => {
     const userId = await requireUserId(req, res);
     if (!userId) return;
 
-    const batchDoc = await db.collection("analyses").doc(req.params.batchId).get();
+    const batchDoc = await db
+        .collection("analyses")
+        .doc(req.params.batchId)
+        .get();
     if (!batchDoc.exists) {
       return res.status(404).json({error: "Analysis not found"});
     }
@@ -1584,7 +1869,7 @@ app.get("/api/analyze/:batchId", async (req, res) => {
       results,
     });
   } catch (error) {
-    console.error("Error fetching analysis:", error);
+    logFailure("Error fetching analysis:");
     res.status(500).json({error: "Failed to fetch analysis"});
   }
 });
@@ -1595,12 +1880,15 @@ app.get("/api/user/tier", async (req, res) => {
     if (!userId) return;
 
     const userDoc = await db.collection("users").doc(userId).get();
-    const profileDoc = await userDoc.ref.collection("profile").doc("main").get();
+    const profileDoc = await userDoc.ref
+        .collection("profile")
+        .doc("main")
+        .get();
     const {tier, plan} = resolveTier(userDoc.data(), profileDoc.data());
 
     return res.json({tier, plan, userId});
   } catch (error) {
-    console.error("Error fetching user tier:", error);
+    logFailure("Error fetching user tier:");
     res.status(500).json({error: "Failed to fetch user tier"});
   }
 });
@@ -1621,7 +1909,10 @@ app.post("/api/user/redeem-key", async (req, res) => {
       // The key read MUST go through the transaction. Using a plain collection
       // query here leaves the key outside the read set, so concurrent requests
       // both observe redeemed === false and both grant the entitlement.
-      const keyQuery = db.collection("apiKeys").where("key", "==", key).limit(1);
+      const keyQuery = db
+          .collection("apiKeys")
+          .where("key", "==", key)
+          .limit(1);
       const keySnapshot = await transaction.get(keyQuery);
 
       if (keySnapshot.empty) {
@@ -1649,7 +1940,10 @@ app.post("/api/user/redeem-key", async (req, res) => {
       transaction.set(userRef, {tier: entitlement, plan}, {merge: true});
       transaction.set(
           userRef.collection("profile").doc("main"),
-          {subscription: {tier: plan, status: "active"}, updatedAt: FieldValue.serverTimestamp()},
+          {
+            subscription: {tier: plan, status: "active"},
+            updatedAt: FieldValue.serverTimestamp(),
+          },
           {merge: true},
       );
       return {tier: entitlement, plan};
@@ -1666,18 +1960,54 @@ app.post("/api/user/redeem-key", async (req, res) => {
 
     return res.json({success: true, tier: result.tier, plan: result.plan});
   } catch (error) {
-    console.error("Error redeeming key:", error);
+    logFailure("Error redeeming key:");
     // Only the two statuses we raise deliberately are reflected. Anything else
     // is an internal failure and must not leak its message or drive the status
     // code, since a thrown Firestore error does not set `.status` but a future
     // dependency might.
-    const status = error.status === 404 || error.status === 409 ? error.status : 500;
+    const status =
+      error.status === 404 || error.status === 409 ? error.status : 500;
     const message = status === 500 ? "Failed to redeem key." : error.message;
     return res.status(status).json({error: message});
   }
 });
 
+app.use(notFound);
+app.use(errorHandler);
 exports.api = onRequest({invoker: "public"}, app);
+const {onDocumentWritten} = require("firebase-functions/v2/firestore");
+const {onSchedule} = require("firebase-functions/v2/scheduler");
+exports.processWorkspaceJob = onDocumentWritten(
+    {document: "workspaceJobs/{jobId}", timeoutSeconds: 180, retry: true},
+    async (event) => {
+      if (event.data?.after.data()?.status === "queued") {
+        await workspace.service.processJob(event.params.jobId);
+      }
+    },
+);
+exports.recoverWorkspaceJobs = onSchedule(
+    {schedule: "every 1 minutes", timeoutSeconds: 540},
+    () => workspace.service.recover(),
+);
+
+// Automatic import polling. Disabled by default: it only runs when the
+// deployment explicitly sets PROCESSING_AUTOMATION=1. Local development and
+// the currently billing-suspended production deployment stay inert.
+const {automationService} = require("./lib/automation");
+const automation = automationService(
+    require("firebase-admin/firestore").getFirestore(),
+    workspace.service,
+    require("./lib/sheetWorkspace"),
+);
+exports.pollImportRecipes = onSchedule(
+    {schedule: "every 1 minutes", timeoutSeconds: 540},
+    async () => {
+      if (!process.env.PROCESSING_AUTOMATION) return;
+      await automation.scanDue();
+      await automation.settle();
+      await automation.recoverStaleRuns();
+    },
+);
 
 // Scheduled maintenance and analytics rollups. Kept in lib/jobs.js so the
 // request handler above stays focused on serving traffic.

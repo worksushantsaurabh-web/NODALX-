@@ -4,6 +4,8 @@
   "scripts": {
     "lint": "eslint .",
     "test": "node --test lib/*.test.js",
+    "test:unit": "node --test lib/http.test.js lib/plans.test.js lib/tier.test.js lib/uploadWorkspace.test.js",
+    "test:integration": "node scripts/run-integration.js",
     "serve": "firebase emulators:start --only functions",
     "shell": "firebase functions:shell",
     "start": "npm run shell",
@@ -25,12 +27,15 @@
     "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz"
   },
   "devDependencies": {
+    "@firebase/rules-unit-testing": "^5.0.2",
     "eslint": "^8.15.0",
     "eslint-config-google": "^0.14.0"
   },
   "private": true,
   "overrides": {
-    "gaxios@6.7.1": { "uuid": "^11.1.1" }
+    "gaxios@6.7.1": {
+      "uuid": "^11.1.1"
+    }
   },
   "allowScripts": {
     "@firebase/util@1.15.1": true,

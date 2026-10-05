@@ -82,11 +82,12 @@ const SKIP_DIR_PREFIXES = ['node_modules/', 'dist/', '_archive/', '.git/'];
 
 const stagedOnly = process.argv.includes('--staged');
 const history = process.argv.includes('--history');
+const workingTree = process.argv.includes('--working-tree');
 
 function trackedFiles() {
   const args = stagedOnly
     ? ['diff', '--cached', '--name-only', '-z', '--diff-filter=ACMR']
-    : ['ls-files', '-z'];
+    : workingTree ? ['ls-files', '--cached', '--others', '--exclude-standard', '-z'] : ['ls-files', '-z'];
   const out = execFileSync('git', args, { encoding: 'utf8', maxBuffer: 32 * 1024 * 1024 });
   return out.split('\0').filter(Boolean);
 }
@@ -146,4 +147,4 @@ if (findings.length) {
   process.exit(1);
 }
 
-console.log(`Scanned ${files.length} tracked files. No secret-like values found.`);
+console.log(`Scanned ${files.length} ${workingTree ? 'working-tree' : 'tracked'} files. No secret-like values found.`);

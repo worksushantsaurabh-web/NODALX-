@@ -22,7 +22,7 @@
  * committed to a public repository without leaking it.
  *
  * Deploy: Deploy → New Deployment → Web App → Execute as Me, Who has access
- * Anyone. Then copy the URL into frontend/.env (git-ignored).
+ * Anyone. Configure the URL and secret only on the server-side contact proxy.
  * ═══════════════════════════════════════════════════════════════
  */
 
@@ -67,6 +67,7 @@ const HEADERS = [
   'Timestamp', 'Name', 'Email', 'Phone', 'Company', 'Industry',
   'Message', 'Source', 'Intent', 'Urgency', 'Fit Score',
   'Summary', 'Suggested Action', 'Category', 'Status', 'Row ID',
+  'Service', 'Payload Hash',
 ];
 
 // ═══════════════════════════════════════════════════════════════
@@ -77,9 +78,8 @@ const HEADERS = [
  * Verify the shared secret on an inbound request.
  *
  * Uses a constant-time comparison so a wrong secret cannot be recovered by
- * timing responses. Accepts either an `x-nodalx-secret` header or a `secret`
- * query parameter, because Apps Script does not forward arbitrary headers for
- * every invocation mode.
+ * timing responses. Apps Script web-app events provide the `secret` query
+ * parameter; do not rely on arbitrary request headers being available.
  *
  * @param {GoogleAppsScript.Events.DoGet|GoogleAppsScript.Events.DoPost} e Event.
  * @return {boolean} True only when a matching secret was supplied.
@@ -261,6 +261,17 @@ function setupSheet() {
     range.setFontWeight('bold').setBackground('#1a1a2e').setFontColor('#ffffff');
     sheet.autoResizeColumns(1, HEADERS.length);
     sheet.setFrozenRows(1);
+  } else {
+    const headings = sheet.getRange(1, 1, 1, HEADERS.length).getValues()[0];
+    if (HEADERS.slice(0, 16).some((heading, index) => headings[index] !== heading)) {
+      throw new Error('The first tab does not have the expected inquiry headings. Check the configured spreadsheet.');
+    }
+    for (let column = 16; column < HEADERS.length; column++) {
+      if (headings[column] && headings[column] !== HEADERS[column]) {
+        throw new Error('The inquiry extension columns contain other data. Review the sheet before upgrading.');
+      }
+    }
+    sheet.getRange(1, 17, 1, 2).setValues([HEADERS.slice(16)]);
   }
 
   return ss;
@@ -270,36 +281,52 @@ function setupSheet() {
  * Append a classified inquiry to the sheet.
  * @param {Object} payload Submitted payload.
  * @param {Object} classification Result of classifyInquiry.
- * @return {string} The generated row ID.
+ * @return {Object} Stored row ID, duplicate indicator, or conflict indicator.
  */
 function storeInquiry(payload, classification) {
   const sheet = setupSheet().getSheets()[0];
-  const rowId = Utilities.getUuid();
+  const rowId = payload.requestId || Utilities.getUuid();
+  const content = JSON.stringify(['name', 'email', 'phone', 'company', 'industry', 'service', 'message', 'source'].map(field => payload[field] || ''));
+  const payloadHash = Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, content, Utilities.Charset.UTF_8)
+      .map(value => ((value + 256) % 256).toString(16).padStart(2, '0')).join('');
+  if (sheet.getLastRow() > 1) {
+    const found = sheet.getRange(2, 16, sheet.getLastRow() - 1, 1).createTextFinder(rowId)
+        .matchEntireCell(true).matchCase(true).findNext();
+    if (found) {
+      const storedHash = sheet.getRange(found.getRow(), 18).getValue();
+      if (storedHash !== payloadHash) return {conflict: true};
+      return {rowId: rowId, duplicate: true};
+    }
+  }
+
+  const safeText = value => /^[\s]*[=+@-]/.test(String(value || '')) ? "'" + String(value) : String(value || '');
 
   sheet.appendRow([
     new Date().toISOString(),
-    payload.name || '',
-    payload.email || '',
-    payload.phone || '',
-    payload.company || '',
-    payload.industry || '',
-    payload.message || '',
-    payload.source || '',
+    safeText(payload.name),
+    safeText(payload.email),
+    safeText(payload.phone),
+    safeText(payload.company),
+    safeText(payload.industry),
+    safeText(payload.message),
+    safeText(payload.source),
     classification.intent,
     classification.urgency,
     classification.fit_score,
-    classification.summary,
-    classification.suggested_action,
+    safeText(classification.summary),
+    safeText(classification.suggested_action),
     classification.category,
     'New',
     rowId,
+    safeText(payload.service),
+    payloadHash,
   ]);
 
   const colors = {high: '#ffebee', medium: '#fff8e1', low: '#e8f5e9'};
   sheet.getRange(sheet.getLastRow(), 1, 1, HEADERS.length)
       .setBackground(colors[classification.urgency] || '#ffffff');
 
-  return rowId;
+  return {rowId: rowId, duplicate: false};
 }
 
 /**
@@ -327,6 +354,7 @@ function getAllInquiries() {
     suggested_action: row[12] || '',
     category: row[13] || '',
     status: row[14] || 'New',
+    service: row[16] || '',
     last_active: row[0] || new Date().toISOString(),
   })).reverse();
 }
@@ -386,7 +414,7 @@ function sendEmailNotifications(payload, classification) {
       });
     }
   } catch (error) {
-    console.error('Owner notification failed: ' + error);
+    console.error('Owner notification failed');
   }
 
   try {
@@ -400,7 +428,7 @@ function sendEmailNotifications(payload, classification) {
       });
     }
   } catch (error) {
-    console.error('Confirmation email failed: ' + error);
+    console.error('Confirmation email failed');
   }
 }
 
@@ -429,7 +457,7 @@ function doPost(e) {
   }
 
   const lock = LockService.getScriptLock();
-  lock.waitLock(10000);
+  let locked = false;
 
   try {
     let payload;
@@ -439,25 +467,41 @@ function doPost(e) {
       return jsonResponse({success: false, message: 'Invalid JSON'});
     }
 
-    if (!payload.name || !payload.email) {
-      return jsonResponse({success: false, message: 'Name and email are required'});
+    if (!payload || typeof payload !== 'object' || Array.isArray(payload)) {
+      return jsonResponse({success: false, message: 'Invalid inquiry'});
     }
+    for (const field of ['name', 'email', 'phone', 'company', 'industry', 'service', 'message', 'source']) {
+      if (payload[field] != null && (typeof payload[field] !== 'string' || payload[field].length > (field === 'message' ? 12000 : 500))) {
+        return jsonResponse({success: false, message: 'Invalid inquiry field'});
+      }
+      payload[field] = (payload[field] || '').trim();
+    }
+    if (['name', 'email', 'company', 'message'].some(field => !payload[field]) || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(payload.email)) {
+      return jsonResponse({success: false, message: 'Name, valid email, company, and message are required'});
+    }
+    if (payload.requestId != null && (typeof payload.requestId !== 'string' || !/^[a-zA-Z0-9_-]{8,100}$/.test(payload.requestId))) {
+      return jsonResponse({success: false, message: 'Invalid request ID'});
+    }
+    lock.waitLock(10000);
+    locked = true;
 
     const classification = classifyInquiry(payload);
-    const rowId = storeInquiry(payload, classification);
-    sendEmailNotifications(payload, classification);
+    const stored = storeInquiry(payload, classification);
+    if (stored.conflict) return jsonResponse({success: false, code: 'IDEMPOTENCY_CONFLICT', message: 'Request ID belongs to different inquiry data'});
+    if (!stored.duplicate) sendEmailNotifications(payload, classification);
 
     return jsonResponse({
       success: true,
       message: 'Inquiry received and classified!',
       classification: classification,
-      rowId: rowId,
+      rowId: stored.rowId,
+      duplicate: stored.duplicate,
     });
   } catch (error) {
-    console.error('doPost failed: ' + error);
+    console.error('doPost failed');
     return jsonResponse({success: false, message: 'Server error'});
   } finally {
-    lock.releaseLock();
+    if (locked) lock.releaseLock();
   }
 }
 
@@ -475,6 +519,11 @@ function doGet(e) {
   try {
     const action = (e && e.parameter && e.parameter.action) || 'list';
 
+    if (action === 'health') {
+      const sheet = SpreadsheetApp.openById(getSheetId()).getSheets()[0];
+      return jsonResponse({success: true, configured: true, sheetAccessible: true, rows: Math.max(0, sheet.getLastRow() - 1)});
+    }
+
     if (action === 'list') {
       const inquiries = getAllInquiries();
       return jsonResponse({success: true, count: inquiries.length, customers: inquiries});
@@ -485,7 +534,7 @@ function doGet(e) {
 
     return jsonResponse({success: false, message: 'Unknown action'});
   } catch (error) {
-    console.error('doGet failed: ' + error);
+    console.error('doGet failed');
     return jsonResponse({success: false, message: 'Server error'});
   }
 }

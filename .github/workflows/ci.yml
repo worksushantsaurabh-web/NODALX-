@@ -25,8 +25,18 @@ jobs:
           cache: npm
           cache-dependency-path: functions/package-lock.json
       - run: npm ci
-      - run: npm test
+      - run: npm run test:unit
       - run: npm run lint
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+      - name: Test workspace APIs with real Auth and Firestore emulators
+        working-directory: .
+        run: npx --yes firebase-tools@15.24.0 emulators:exec --only auth,firestore --project demo-nodalx-tests 'npm --prefix functions run test:integration'
+      - name: Test alternate Apps Script proxy
+        working-directory: .
+        run: node --test tests/*.test.mjs
       - name: Verify every export is a Cloud Function
         # A plain object or a stray helper export fails silently at deploy time
         # and only surfaces when the trigger stops firing.
@@ -71,6 +81,8 @@ jobs:
           cache-dependency-path: frontend/package-lock.json
       - run: npm ci
       # Env files are untracked, so CI must supply its own placeholders.
+      - name: Audit frontend runtime dependencies
+        run: npm audit --omit=dev --audit-level=high
       - run: npm run build
         env:
           VITE_FIREBASE_API_KEY: ci-placeholder
@@ -79,7 +91,7 @@ jobs:
           VITE_FIREBASE_STORAGE_BUCKET: ci-placeholder.appspot.com
           VITE_FIREBASE_MESSAGING_SENDER_ID: 000000000000
           VITE_FIREBASE_APP_ID: 1:000000000000:web:ciplaceholder
-      - run: node --test pages/inquiryDesk.test.ts
+      - run: node --test pages/*.test.ts lib/analyticsConsent.test.ts
 
   rules:
     name: Firestore config
