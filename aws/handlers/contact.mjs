@@ -16,7 +16,7 @@ export function createHandler(dependencies) {
     }
     const headers = Object.fromEntries(Object.entries(event.headers || {}).map(([name, value]) => [name.toLowerCase(), value]));
     const response = await receiveContact({method: event.requestContext?.http?.method,
-      body, idempotencyKey: headers['idempotency-key']}, dependencies);
+      body, idempotencyKey: headers['idempotency-key']}, {...dependencies, timeoutMs: 15000});
     return {statusCode: response.status, headers: response.headers, body: JSON.stringify(response.body), isBase64Encoded: false};
   };
 }

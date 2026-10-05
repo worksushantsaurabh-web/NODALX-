@@ -29,6 +29,12 @@ References: [gRPC maintainer advisory](https://github.com/grpc/grpc-node/securit
 
 ## 2. Inquiry intake — owner configuration required
 
+Status update, 5 October: server variables are configured and Apps Script
+Version 4 is deployed. One labelled inquiry was stored without duplication on
+retry, but both public requests returned 502. The timeout repair is local and
+awaits Vercel publishing. See `intake-timeout-repair-2026-10-05.md`; the steps
+below remain a setup checklist, not the current verification status.
+
 1. Open Apps Script **Project Settings → Script Properties** for the existing
    inquiry project. Keep `INTAKE_SECRET` and `SHEET_ID` there. Do not change or
    disclose the secret unless deliberately rotating both ends together.
@@ -62,7 +68,7 @@ References: [gRPC maintainer advisory](https://github.com/grpc/grpc-node/securit
    with the same key: one row and no duplicate notifications. A different
    payload must have a different key. A health check alone does not prove storage.
 
-**Intake remains unavailable until these steps finish.** Apps Script rows are
+**Confirmed public intake is not yet verified after the timeout repair.** Apps Script rows are
 not automatically visible in the current Firestore dashboard. Never expose the
 entire owner spreadsheet to every signed-in user.
 

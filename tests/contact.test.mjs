@@ -1,7 +1,8 @@
 import assert from 'node:assert/strict';
 import {test} from 'node:test';
+import {readFileSync} from 'node:fs';
 import handler from '../api/contact.mjs';
-import {receiveContact, intakeConfiguration} from '../server/contact.mjs';
+import {receiveContact, intakeConfiguration, INTAKE_TIMEOUT_MS} from '../server/contact.mjs';
 
 function response() {
   return {
@@ -45,6 +46,78 @@ test('Apps Script contact proxy accepts a confirmed write and keeps its secret s
 
 const configured = {APPS_SCRIPT_WEB_APP_URL: 'https://script.google.com/macros/s/AKfytest/exec', APPS_SCRIPT_INTAKE_SECRET: 'test-only-secret'};
 const inquiry = {name: 'Mira', email: 'mira@example.test', company: 'Example', message: 'Hello'};
+
+function mockIntakeClock(context) {
+  context.mock.timers.enable({apis: ['setTimeout']});
+  context.mock.method(AbortSignal, 'timeout', timeout => {
+    assert.equal(timeout, INTAKE_TIMEOUT_MS);
+    const controller = new AbortController();
+    setTimeout(() => controller.abort(new DOMException('Timed out', 'TimeoutError')), timeout);
+    return controller.signal;
+  });
+}
+
+test('inquiry deadlines leave time for the server to return a safe response', () => {
+  const form = readFileSync(new URL('../frontend/components/InquiryForm.tsx', import.meta.url), 'utf8');
+  const configuration = JSON.parse(readFileSync(new URL('../vercel.json', import.meta.url), 'utf8'));
+  const browserTimeout = Number(form.match(/const INQUIRY_SUBMISSION_TIMEOUT_MS = (\d+);/)?.[1]);
+  assert.match(form, /AbortSignal\.timeout\(INQUIRY_SUBMISSION_TIMEOUT_MS\)/);
+  assert.equal(INTAKE_TIMEOUT_MS, 45000);
+  assert.equal(browserTimeout, 55000);
+  assert.equal(configuration.functions['api/contact.mjs'].maxDuration, 60);
+  assert.ok(INTAKE_TIMEOUT_MS + 5000 <= browserTimeout);
+  assert.ok(browserTimeout + 5000 <= configuration.functions['api/contact.mjs'].maxDuration * 1000);
+});
+
+test('a delayed Google response beyond the previous deadlines can still confirm storage', async context => {
+  mockIntakeClock(context);
+  const pending = receiveContact({method: 'POST', body: inquiry, idempotencyKey: 'slow-request'}, {
+    environment: configured,
+    fetcher: async (url, {signal}) => new Promise((resolve, reject) => {
+      signal.addEventListener('abort', () => reject(signal.reason), {once: true});
+      setTimeout(() => resolve({ok: true, json: async () => ({success: true, rowId: 'slow-request'})}), 35000);
+    }),
+  });
+  context.mock.timers.tick(35000);
+  const result = await pending;
+  assert.equal(result.status, 202);
+  assert.equal(result.body.accepted, true);
+  assert.equal(result.body.id, 'slow-request');
+});
+
+for (const stage of ['request', 'response body']) {
+  test(`timeout during ${stage} remains unconfirmed and an identical retry keeps its operation ID`, async context => {
+    mockIntakeClock(context);
+    const operationIds = [];
+    const fetcher = async (url, {signal, body}) => {
+      const operationId = JSON.parse(body).requestId;
+      operationIds.push(operationId);
+      if (operationIds.length > 1) {
+        return {ok: true, json: async () => ({success: true, duplicate: true, rowId: operationId})};
+      }
+      const waitForAbort = () => new Promise((resolve, reject) => {
+        signal.addEventListener('abort', () => reject(stage === 'response body' ? new DOMException('Body aborted', 'AbortError') : signal.reason), {once: true});
+      });
+      return stage === 'request' ? waitForAbort() : {ok: true, json: waitForAbort};
+    };
+    const request = {method: 'POST', body: inquiry, idempotencyKey: 'timeout-retry'};
+    const pending = receiveContact(request, {environment: configured, fetcher});
+    await Promise.resolve();
+    context.mock.timers.tick(INTAKE_TIMEOUT_MS);
+    const timedOut = await pending;
+    assert.equal(timedOut.status, 502);
+    assert.equal(timedOut.body.code, 'INTAKE_TIMEOUT');
+    assert.equal(timedOut.body.accepted, undefined);
+    assert.match(timedOut.body.error, /may already be saved/);
+    assert.equal(timedOut.headers['X-Request-ID'], timedOut.body.requestId);
+    assert.equal(timedOut.headers['Cache-Control'], 'no-store');
+    const retry = await receiveContact(request, {environment: configured, fetcher});
+    assert.equal(retry.status, 202);
+    assert.equal(retry.body.duplicate, true);
+    assert.equal(retry.body.id, 'timeout-retry');
+    assert.deepEqual(operationIds, ['timeout-retry', 'timeout-retry']);
+  });
+}
 
 test('configuration rejects editor URLs, credentials, query strings and arbitrary origins', () => {
   for (const endpoint of ['https://example.test/exec', 'https://script.google.com/macros/s/test/edit',

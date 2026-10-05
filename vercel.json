@@ -4,6 +4,9 @@
   "buildCommand": "npm --prefix frontend run build",
   "outputDirectory": "frontend/dist",
   "installCommand": "npm --prefix frontend ci",
+  "functions": {
+    "api/contact.mjs": { "maxDuration": 60 }
+  },
   "rewrites": [
     { "source": "/api/:path((?!contact(?:/|$)).*)", "destination": "https://nodalxai-b9eb5.web.app/api/:path*" },
     { "source": "/:path((?!api(?:/|$)).*)", "destination": "/index.html" }

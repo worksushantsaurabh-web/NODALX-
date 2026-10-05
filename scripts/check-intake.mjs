@@ -1,4 +1,4 @@
-import {intakeConfiguration} from '../server/contact.mjs';
+import {intakeConfiguration, INTAKE_TIMEOUT_MS} from '../server/contact.mjs';
 
 const configuration = intakeConfiguration();
 console.log(JSON.stringify({configured: configuration.ready, missing: configuration.missing, validEndpoint: configuration.validEndpoint}));
@@ -7,7 +7,7 @@ else if (process.argv.includes('--upstream-health')) {
   configuration.endpoint.searchParams.set('secret', process.env.APPS_SCRIPT_INTAKE_SECRET);
   configuration.endpoint.searchParams.set('action', 'health');
   try {
-    const response = await fetch(configuration.endpoint, {signal: AbortSignal.timeout(15000)});
+    const response = await fetch(configuration.endpoint, {signal: AbortSignal.timeout(INTAKE_TIMEOUT_MS)});
     const health = await response.json();
     const healthy = response.ok && health?.success === true && health?.sheetAccessible === true;
     console.log(JSON.stringify({upstreamHealthy: healthy}));

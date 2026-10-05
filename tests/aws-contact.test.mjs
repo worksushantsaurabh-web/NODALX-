@@ -33,6 +33,16 @@ test('AWS adapter rejects unknown routes, invalid encoding and excessive bodies 
   assert.equal((await handler({...event, requestContext: {http: {method: 'GET'}}})).statusCode, 405);
 });
 
+test('AWS keeps its shorter provider deadline within the existing Lambda budget', async context => {
+  const timeout = context.mock.method(AbortSignal, 'timeout');
+  const handler = createHandler({environment, fetcher: async () => ({ok: true, json: async () => ({success: true, rowId: 'lambda-request'})})});
+  const result = await handler(event);
+  const template = JSON.parse(await readFile(new URL('../aws/template.json', import.meta.url), 'utf8'));
+  assert.equal(result.statusCode, 202);
+  assert.equal(timeout.mock.calls[0].arguments[0], 15000);
+  assert.ok(timeout.mock.calls[0].arguments[0] + 5000 <= template.Resources.ContactFunction.Properties.Timeout * 1000);
+});
+
 test('AWS template is explicitly intake-only with secret references and stage throttling', async () => {
   const template = JSON.parse(await readFile(new URL('../aws/template.json', import.meta.url), 'utf8'));
   const properties = template.Resources.ContactFunction.Properties;

@@ -1,5 +1,7 @@
 import {randomUUID} from 'node:crypto';
 
+export const INTAKE_TIMEOUT_MS = 45000;
+
 const requiredFields = ['name', 'email', 'company', 'message'];
 const optionalFields = ['phone', 'industry', 'service'];
 
@@ -17,7 +19,7 @@ export function intakeConfiguration(environment = process.env) {
   return {ready: missing.length === 0 && !!endpoint, missing, validEndpoint: !!endpoint, endpoint};
 }
 
-export async function receiveContact({method, body, idempotencyKey}, {environment = process.env, fetcher = fetch} = {}) {
+export async function receiveContact({method, body, idempotencyKey}, {environment = process.env, fetcher = fetch, timeoutMs = INTAKE_TIMEOUT_MS} = {}) {
   const requestId = randomUUID();
   const result = (status, payload) => ({status, headers: {
     'Cache-Control': 'no-store', 'Content-Type': 'application/json', 'X-Request-ID': requestId,
@@ -47,11 +49,12 @@ export async function receiveContact({method, body, idempotencyKey}, {environmen
   }
   const operationId = idempotencyKey || requestId;
   configuration.endpoint.searchParams.set('secret', environment.APPS_SCRIPT_INTAKE_SECRET);
+  const upstreamSignal = AbortSignal.timeout(timeoutMs);
   try {
     const upstream = await fetcher(configuration.endpoint, {
       method: 'POST', headers: {'Content-Type': 'application/json'},
       body: JSON.stringify({...inquiry, source: 'nodalx.in', requestId: operationId}),
-      signal: AbortSignal.timeout(15000), redirect: 'follow',
+      signal: upstreamSignal, redirect: 'follow',
     });
     const confirmation = await upstream.json();
     if (confirmation?.code === 'IDEMPOTENCY_CONFLICT') {
@@ -62,7 +65,10 @@ export async function receiveContact({method, body, idempotencyKey}, {environmen
     }
     return result(202, {accepted: true, id: confirmation.rowId, duplicate: confirmation.duplicate === true,
       processingStatus: confirmation.classification && typeof confirmation.classification === 'object' ? 'classified' : 'accepted'});
-  } catch {
+  } catch (error) {
+    if (error?.name === 'TimeoutError' || (upstreamSignal.aborted && upstreamSignal.reason?.name === 'TimeoutError')) {
+      return result(502, {error: 'Inquiry storage did not respond in time. Your inquiry may already be saved. Retry without changing the form, using the same request ID.', code: 'INTAKE_TIMEOUT'});
+    }
     return result(502, {error: 'Inquiry storage is unavailable. Retry with the same request ID.', code: 'INTAKE_UNAVAILABLE'});
   }
 }

@@ -3,6 +3,8 @@ import { Send, CheckCircle2, AlertCircle } from 'lucide-react';
 import { Analytics } from '../lib/analytics';
 import { useFeedback } from '../contexts/FeedbackContext';
 
+const INQUIRY_SUBMISSION_TIMEOUT_MS = 55000;
+
 export default function InquiryForm() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(false);
@@ -50,7 +52,7 @@ export default function InquiryForm() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Idempotency-Key': requestId.current },
         body: JSON.stringify(payload),
-        signal: AbortSignal.timeout(20000),
+        signal: AbortSignal.timeout(INQUIRY_SUBMISSION_TIMEOUT_MS),
       });
       const data = await response.json().catch(() => ({}));
       if (!response.ok || data.accepted !== true) {
@@ -72,7 +74,7 @@ export default function InquiryForm() {
       const msg = err?.message || 'Unknown error';
       Analytics.formError(msg);
       console.error('Inquiry submission error:', err);
-      setError('We could not submit your inquiry. Please try again in a moment.');
+      setError('We could not confirm your inquiry was saved. It may already be in our inbox. Retry without changing the form to avoid sending a duplicate.');
     } finally {
       submittingRef.current = false;
       setIsSubmitting(false);
@@ -207,7 +209,7 @@ export default function InquiryForm() {
                 <div role="alert" className="p-4 bg-bg border border-border rounded-lg flex flex-wrap items-start gap-3">
                   <AlertCircle className="w-5 h-5 text-text-secondary flex-shrink-0 mt-0.5" />
                   <div className="min-w-0 flex-1 basis-36">
-                    <p className="text-sm font-medium text-text-primary">Submission Failed</p>
+                    <p className="text-sm font-medium text-text-primary">Submission not confirmed</p>
                     <p className="break-words text-sm text-text-secondary mt-1">{error}</p>
                   </div>
                   <button

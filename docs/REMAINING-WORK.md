@@ -20,20 +20,25 @@ sign-in, intake secrets and approved AWS account access remain owner steps.
 Vercel frontend/contact code is now deployed at
 https://nodalx-frontend.vercel.app. See
 `runbooks/vercel-deployment-2026-10-04.md` for verification and remaining blockers.
-The contact route returns configured JSON errors, but intake secrets are still
-missing. The legacy API health check returns 404 because the GCP project is suspended.
+The contact route now has its server-side Apps Script configuration. Version 4
+of Apps Script is deployed and one labelled test row survived an identical retry
+without duplication. Both public requests returned 502, however; confirmed HTTP
+acceptance remains blocked pending the local timeout repair's Vercel deployment.
+See `runbooks/intake-timeout-repair-2026-10-05.md` for evidence and verification.
+The legacy API health check returns 404 because the GCP project is suspended.
 
 The new request is to move off Firebase. Follow `runbooks/aws-migration.md`;
 the older Firebase release checklist below applies only if that path is retained.
 Do not reactivate Google billing to implement the AWS path.
 
 - The custom domain serves the Vercel frontend, but the GCP project is suspended, causing 404s on API endpoints.
-- Linked Vercel project `nodalx-frontend` lacks both Apps Script server variables.
+- Linked Vercel project `nodalx-frontend` has both Apps Script server variables.
 - Hardened proxy, stable retry handling, Apps Script duplicate protection and
   an intake-only AWS handler/template are implemented. The proxy/frontend are
-  deployed to Vercel; Apps Script updates and AWS infrastructure are not deployed.
-- 18 intake tests and frontend build/typecheck pass. Script provider execution,
-  cloud deployment and signed workspace migration tests remain unverified.
+  deployed to Vercel; Apps Script Version 4 is deployed. The new response timeout
+  repair is local only, and AWS infrastructure is not deployed.
+- Signed workspace migration, public duplicate acknowledgement and notification
+  delivery remain unverified. See the timeout repair runbook for current checks.
 - AWS default SSO is expired. Confirm account/region, cost approval and identity
   migration before provisioning. Do not delete existing Firebase data/config.
 - Newly added local recipes/automation must be included in migration scope;
