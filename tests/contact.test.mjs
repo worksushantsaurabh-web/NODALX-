@@ -46,6 +46,214 @@ test('Apps Script contact proxy accepts a confirmed write and keeps its secret s
 
 const configured = {APPS_SCRIPT_WEB_APP_URL: 'https://script.google.com/macros/s/AKfytest/exec', APPS_SCRIPT_INTAKE_SECRET: 'test-only-secret'};
 const inquiry = {name: 'Mira', email: 'mira@example.test', company: 'Example', message: 'Hello'};
+const receiptUrl = 'https://script.googleusercontent.com/macros/echo?user_content_key=test-only-receipt-token';
+
+function confirmedReceipt(operationId = 'receipt-request', duplicate = false) {
+  return Response.json({success: true, rowId: operationId, duplicate});
+}
+
+function redirectReceipt(location = receiptUrl) {
+  return new Response(null, {status: 302, headers: {Location: location}});
+}
+
+test('confirmation redirects use GET without forwarding the intake secret or customer body', async () => {
+  const requests = [];
+  const result = await receiveContact({method: 'POST', body: inquiry, idempotencyKey: 'receipt-request'}, {
+    environment: configured, fetcher: async (url, options) => {
+      requests.push({url: String(url), options});
+      return requests.length === 1 ? redirectReceipt() : confirmedReceipt();
+    },
+  });
+  assert.equal(result.status, 202);
+  assert.equal(requests.length, 2);
+  assert.equal(requests[0].options.method, 'POST');
+  assert.equal(requests[1].options.method, 'GET');
+  assert.equal(requests[1].options.body, undefined);
+  assert.deepEqual(requests[1].options.headers, {Accept: 'application/json'});
+  assert.equal(requests[1].url, receiptUrl);
+  assert.equal(JSON.stringify(requests[1]).includes(configured.APPS_SCRIPT_INTAKE_SECRET), false);
+  assert.equal(requests[0].options.signal, requests[1].options.signal);
+  assert.ok(requests.every(request => request.options.redirect === 'manual'));
+});
+
+for (const status of [404, 410]) {
+  test(`an expired ${status} receipt obtains a fresh receipt with the same payload, without another stored row or email`, async () => {
+    const stored = new Set();
+    const payloads = [];
+    const logs = [];
+    let receiptReads = 0;
+    let notifications = 0;
+    const result = await receiveContact({method: 'POST', body: inquiry, idempotencyKey: 'receipt-request'}, {
+      environment: configured, logger: entry => logs.push(entry), fetcher: async (url, options) => {
+        if (options.method === 'POST') {
+          payloads.push(options.body);
+          const payload = JSON.parse(options.body);
+          if (!stored.has(payload.requestId)) notifications++;
+          stored.add(payload.requestId);
+          return redirectReceipt(`${receiptUrl}&receipt=${payloads.length}`);
+        }
+        receiptReads++;
+        return receiptReads === 1 ? new Response('<html>Missing receipt</html>', {status, headers: {'Content-Type': 'text/html'}}) : confirmedReceipt('receipt-request', true);
+      },
+    });
+    assert.equal(result.status, 202);
+    assert.equal(result.body.id, 'receipt-request');
+    assert.equal(result.body.duplicate, true);
+    assert.equal(stored.size, 1);
+    assert.equal(notifications, 1);
+    assert.equal(payloads.length, 2);
+    assert.equal(payloads[0], payloads[1]);
+    assert.equal(logs[0].event, 'intake_receipt_retry');
+    assert.equal(logs[0].phase, 'confirmation_request');
+    assert.equal(logs[0].providerStatus, status);
+  });
+}
+
+test('receipt refresh is bounded and never treats a redirect or missing receipt as acceptance', async () => {
+  let calls = 0;
+  const failed = await receiveContact({method: 'POST', body: inquiry, idempotencyKey: 'receipt-request'}, {
+    environment: configured, fetcher: async (url, options) => {
+      calls++;
+      return options.method === 'POST' ? redirectReceipt() : new Response('Missing', {status: 404});
+    },
+  });
+  assert.equal(calls, 4);
+  assert.equal(failed.status, 502);
+  assert.equal(failed.body.accepted, undefined);
+  assert.equal(failed.headers['Retry-After'], '3');
+});
+
+test('transient POST transport failure retries an identical operation only', async () => {
+  const payloads = [];
+  const signals = [];
+  const result = await receiveContact({method: 'POST', body: inquiry, idempotencyKey: 'receipt-request'}, {
+    environment: configured, fetcher: async (url, options) => {
+      payloads.push(options.body);
+      signals.push(options.signal);
+      if (payloads.length === 1) throw new TypeError('private transport details', {cause: {code: 'ECONNRESET'}});
+      return confirmedReceipt();
+    },
+  });
+  assert.equal(result.status, 202);
+  assert.deepEqual(payloads, [payloads[0], payloads[0]]);
+  assert.equal(signals[0], signals[1]);
+});
+
+test('transient receipt status and body failures retry GET without replaying the stored POST', async () => {
+  let writes = 0;
+  let reads = 0;
+  const result = await receiveContact({method: 'POST', body: inquiry, idempotencyKey: 'receipt-request'}, {
+    environment: configured, fetcher: async (url, options) => {
+      if (options.method === 'POST') {writes++; return redirectReceipt();}
+      reads++;
+      if (reads === 1) return new Response('Unavailable', {status: 503});
+      if (reads === 2) return {ok: true, status: 200, json: async () => {
+        throw new TypeError('private body failure', {cause: {code: 'UND_ERR_SOCKET'}});
+      }};
+      return confirmedReceipt();
+    },
+  });
+  assert.equal(result.status, 202);
+  assert.equal(writes, 1);
+  assert.equal(reads, 3);
+});
+
+test('unavailable receipt retries stop at three GET attempts', async () => {
+  let reads = 0;
+  let writes = 0;
+  const result = await receiveContact({method: 'POST', body: inquiry}, {
+    environment: configured, fetcher: async (url, options) => {
+      if (options.method === 'POST') {writes++; return redirectReceipt();}
+      reads++;
+      return new Response('Unavailable', {status: 503});
+    },
+  });
+  assert.equal(result.status, 502);
+  assert.equal(result.body.accepted, undefined);
+  assert.equal(reads, 3);
+  assert.equal(writes, 1);
+});
+
+test('provider configuration, authorization, malformed JSON and conflict failures are not retried', async () => {
+  for (const upstream of [new Response('Missing deployment', {status: 404}),
+    new Response('Unauthorized', {status: 401}), new Response('Forbidden', {status: 403}),
+    new Response('<html>Sign in</html>', {status: 200}),
+    Response.json({success: false, message: 'Unauthorized'}),
+    Response.json({success: false, code: 'IDEMPOTENCY_CONFLICT'})]) {
+    let calls = 0;
+    const result = await receiveContact({method: 'POST', body: inquiry}, {
+      environment: configured, fetcher: async () => {calls++; return upstream;},
+    });
+    assert.equal(calls, 1);
+    assert.equal(result.body.accepted, undefined);
+    assert.ok([409, 502].includes(result.status));
+  }
+});
+
+test('receipt redirects reject untrusted origins, credentials, secret forwarding and method-preserving redirects', async () => {
+  for (const location of ['https://example.test/macros/echo', 'https://accounts.google.com/login',
+    'http://script.googleusercontent.com/macros/echo', 'https://script.googleusercontent.com.evil.test/macros/echo',
+    'https://user:password@script.googleusercontent.com/macros/echo', 'https://script.googleusercontent.com:444/macros/echo',
+    'https://script.googleusercontent.com/macros/echo?secret=test-only-secret',
+    'https://script.googleusercontent.com/other', `${receiptUrl}#fragment`, '']) {
+    let calls = 0;
+    const result = await receiveContact({method: 'POST', body: inquiry}, {
+      environment: configured, fetcher: async () => {calls++; return redirectReceipt(location);},
+    });
+    assert.equal(result.status, 502);
+    assert.equal(calls, 1);
+  }
+  for (const status of [301, 307, 308]) {
+    let calls = 0;
+    const result = await receiveContact({method: 'POST', body: inquiry}, {
+      environment: configured, fetcher: async () => {calls++; return new Response(null, {status, headers: {Location: receiptUrl}});},
+    });
+    assert.equal(result.status, 502);
+    assert.equal(calls, 1);
+  }
+});
+
+test('redirect loops are bounded', async () => {
+  let calls = 0;
+  const result = await receiveContact({method: 'POST', body: inquiry}, {
+    environment: configured, fetcher: async () => {calls++; return redirectReceipt();},
+  });
+  assert.equal(result.status, 502);
+  assert.equal(calls, 4);
+});
+
+test('provider backoff beyond the retry window is respected without more calls', async () => {
+  for (const retryAfter of ['60', new Date(Date.now() + 60000).toUTCString()]) {
+    let calls = 0;
+    const result = await receiveContact({method: 'POST', body: inquiry}, {
+      environment: configured, fetcher: async () => {
+        calls++;
+        return new Response('Unavailable', {status: 503, headers: {'Retry-After': retryAfter}});
+      },
+    });
+    assert.equal(result.status, 502);
+    assert.equal(calls, 1);
+  }
+});
+
+test('safe diagnostics exclude payloads, operation keys, secrets, URLs and raw provider errors', async () => {
+  const logs = [];
+  await receiveContact({method: 'POST', body: inquiry, idempotencyKey: 'private-operation-key'}, {
+    environment: configured, logger: entry => logs.push(entry), fetcher: async () => {
+      throw new TypeError(`private-error ${configured.APPS_SCRIPT_INTAKE_SECRET} ${receiptUrl}`, {cause: {code: 'ENOTFOUND'}});
+    },
+  });
+  assert.equal(logs.length, 1);
+  assert.equal(logs[0].transportCode, 'ENOTFOUND');
+  for (const privateValue of [inquiry.email, inquiry.message, configured.APPS_SCRIPT_INTAKE_SECRET,
+    receiptUrl, 'test-only-receipt-token', 'private-operation-key', 'private-error']) {
+    assert.equal(JSON.stringify(logs).includes(privateValue), false);
+  }
+  const failed = await receiveContact({method: 'POST', body: inquiry}, {
+    environment: configured, logger: () => {throw Error('Logging unavailable');}, fetcher: async () => {throw Error('Unavailable');},
+  });
+  assert.equal(failed.status, 502);
+});
 
 function mockIntakeClock(context) {
   context.mock.timers.enable({apis: ['setTimeout']});
@@ -67,6 +275,20 @@ test('inquiry deadlines leave time for the server to return a safe response', ()
   assert.equal(configuration.functions['api/contact.mjs'].maxDuration, 60);
   assert.ok(INTAKE_TIMEOUT_MS + 5000 <= browserTimeout);
   assert.ok(browserTimeout + 5000 <= configuration.functions['api/contact.mjs'].maxDuration * 1000);
+});
+
+test('retry backoff shares the original deadline and never starts another request after timeout', async context => {
+  mockIntakeClock(context);
+  let calls = 0;
+  const pending = receiveContact({method: 'POST', body: inquiry}, {
+    environment: configured, fetcher: async () => {calls++; return new Response('Unavailable', {status: 503});},
+  });
+  for (let microtask = 0; microtask < 8; microtask++) await Promise.resolve();
+  context.mock.timers.tick(INTAKE_TIMEOUT_MS);
+  const result = await pending;
+  assert.equal(result.status, 502);
+  assert.equal(result.body.code, 'INTAKE_TIMEOUT');
+  assert.equal(calls, 1);
 });
 
 test('a delayed Google response beyond the previous deadlines can still confirm storage', async context => {
@@ -102,7 +324,7 @@ for (const stage of ['request', 'response body']) {
     };
     const request = {method: 'POST', body: inquiry, idempotencyKey: 'timeout-retry'};
     const pending = receiveContact(request, {environment: configured, fetcher});
-    await Promise.resolve();
+    for (let microtask = 0; microtask < 8; microtask++) await Promise.resolve();
     context.mock.timers.tick(INTAKE_TIMEOUT_MS);
     const timedOut = await pending;
     assert.equal(timedOut.status, 502);
