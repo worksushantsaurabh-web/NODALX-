@@ -4,7 +4,7 @@
   "scripts": {
     "lint": "eslint .",
     "test": "node --test lib/*.test.js",
-    "test:unit": "node --test lib/http.test.js lib/plans.test.js lib/tier.test.js lib/uploadWorkspace.test.js",
+    "test:unit": "node --test lib/http.test.js lib/plans.test.js lib/tier.test.js lib/uploadWorkspace.test.js lib/automation.test.js lib/recipes.test.js lib/testRunner.test.js",
     "test:integration": "node scripts/run-integration.js",
     "serve": "firebase emulators:start --only functions",
     "shell": "firebase functions:shell",

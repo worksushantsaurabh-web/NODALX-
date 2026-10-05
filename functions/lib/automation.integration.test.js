@@ -101,7 +101,7 @@ async function getExceptions(uidValue) {
 
 before(async () => {
   if (!enabled) return;
-  app = initializeApp({projectId: "demo-nodalx-tests"}, "automation-tests");
+  app = initializeApp({projectId: `demo-nodalx-auto-${crypto.randomUUID().slice(0, 8)}`}, "automation-tests");
   db = getFirestore(app);
   service = workspaceService(db, undefined);
   recipes = importRecipesService(db, service, fakeSheets);

@@ -25,7 +25,7 @@ const uid = (prefix) => `${prefix}-${crypto.randomUUID()}`;
 
 before(async () => {
   if (!enabled) return;
-  app = initializeApp({projectId: "demo-nodalx-tests"}, "workspace-tests");
+  app = initializeApp({projectId: `demo-nodalx-workspace-${crypto.randomUUID().slice(0, 8)}`}, "workspace-tests");
   db = getFirestore(app);
   workflow = http.createServer(async (req, res) => {
     let text = "";

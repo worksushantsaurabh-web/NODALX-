@@ -70,7 +70,7 @@ function defaultBody(overrides) {
 
 before(async () => {
   if (!enabled) return;
-  app = initializeApp({projectId: "demo-nodalx-tests"}, "recipes-tests");
+  app = initializeApp({projectId: `demo-nodalx-recipes-${crypto.randomUUID().slice(0, 8)}`}, "recipes-tests");
   db = getFirestore(app);
   // No workflow URL: this suite only exercises import-mode behavior.
   service = workspaceService(db, undefined);

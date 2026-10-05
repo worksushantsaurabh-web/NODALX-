@@ -6,6 +6,9 @@ const {test, before, after} = require("node:test");
 const assert = require("node:assert/strict");
 const {readFileSync} = require("node:fs");
 const path = require("node:path");
+const {randomUUID} = require("node:crypto");
+const {initializeApp, deleteApp} = require("firebase-admin/app");
+const {getFirestore} = require("firebase-admin/firestore");
 
 const enabled = !!process.env.FIRESTORE_EMULATOR_HOST;
 if (process.env.REQUIRE_EMULATORS === "1" && !enabled) {
@@ -24,11 +27,9 @@ before(async () => {
       "@firebase/rules-unit-testing",
   ));
   testEnv = await initializeTestEnvironment({
-    projectId: "demo-nodalx-tests",
+    projectId: `demo-nodalx-rules-${randomUUID().slice(0, 8)}`,
     firestore: {
       rules: readFileSync(path.join(__dirname, "..", "..", "firestore.rules"), "utf8"),
-      host: "127.0.0.1",
-      port: 8080,
     },
   });
   await testEnv.clearFirestore();
@@ -80,4 +81,23 @@ integration("server-side access remains allowed through the Admin SDK context", 
     assert.equal((await firestore.doc("importRecipes/recipe-1").get()).exists, true);
   });
   assert.ok(server);
+});
+
+integration("clearing the rules fixture leaves other emulator suites intact", async () => {
+  const app = initializeApp({projectId: "demo-nodalx-tests"}, `rules-isolation-${randomUUID()}`);
+  const reference = getFirestore(app).collection("workspaceSheets").doc(`isolation-${randomUUID()}`);
+  try {
+    await reference.set({uid: "isolated-test-owner"});
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      await context.firestore().doc("importRecipes/isolation-probe").set({uid: "owner-1"});
+    });
+    await testEnv.clearFirestore();
+    assert.equal((await reference.get()).exists, true);
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      assert.equal((await context.firestore().doc("importRecipes/isolation-probe").get()).exists, false);
+    });
+  } finally {
+    await reference.delete();
+    await deleteApp(app);
+  }
 });
