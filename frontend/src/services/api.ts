@@ -45,6 +45,10 @@ async function request<T>(endpoint: string, options: RequestOptions = {}): Promi
   });
 
   if (!response.ok) {
+    const contentType = response.headers.get("content-type") || "";
+    if (!contentType.includes("application/json")) {
+      throw new Error(`SERVICE_UNAVAILABLE: Service is temporarily unavailable (HTTP ${response.status})`);
+    }
     const errorData = await response.json().catch(() => ({}));
     const message = errorData.error || (response.status >= 500 ? 'The service is temporarily unavailable. Please retry later.' : `Request failed (${response.status}).`);
     throw new ApiError(message, response.status, errorData.code, response.headers.get('X-Request-ID') || undefined);
@@ -55,6 +59,10 @@ async function request<T>(endpoint: string, options: RequestOptions = {}): Promi
     return undefined as T;
   }
 
+  const contentType = response.headers.get("content-type") || "";
+  if (!contentType.includes("application/json")) {
+    throw new Error(`SERVICE_UNAVAILABLE: Service is temporarily unavailable`);
+  }
   return response.json();
 }
 

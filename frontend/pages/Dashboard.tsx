@@ -223,7 +223,7 @@ export default function Dashboard({ defaultTab = 'overview' }: { defaultTab?: st
        <div className={`rounded-xl border px-4 py-3 text-sm leading-relaxed ${hasWarnings ? 'border-border-strong bg-surface' : 'border-border bg-surface'}`}>
           <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
             {hasWarnings ? <AlertCircle className="h-4 w-4 shrink-0 text-text-primary" aria-hidden="true" /> : <span className="h-2 w-2 shrink-0 rounded-full bg-text-tertiary" aria-hidden="true" />}
-            <p role="status" aria-atomic="true" className="min-w-0 flex-1 font-medium text-text-primary">{isRefreshing ? hasFetched ? 'Refreshing inquiries; existing records remain visible.' : 'Loading inquiries from your source…' : hasWarnings ? 'Source issue — loaded records may be incomplete or out of date.' : 'Showing records returned by the backend.'}</p>
+            <p role="status" aria-atomic="true" className="min-w-0 flex-1 font-medium text-text-primary">{isRefreshing ? hasFetched ? 'Refreshing inquiries; existing records remain visible.' : 'Loading inquiries from your source…' : (hasWarnings && sources.backend.warning?.includes('SERVICE_UNAVAILABLE')) ? 'Service is temporarily unavailable due to a maintenance hold. Please try again later.' : hasWarnings ? 'Source issue — loaded records may be incomplete or out of date.' : 'Showing records returned by the backend.'}</p>
           </div>
           <details className="mt-2 pl-5 text-xs text-text-secondary">
             <summary className="w-fit cursor-pointer rounded text-text-secondary hover:text-text-primary">Source details</summary>

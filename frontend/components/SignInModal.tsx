@@ -174,7 +174,13 @@ export default function SignInModal({ isOpen, onClose }: SignInModalProps) {
       } else if (code === 'auth/too-many-requests') {
         setErrorMsg('Too many failed attempts. Please try again later.');
       } else {
-        setErrorMsg(err.message || 'Sign-in failed. Please try again.');
+
+        const msg = err.message || '';
+        if (msg.includes('CONSUMER_SUSPENDED') || msg.includes('has been suspended') || msg.includes('SERVICE_UNAVAILABLE')) {
+          setErrorMsg('Service is temporarily unavailable due to a maintenance hold. Please try again later.');
+        } else {
+          setErrorMsg(msg || 'Sign-in failed. Please try again.');
+        }
       }
     } finally {
       setIsSubmitting(false);
@@ -253,7 +259,13 @@ export default function SignInModal({ isOpen, onClose }: SignInModalProps) {
       } else if (code === 'auth/weak-password') {
         setErrorMsg('Password is too weak. Use at least 6 characters.');
       } else {
-        setErrorMsg(err.message || 'Sign-up failed. Please try again.');
+
+        const msg = err.message || '';
+        if (msg.includes('CONSUMER_SUSPENDED') || msg.includes('has been suspended') || msg.includes('SERVICE_UNAVAILABLE')) {
+          setErrorMsg('Service is temporarily unavailable due to a maintenance hold. Please try again later.');
+        } else {
+          setErrorMsg(msg || 'Sign-up failed. Please try again.');
+        }
       }
     } finally {
       setIsSubmitting(false);
@@ -287,7 +299,13 @@ export default function SignInModal({ isOpen, onClose }: SignInModalProps) {
       } else if (code === 'auth/invalid-email') {
         setErrorMsg('Invalid email format.');
       } else {
-        setErrorMsg(err.message || 'Failed to send reset email. Please try again.');
+
+        const msg = err.message || '';
+        if (msg.includes('CONSUMER_SUSPENDED') || msg.includes('has been suspended') || msg.includes('SERVICE_UNAVAILABLE')) {
+          setErrorMsg('Service is temporarily unavailable due to a maintenance hold. Please try again later.');
+        } else {
+          setErrorMsg(msg || 'Failed to send reset email. Please try again.');
+        }
       }
     } finally {
       setIsSubmitting(false);
@@ -358,7 +376,13 @@ export default function SignInModal({ isOpen, onClose }: SignInModalProps) {
       } else if (code === 'auth/cancelled-popup-request') {
         setErrorMsg(null);
       } else {
-        setErrorMsg(err.message || 'Google sign-in failed. Please try again.');
+
+        const msg = err.message || '';
+        if (msg.includes('CONSUMER_SUSPENDED') || msg.includes('has been suspended') || msg.includes('SERVICE_UNAVAILABLE')) {
+          setErrorMsg('Service is temporarily unavailable due to a maintenance hold. Please try again later.');
+        } else {
+          setErrorMsg(msg || 'Google sign-in failed. Please try again.');
+        }
       }
     } finally {
       setIsSubmitting(false);
@@ -415,7 +439,13 @@ export default function SignInModal({ isOpen, onClose }: SignInModalProps) {
       } else if (code === 'auth/quota-exceeded') {
         setErrorMsg('SMS quota exceeded. Try again later.');
       } else {
-        setErrorMsg(err.message || 'Failed to send OTP. Please try again.');
+
+        const msg = err.message || '';
+        if (msg.includes('CONSUMER_SUSPENDED') || msg.includes('has been suspended') || msg.includes('SERVICE_UNAVAILABLE')) {
+          setErrorMsg('Service is temporarily unavailable due to a maintenance hold. Please try again later.');
+        } else {
+          setErrorMsg(msg || 'Failed to send OTP. Please try again.');
+        }
       }
     } finally {
       setIsSubmitting(false);
@@ -488,7 +518,13 @@ export default function SignInModal({ isOpen, onClose }: SignInModalProps) {
         setOtpStep('phone');
         setConfirmationResult(null);
       } else {
-        setErrorMsg(err.message || 'Verification failed. Please try again.');
+
+        const msg = err.message || '';
+        if (msg.includes('CONSUMER_SUSPENDED') || msg.includes('has been suspended') || msg.includes('SERVICE_UNAVAILABLE')) {
+          setErrorMsg('Service is temporarily unavailable due to a maintenance hold. Please try again later.');
+        } else {
+          setErrorMsg(msg || 'Verification failed. Please try again.');
+        }
       }
     } finally {
       setIsSubmitting(false);

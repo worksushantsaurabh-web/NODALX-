@@ -99,3 +99,13 @@ test('partial source failure refreshes only the successful source, even with col
   assert.equal(nextScript.records[0].name, 'Sheet record');
   assert.equal(new Set([...nextBackend.records, ...nextScript.records].map(row => row.key)).size, 2);
 });
+
+test('SERVICE_UNAVAILABLE error yields maintenance warning', () => {
+  const previous = { records: [inquiry()], fetchedAt: 100, warning: null };
+  const suspended = settleSource(previous, { status: 'rejected', reason: new Error('CONSUMER_SUSPENDED: The Google project is suspended') }, 200);
+  assert.equal(suspended.records, previous.records);
+  assert.match(suspended.warning!, /maintenance hold/);
+
+  const unavailable = settleSource(previous, { status: 'rejected', reason: new Error('SERVICE_UNAVAILABLE: Service is temporarily unavailable') }, 200);
+  assert.match(unavailable.warning!, /maintenance hold/);
+});

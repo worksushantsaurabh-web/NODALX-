@@ -128,6 +128,10 @@ export function appendInquiryPage(previous: Inquiry[], incoming: Inquiry[]): Inq
 
 export function settleSource(previous: SourceSnapshot, result: PromiseSettledResult<ReturnType<typeof parseInquiries>>, now: number): SourceSnapshot {
   if (result.status === 'rejected') {
+    const errorMsg = result.reason instanceof Error ? result.reason.message : String(result.reason);
+    if (errorMsg.includes('SERVICE_UNAVAILABLE') || errorMsg.includes('CONSUMER_SUSPENDED')) {
+       return { ...previous, warning: 'SERVICE_UNAVAILABLE: Service is temporarily unavailable due to a maintenance hold.' };
+    }
     return { ...previous, warning: 'Fetch failed. Previously loaded records, if any, are retained; this source is not fresh.' };
   }
   if (result.value.skipped && !result.value.records.length) {
