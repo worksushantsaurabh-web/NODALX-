@@ -140,3 +140,54 @@ test('Apps Script health is authorized, read-only and does not disclose inquiry 
   assert.equal(list.customers[0].service, inquiry.service);
   assert.equal(JSON.stringify(list).includes(fixture.rows[1][17]), false);
 });
+
+test('confirmation email has branded HTML, plain text, useful details and a real reply destination', () => {
+  const fixture = scriptFixture();
+  fixture.post({...inquiry, service: 'custom-integration'});
+  const mail = fixture.messages.find(message => message.to === inquiry.email);
+  assert.equal(mail.name, 'NodalX');
+  assert.equal(mail.replyTo, 'thesushantsaurabh@gmail.com');
+  assert.equal(mail.subject, 'Your inquiry is received | NodalX');
+  for (const body of [mail.body, mail.htmlBody]) {
+    assert.ok(body.includes('Test Company'));
+    assert.ok(body.includes('Custom CRM Integration'));
+    assert.ok(body.includes(inquiry.requestId));
+    assert.ok(body.includes('https://nodalx.in'));
+    assert.ok(body.includes('Please do not send passwords or sensitive customer data'));
+    assert.ok(!body.includes('reply shortly'));
+    assert.ok(!body.includes('Fit Score'));
+    assert.ok(!body.includes(inquiry.message));
+  }
+  assert.match(mail.htmlBody, /<html lang="en">/);
+  assert.match(mail.htmlBody, /name="viewport"/);
+  assert.match(mail.htmlBody, /max-width:600px/);
+  assert.ok(!/<img|<script|<iframe|<form|<link/i.test(mail.htmlBody));
+  assert.equal(fixture.messages.length, 2);
+  fixture.post({...inquiry, service: 'custom-integration'});
+  assert.equal(fixture.messages.length, 2);
+});
+
+test('HTML confirmation escapes customer fields and never turns their content into links or markup', () => {
+  const fixture = scriptFixture();
+  const payload = {...inquiry, name: '<img/onerror=alert(1)>', company: 'A&B <script>alert(1)</script> "Company"', service: '<a href="https://evil.invalid">Click</a>', message: 'Private original inquiry'};
+  fixture.post(payload);
+  const mail = fixture.messages.find(message => message.to === inquiry.email);
+  assert.ok(mail.htmlBody.includes('&lt;img/onerror=alert(1)&gt;'));
+  assert.ok(mail.htmlBody.includes('A&amp;B &lt;script&gt;alert(1)&lt;/script&gt; &quot;Company&quot;'));
+  assert.ok(mail.htmlBody.includes('&lt;a href=&quot;https://evil.invalid&quot;&gt;Click&lt;/a&gt;'));
+  assert.ok(!/<img|<script|href="https:\/\/evil/i.test(mail.htmlBody));
+  assert.ok(!mail.htmlBody.includes(payload.message));
+  assert.ok(mail.body.includes(payload.company));
+  assert.equal(fixture.rows[1][6], payload.message);
+});
+
+test('confirmation handles missing service, generated row IDs and maximum-length text safely', () => {
+  const fixture = scriptFixture();
+  const accepted = fixture.post({...inquiry, requestId: undefined, name: 'N'.repeat(500), company: 'C'.repeat(500), service: ''});
+  const mail = fixture.messages.find(message => message.to === inquiry.email);
+  assert.ok(mail.body.includes('General inquiry'));
+  assert.ok(mail.htmlBody.includes(accepted.rowId));
+  assert.ok(mail.htmlBody.includes('C'.repeat(500)));
+  assert.ok(mail.htmlBody.includes('overflow-wrap:anywhere'));
+  assert.ok(Buffer.byteLength(mail.htmlBody) < 20000);
+});

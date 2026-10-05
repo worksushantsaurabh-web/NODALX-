@@ -26,6 +26,14 @@ without duplication. Earlier public requests returned 502; after deploying the
 timeout repair, an exact retry returned HTTP 202 with `duplicate: true` and the
 same row ID. Public duplicate acknowledgement is now verified.
 See `runbooks/intake-timeout-repair-2026-10-05.md` for evidence and verification.
+Later email-design verification exposed intermittent 502 responses despite
+the confirmation being delivered. Version 5's email design is published and
+verified in Gmail. The subsequent receipt-recovery repair is deployed to Vercel:
+three exact retries returned HTTP 202 with the same record ID and duplicate
+protection; one recovered a real Google receipt 404 automatically. Google can
+still be slow or unavailable, so exhausted retries remain honestly unconfirmed.
+See `runbooks/inquiry-email-polish-2026-10-05.md` for the original failure and
+`runbooks/intake-receipt-recovery-2026-10-05.md` for the repair and live evidence.
 The legacy API health check returns 404 because the GCP project is suspended.
 
 The new request is to move off Firebase. Follow `runbooks/aws-migration.md`;
@@ -36,11 +44,14 @@ Do not reactivate Google billing to implement the AWS path.
 - Linked Vercel project `nodalx-frontend` has both Apps Script server variables.
 - Hardened proxy, stable retry handling, Apps Script duplicate protection and
   an intake-only AWS handler/template are implemented. The proxy/frontend are
-  deployed to Vercel, including the response timeout repair; Apps Script Version
-  4 is deployed. AWS infrastructure is not deployed.
-- Signed workspace migration and notification delivery remain unverified. The
-  release passed 24 intake/security tests and 29 frontend tests plus build and
-  secret scans. See the timeout repair runbook for current live checks.
+  deployed to Vercel, including timeout and receipt-recovery repairs; Apps Script
+  Version 5 is deployed. AWS infrastructure is not deployed.
+- Signed workspace migration remains unverified. Owner-approved Version 5 test
+  emails were received in the controlled Gmail inbox; this is not assurance of
+  every customer's delivery or all email clients. The
+  receipt-recovery release passed 40 intake/security tests and 29 frontend tests
+  plus build/typecheck, secret scan and whitespace checks. See the receipt-recovery
+  runbook for current live checks.
 - AWS default SSO is expired. Confirm account/region, cost approval and identity
   migration before provisioning. Do not delete existing Firebase data/config.
 - Newly added local recipes/automation must be included in migration scope;

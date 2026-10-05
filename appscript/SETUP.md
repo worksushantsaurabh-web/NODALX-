@@ -184,6 +184,39 @@ imposes [Apps Script and email quotas](https://developers.google.com/apps-script
 
 ## Files
 
+### Inquiry confirmation design
+
+The canonical script sends the customer a branded HTML confirmation with a
+plain-text alternative, company/service summary, stored inquiry reference,
+next-step explanation and a link to `https://nodalx.in`. Customer fields are
+HTML-escaped; the original inquiry message and internal classification are not
+included. Unchanged retries still send no additional notifications.
+
+The display name is **NodalX**, and replies go to the existing configured owner
+email. This does not change the actual sending address: Apps Script still sends
+from the executing Google account. A domain-based sender requires a separately
+configured and authenticated mailbox; do not invent `hello@nodalx.in` or enable
+paid services to imitate one.
+
+Preview locally without sending mail or writing a Sheet row:
+
+```sh
+node scripts/preview-inquiry-email.mjs
+```
+
+For the design to become live, update the existing Apps Script deployment with
+the entire canonical file and select **New version**. A Vercel redeploy alone
+does not update these emails. Preserve Script Properties and the current `/exec`
+URL. Gmail/Outlook delivery and rendering require an owner-approved inbox test;
+a local browser preview is not proof of every email client's appearance.
+
+Reference: [Google MailApp options](https://developers.google.com/apps-script/reference/mail/mail-app).
+
+Published on 5 October 2026 at 18:15 IST as **Version 5** of the existing
+deployment. The editor source was checked against the tested local file before
+publication. The web-app URL, execution account, access policy, Script Properties
+and Sheet schema were unchanged. Version 4 remains available for rollback.
+
 | File | Purpose |
 |------|---------|
 | `nodalx-intake.gs` | Canonical Apps Script backend (deploy this file alone) |

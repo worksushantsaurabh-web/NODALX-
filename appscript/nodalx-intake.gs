@@ -393,7 +393,48 @@ function getStats() {
  * @param {Object} classification Result of classifyInquiry.
  * @return {void}
  */
-function sendEmailNotifications(payload, classification) {
+function escapeEmailHtml(value) {
+  const entities = {'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'};
+  return String(value || '').replace(/[&<>"']/g, character => entities[character]);
+}
+
+function buildUserConfirmationEmail(payload, rowId) {
+  const services = {
+    'ai-automation': 'AI Workflow Automation',
+    'lead-scoring': 'Intelligent Lead Scoring',
+    'custom-integration': 'Custom CRM Integration',
+    consulting: 'Strategy & Consulting',
+  };
+  const service = Object.prototype.hasOwnProperty.call(services, payload.service) ? services[payload.service] : payload.service || 'General inquiry';
+  const firstName = String(payload.name || '').trim().split(/\s+/)[0] || 'there';
+  const details = [['Company', payload.company], ['Interested in', service], ['Inquiry reference', rowId]].filter(detail => detail[1]);
+  const detailHtml = details.map(detail => `<tr><td style="padding:10px 0;border-bottom:1px solid #e2e8f0;"><p style="margin:0 0 4px;font-size:12px;line-height:18px;color:#64748b;">${escapeEmailHtml(detail[0])}</p><p style="margin:0;font-size:14px;line-height:22px;color:#0f172a;overflow-wrap:anywhere;word-break:break-all;">${escapeEmailHtml(detail[1])}</p></td></tr>`).join('');
+  const introduction = 'Thanks for reaching out. Your inquiry has been saved, and we will review how NodalX can support your business.';
+  const nextSteps = 'We will review your requirements and reply to this email address with relevant next steps. This email confirms receipt; it does not book a call or activate a service.';
+  const replyPrompt = 'Want to give us a head start? Reply with the tools you use, your current workflow, and the manual task you would most like to simplify. Please do not send passwords or sensitive customer data.';
+  return {
+    to: payload.email,
+    name: 'NodalX',
+    replyTo: CONFIG.OWNER_EMAIL,
+    subject: 'Your inquiry is received | NodalX',
+    body: `Hi ${firstName},\n\n${introduction}\n\nYOUR INQUIRY\n${details.map(detail => detail[0] + ': ' + detail[1]).join('\n')}\n\nWHAT HAPPENS NEXT\n${nextSteps}\n\n${replyPrompt}\n\nExplore NodalX: https://nodalx.in\n\nThe NodalX team\nYou received this confirmation because this email address was used to submit an inquiry at nodalx.in. If that was not you, you can ignore this message.`,
+    htmlBody: `<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Your NodalX inquiry</title></head>
+<body style="margin:0;padding:0;background-color:#f1f5f9;color:#0f172a;font-family:Arial,Helvetica,sans-serif;">
+<div style="display:none;max-height:0;overflow:hidden;opacity:0;mso-hide:all;">Your inquiry is saved. Here is what happens next, and how to share more context.</div>
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#f1f5f9;"><tr><td align="center" style="padding:24px 12px;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width:600px;table-layout:fixed;background-color:#ffffff;border:1px solid #e2e8f0;border-radius:16px;">
+<tr><td style="padding:28px 24px;background-color:#0f172a;border-radius:16px 16px 0 0;"><a href="https://nodalx.in" style="font-size:25px;line-height:32px;font-weight:700;letter-spacing:-1px;color:#ffffff;text-decoration:none;">Nodal<span style="color:#a5b4fc;">X</span></a><p style="margin:8px 0 0;font-size:12px;line-height:18px;color:#cbd5e1;">Less manual work. More clarity.</p></td></tr>
+<tr><td style="padding:28px 24px 0;overflow-wrap:anywhere;word-wrap:break-word;"><p style="margin:0 0 12px;font-size:11px;line-height:18px;letter-spacing:2px;font-weight:700;color:#4f46e5;">INQUIRY RECEIVED</p><h1 style="margin:0 0 20px;font-size:28px;line-height:36px;font-weight:700;letter-spacing:-0.5px;color:#0f172a;">Let&#39;s make work simpler.</h1><p style="margin:0 0 12px;font-size:15px;line-height:24px;color:#0f172a;word-break:break-word;">Hi ${escapeEmailHtml(firstName)},</p><p style="margin:0;font-size:15px;line-height:24px;color:#475569;">${introduction}</p></td></tr>
+<tr><td style="padding:24px;"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="table-layout:fixed;background-color:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;"><tr><td style="padding:16px 20px;"><h2 style="margin:0 0 4px;font-size:14px;line-height:22px;color:#0f172a;">Your inquiry at a glance</h2><table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="table-layout:fixed;">${detailHtml}</table></td></tr></table></td></tr>
+<tr><td style="padding:0 24px 24px;"><h2 style="margin:0 0 10px;font-size:18px;line-height:26px;color:#0f172a;">What happens next?</h2><p style="margin:0 0 16px;font-size:14px;line-height:23px;color:#475569;">${nextSteps}</p><p style="margin:0;font-size:14px;line-height:23px;color:#475569;">${replyPrompt}</p></td></tr>
+<tr><td style="padding:0 24px 28px;"><table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr><td bgcolor="#4f46e5" style="border-radius:8px;background-color:#4f46e5;"><a href="https://nodalx.in" style="display:inline-block;padding:14px 22px;border:1px solid #4f46e5;border-radius:8px;font-size:14px;line-height:20px;font-weight:700;color:#ffffff;text-decoration:none;">Explore NodalX</a></td></tr></table><p style="margin:20px 0 0;font-size:14px;line-height:22px;color:#475569;">Thank you,<br><strong style="color:#0f172a;">The NodalX team</strong></p></td></tr>
+<tr><td style="padding:20px 24px;border-top:1px solid #e2e8f0;"><p style="margin:0;font-size:11px;line-height:18px;color:#64748b;">You received this confirmation because this email address was used to submit an inquiry at <a href="https://nodalx.in" style="color:#64748b;text-decoration:underline;">nodalx.in</a>. If that was not you, you can ignore this message.</p></td></tr>
+</table></td></tr></table></body></html>`,
+  };
+}
+
+function sendEmailNotifications(payload, classification, rowId) {
   if (!payload || !payload.name) return;
 
   try {
@@ -419,13 +460,7 @@ function sendEmailNotifications(payload, classification) {
 
   try {
     if (CONFIG.SEND_USER_CONFIRMATION && payload.email) {
-      MailApp.sendEmail({
-        to: payload.email,
-        subject: 'Thanks for reaching out to NodalX',
-        body: 'Hi ' + payload.name + ',\n\n' +
-          'Thanks for your message. We received it and will reply shortly.\n\n' +
-          '— The NodalX team',
-      });
+      MailApp.sendEmail(buildUserConfirmationEmail(payload, rowId));
     }
   } catch (error) {
     console.error('Confirmation email failed');
@@ -488,7 +523,7 @@ function doPost(e) {
     const classification = classifyInquiry(payload);
     const stored = storeInquiry(payload, classification);
     if (stored.conflict) return jsonResponse({success: false, code: 'IDEMPOTENCY_CONFLICT', message: 'Request ID belongs to different inquiry data'});
-    if (!stored.duplicate) sendEmailNotifications(payload, classification);
+    if (!stored.duplicate) sendEmailNotifications(payload, classification, stored.rowId);
 
     return jsonResponse({
       success: true,
