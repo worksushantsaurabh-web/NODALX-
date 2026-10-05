@@ -19,8 +19,7 @@ billing account prevents collection; obtain written guidance from Google support
   billing. Both `nodalx.in` and the Firebase host serve `index-BlF9pcZ4.js`.
 - [x] Verified both public hosts return HTTP 200, new security headers and no
   proxy-shim markers in their main bundle. The tested API route still returns 503.
-- [x] Firebase Hosting now owns production headers. Vercel configs are optional
-  alternate deployment configs; their existence does not prove Vercel serves DNS.
+- [x] Vercel now serves the domain `nodalx.in`. The GCP project is suspended.
 - [x] Rule emulator tests cover free signup, tier escalation, profile writes,
   cross-tenant reads and direct intake writes. Added these tests to CI.
 - [x] Repaired backup traversal, pagination and typed-value preservation.
@@ -63,8 +62,7 @@ encrypted storage before relying on it as disaster recovery.
 
 ## Corrections to earlier chat advice
 
-- `199.36.158.100` is a Firebase Hosting address, not proof of Vercel. Certificate
-  issuer and generic cache headers cannot identify an origin conclusively.
+- As of Oct 2026, the apex resolves to Vercel anycast IPs, not Firebase.
 - Domain discussed here is `nodalx.in`; claims about `nodalx.ai` were a mistake.
 - Billing suspension is not the same as project deletion; there is no established
   automatic 30-day deletion deadline for this project's billing suspension.

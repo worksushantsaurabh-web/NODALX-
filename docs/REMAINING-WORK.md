@@ -10,7 +10,7 @@ are reduced from nine to five; runtime-only audit reports zero. The remaining
 braces/Tailwind build advisory has no published patch. 47 scoped tests and the
 frontend build pass; the patch is not yet redeployed because CLI refresh failed.
 
-`nodalx.in` is now attached to the Vercel project, but DNS is still invalid.
+`nodalx.in` is attached to the Vercel project and DNS is valid.
 Actual authoritative DNS is Cloudflare, not the former GoDaddy zone. The Vercel
 page's exact CNAME recommendation is recorded in the checklist. Cloudflare
 sign-in, intake secrets and approved AWS account access remain owner steps.
@@ -21,13 +21,13 @@ Vercel frontend/contact code is now deployed at
 https://nodalx-frontend.vercel.app. See
 `runbooks/vercel-deployment-2026-10-04.md` for verification and remaining blockers.
 The contact route returns configured JSON errors, but intake secrets are still
-missing. The legacy API health check and custom domain still return 404.
+missing. The legacy API health check returns 404 because the GCP project is suspended.
 
 The new request is to move off Firebase. Follow `runbooks/aws-migration.md`;
 the older Firebase release checklist below applies only if that path is retained.
 Do not reactivate Google billing to implement the AWS path.
 
-- Verified custom domain returns 404; confirm its intended hosting destination.
+- The custom domain serves the Vercel frontend, but the GCP project is suspended, causing 404s on API endpoints.
 - Linked Vercel project `nodalx-frontend` lacks both Apps Script server variables.
 - Hardened proxy, stable retry handling, Apps Script duplicate protection and
   an intake-only AWS handler/template are implemented. The proxy/frontend are

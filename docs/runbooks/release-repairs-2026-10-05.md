@@ -66,10 +66,10 @@ References: [gRPC maintainer advisory](https://github.com/grpc/grpc-node/securit
 not automatically visible in the current Firestore dashboard. Never expose the
 entire owner spreadsheet to every signed-in user.
 
-## 3. Domain — Vercel attachment completed, DNS still pending
+## 3. Domain — Vercel attachment completed, DNS verified
 
 `nodalx.in` was added to `nodalx-frontend`, and the signed-in Vercel domain page
-confirms the association. It currently shows **Invalid Configuration**.
+confirms the association. It is now verified and resolving properly.
 
 The domain's authoritative nameservers are:
 

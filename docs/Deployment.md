@@ -20,7 +20,7 @@ aliases: [deploy, how-to-deploy]
 
 ## Frontend (Firebase Hosting)
 
-`nodalx.in` is currently served by Firebase Hosting. For the planned Vercel move, use [[Vercel-Migration]]; changing Hosting does not fix the disabled Firebase API.
+`nodalx.in` is currently served by Vercel. Note that the GCP project is suspended, causing API proxies to fail. For the planned Vercel move, use [[Vercel-Migration]]; changing Hosting does not fix the disabled Firebase API.
 
 ### Deploy
 ```bash

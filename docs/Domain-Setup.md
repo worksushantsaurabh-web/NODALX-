@@ -6,6 +6,9 @@ tags: [firebase, hosting, godaddy, dns]
 
 # Connect `nodalx.in` to Firebase Hosting
 
+> [!WARNING]
+> As of Oct 2026, `nodalx.in` is served by Vercel, not Firebase Hosting. Furthermore, the GCP project is suspended.
+
 The public brand is **NodalX**. Keep the existing Firebase project ID `nodalxai-b9eb5`: it is an infrastructure identifier, not the customer-facing name. The existing `firebaseapp.com` URL stays available after adding a custom domain.
 
 ## 1. Add the domain in Firebase

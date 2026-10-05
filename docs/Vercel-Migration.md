@@ -6,7 +6,7 @@ tags: [deployment, vercel, godaddy, firebase]
 
 # Move the NodalX frontend to Vercel
 
-Firebase Hosting currently serves `nodalx.in`. Do not change GoDaddy DNS until the Vercel deployment has been tested. The migration changes frontend hosting only: Firebase Auth and Firestore remain, and `/api/**` is proxied to the existing Firebase Hosting API. That API currently responds with HTTP 503 because the Firebase function reports disabled billing. Moving the frontend does **not** restore the dashboard or inquiry pipeline. Resolve backend billing or migrate the API separately before launch.
+Vercel currently serves `nodalx.in`. The GCP project is suspended, causing APIs to return 404. Do not change GoDaddy DNS until the Vercel deployment has been tested. The migration changes frontend hosting only: Firebase Auth and Firestore remain, and `/api/**` is proxied to the existing Firebase Hosting API. That API currently responds with HTTP 503 because the Firebase function reports disabled billing. Moving the frontend does **not** restore the dashboard or inquiry pipeline. Resolve backend billing or migrate the API separately before launch.
 
 ## Preview first
 
