@@ -1,4 +1,5 @@
 import { getAccessToken, getCurrentSessionUser } from '../../lib/session';
+import { resolveApiOrigin } from '../../lib/apiOrigin';
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
 
 interface RequestOptions extends RequestInit {
@@ -16,7 +17,7 @@ async function request<T>(endpoint: string, options: RequestOptions = {}): Promi
   const { params, headers, ...fetchOptions } = options;
   
   // Build URL with query params
-  const baseUrl = API_BASE_URL || window.location.origin;
+  const baseUrl = resolveApiOrigin(API_BASE_URL, window.location.origin);
   const url = new URL(`${baseUrl}${endpoint}`);
   if (params) {
     Object.entries(params).forEach(([key, value]) => {

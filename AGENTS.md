@@ -256,6 +256,47 @@ trailing whitespace/extra EOF blank line only (no SQL semantic change). GitHub
 lookup encountered DNS failure; retry the authorized push after checks and report
 actual remote verification rather than assuming branch publication.
 
+Staging publication checkpoint: owner-approved nodalx-staging pushed; remote
+verified commit eda17b7429537163627925db1c6e172ba6c395d3. main remains untouched.
+Dashboard verified SUPABASE_URL and VITE_SUPABASE_URL in Preview/nodalx-staging
+only. Corrected URL1 naming to required SUPABASE_URL. Skipped default Production
+redeploy prompts. CLI env/deployment inspection still errors; do not claim a
+verified preview deployment. Owner must privately save publishable keys and
+service-role credential in this branch scope. API base override, disabled gates,
+source/machine tokens, Auth redirects and deployment verification remain pending.
+No new secret entered or expanded privileges, no Make activation or live test.
+
+Owner key-entry checkpoint — 6 October 2026: metadata confirms service-role key
+saved as Secret in Preview/nodalx-staging; its value was not revealed/validated.
+Owner saved publishable key while form still targeted Production; moved that
+new Config variable to Preview/nodalx-staging and verified success without any
+redeploy. Prepared VITE_SUPABASE_PUBLISHABLE_KEY Config form with staging-only
+scope BEFORE handoff; owner must paste only the sb_publishable_ client key.
+No server key may enter a VITE_ variable. Remaining gates/API override/deployed
+verification remain pending; no Production redeploy or Make activation.
+
+Preview boundary step — 6 October 2026: all three Supabase key names now show
+Preview/nodalx-staging metadata; secret value not revealed or verified. Vercel's
+creation form rejects an empty API-base override. Added tested same-origin
+sentinel resolver in API transport only (no UI features), preserving default
+and explicit endpoint behavior. Bulk safety settings remain unsaved until this
+option is entered and staging-only scope verified; no Production redeploy.
+
+Same-origin transport follow-up: updated the remaining direct-fetch consumers
+(notifications, Sheets verification, upload transport) to use the same resolver,
+so the new sentinel cannot form literal same-origin/api paths there. No layout,
+UI semantics, endpoint ownership or feature gates changed.
+
+Preview safety settings verified — 6 October 2026: saved eight Config variables
+for Preview/nodalx-staging only: API base same-origin, Google OAuth false, intake
+provider make-supabase/environment staging and intake/Make/processing network
+gates false. Creation disallows empty values; all direct API-base consumers now
+use the tested resolver. 18 frontend library tests, typecheck/build, working-tree
+secret scan and whitespace checks passed. Publishing transport fix on the approved
+staging branch; no production promotion, automatic sending or new provider calls.
+Remaining: verified updated Preview deployment, exact Auth callbacks/SMTP review,
+owned source binding/private source and machine tokens, approved synthetic E2E.
+
 ## Release gates
 
 Before describing a change as complete, run the relevant build, lint, tests,

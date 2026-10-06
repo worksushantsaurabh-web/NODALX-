@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { X, Link2, CheckCircle2, AlertCircle, RefreshCw, FileSpreadsheet, ExternalLink } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { getAccessToken } from '../lib/session';
+import { resolveApiOrigin } from '../lib/apiOrigin';
 import { Button, Input } from '../ui';
 import { Analytics } from '../lib/analytics';
 import { api } from '../src/services/api';
@@ -80,7 +81,7 @@ export default function GoogleSheetsModal({ isOpen, onClose, onSuccess }: Google
     }
 
     try {
-      const apiBase = import.meta.env.VITE_API_BASE_URL || '';
+      const apiBase = resolveApiOrigin(import.meta.env.VITE_API_BASE_URL, window.location.origin);
 
       const response = await fetch(`${apiBase}/api/connectors/google-sheets/verify`, {
         method: 'POST',

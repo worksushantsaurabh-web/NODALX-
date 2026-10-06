@@ -15,6 +15,13 @@ Preview variables. A typed `nodalx-staging` scope was also rejected because that
 branch did not yet exist in the connected Git repository. Owner approved creating
 and pushing `nodalx-staging` after checks. No variable write succeeded at this
 checkpoint; verify saved metadata after the branch exists.
+Follow-up: branch `nodalx-staging` was pushed and its commit verified remotely.
+Dashboard confirms both URLs, both publishable key names, the private server-key
+name and eight safety/configuration variables saved for that Preview branch only.
+Server credential value was not revealed or tested. Source/machine tokens and
+bindings remain pending. CLI reads/writes/dry deployment still fail; use verified
+dashboard state, not assumptions about automatic deployment. The API transport's
+same-origin option is now tested; deploy its updated branch before verifying.
 The server template now includes `SUPABASE_PUBLISHABLE_KEY`, required by the
 authenticated workspace API separately from the service-role credential.
 
@@ -31,7 +38,7 @@ source files, frontend variables, command arguments, screenshots or Make exports
 | `VITE_SUPABASE_URL` | Same staging origin |
 | `SUPABASE_PUBLISHABLE_KEY` | Staging publishable key (public client key) |
 | `VITE_SUPABASE_PUBLISHABLE_KEY` | Same publishable key; never a secret/server key |
-| `VITE_API_BASE_URL` | Empty override; use same-origin Vercel API, not inherited legacy URL |
+| `VITE_API_BASE_URL` | `same-origin`; requires the tested API-client resolver on the staging branch |
 | `VITE_SUPABASE_GOOGLE_ENABLED` | `false`; Google OAuth not configured yet |
 | `INTAKE_PROVIDER` | `make-supabase` only in this staging preview |
 | `INTAKE_ENVIRONMENT` | `staging` |

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Bell, Webhook, Mail, RefreshCw, CheckCircle2, AlertCircle, Save, Send } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { getAccessToken } from '../lib/session';
+import { resolveApiOrigin } from '../lib/apiOrigin';
 import { Button } from '../ui';
 
 interface NotificationSettingsData {
@@ -50,7 +51,7 @@ export default function NotificationSettings() {
     }
 
     try {
-      const apiBase = import.meta.env.VITE_API_BASE_URL || '';
+      const apiBase = resolveApiOrigin(import.meta.env.VITE_API_BASE_URL, window.location.origin);
       const url = `${apiBase}/api/integrations/notifications`;
 
       const response = await fetch(url, {
@@ -97,7 +98,7 @@ export default function NotificationSettings() {
     }
 
     try {
-      const apiBase = import.meta.env.VITE_API_BASE_URL || '';
+      const apiBase = resolveApiOrigin(import.meta.env.VITE_API_BASE_URL, window.location.origin);
       const url = `${apiBase}/api/integrations/notifications`;
 
       const response = await fetch(url, {
@@ -149,7 +150,7 @@ export default function NotificationSettings() {
     }
 
     try {
-      const apiBase = import.meta.env.VITE_API_BASE_URL || '';
+      const apiBase = resolveApiOrigin(import.meta.env.VITE_API_BASE_URL, window.location.origin);
       const url = `${apiBase}/api/integrations/notifications/test`;
 
       const response = await fetch(url, {
@@ -184,7 +185,7 @@ export default function NotificationSettings() {
       console.error('[NotificationSettings] Error details:', {
         message: err?.message,
         stack: err?.stack,
-        url: `${import.meta.env.VITE_API_BASE_URL || ''}/api/integrations/notifications/test`,
+        url: `${resolveApiOrigin(import.meta.env.VITE_API_BASE_URL, window.location.origin)}/api/integrations/notifications/test`,
       });
       setError(`Network error: ${err?.message || 'Please check your connection and try again.'}`);
     } finally {

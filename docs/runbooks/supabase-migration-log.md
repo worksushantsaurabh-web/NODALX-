@@ -377,3 +377,45 @@ This is still a local rehearsal, not a production cutover or full Firebase retir
   301 files and whitespace checks passed. No new frontend features implemented.
 - Next: publish the approved branch, save its Preview-only public configuration,
   hand off private server credential entry, then verify preview deployment.
+
+## Staging branch published and URLs saved — 6 October 2026
+
+- Created/committed/pushed the owner-approved `nodalx-staging` branch; verified
+  remote commit `eda17b7429537163627925db1c6e172ba6c395d3`. No merge/push to main.
+- Staged scan and whitespace checks passed after fixing two formatting issues
+  in previously untracked files. Credentials, caches and built assets excluded.
+- Dashboard confirms `SUPABASE_URL` and `VITE_SUPABASE_URL` saved for
+  Preview/nodalx-staging only. Corrected the saved URL1 key name. Cancelled default
+  Production redeploy prompts; production variables and domain left unchanged.
+- CLI environment/deployment commands still fail. A successful deployed preview
+  was not verified. Public keys, API base override, disabled gates and private
+  service/source/machine keys remain pending; owner credential entry is next.
+- No Make activation, customer test, billing change or live intake cutover.
+
+## Private key metadata and public key scope — 6 October 2026
+
+- Owner saved `SUPABASE_SERVICE_ROLE_KEY`. Dashboard metadata confirms Secret,
+  Preview/nodalx-staging only. No secret reveal or credential-validity test.
+- Owner saved `SUPABASE_PUBLISHABLE_KEY` before scope preparation completed,
+  resulting in Production selection. Corrected this new Config variable to
+  Preview/nodalx-staging and verified the saved scope; no redeploy performed.
+- Prepared `VITE_SUPABASE_PUBLISHABLE_KEY` Config field with staging-only scope
+  before owner handoff. Only the public client key belongs here, not service-role.
+- Keys were not written to repository files. API override, disabled automation
+  gates, Auth redirects and a verified Preview deployment remain outstanding.
+
+## Preview connection settings complete — 6 October 2026
+
+- Metadata verifies both URL variables, both publishable-key variables and the
+  server-key Secret, scoped only to Preview/nodalx-staging. Secret validity remains
+  untested; no server key revealed, copied or added to source.
+- Bulk-saved eight Config settings with same-origin API override, staging intake
+  selection and all Google/Make/provider network gates disabled. Production was
+  excluded before save. Existing inherited legacy variables were not deleted.
+- Vercel rejects empty values, so added a shared same-origin API transport
+  resolver and updated direct notification, Sheets and upload transports to use
+  it. No UI layout or product features changed. Three focused tests, 18 frontend
+  library tests, typecheck/build, secret scan and whitespace checks passed.
+- Publish this fix only on the approved staging branch. Updated Preview build,
+  auth callbacks/SMTP, secret validity, owned source bindings, private intake
+  tokens and owner-approved synthetic Make round-trip remain release gates.

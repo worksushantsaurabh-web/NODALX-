@@ -2,6 +2,7 @@ import React, { useRef, useState } from 'react';
 import { Download, RefreshCw } from 'lucide-react';
 import { api } from '../../src/services/api';
 import { getAccessToken } from '../../lib/session';
+import { resolveApiOrigin } from '../../lib/apiOrigin';
 import { button, input, panel, Notice, PageTitle, Loading, useResource, Usage, downloadCsv } from './ui';
 import {batchLimit, canSaveRecipeDraft, importReadiness, matchesJob, type ImportMode} from './importReadiness';
 
@@ -170,7 +171,7 @@ export default function ImportWorkspace({onConnections}: {onConnections: () => v
       const token = await getAccessToken();
       if (!token) throw Error('Sign in to upload a file.');
       const form = new FormData(); form.append('file', file);
-      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || ''}/api/workspace/uploads`, {method: 'POST', headers: {Authorization: `Bearer ${token}`}, body: form, signal: AbortSignal.timeout(30000)});
+      const response = await fetch(`${resolveApiOrigin(import.meta.env.VITE_API_BASE_URL, window.location.origin)}/api/workspace/uploads`, {method: 'POST', headers: {Authorization: `Bearer ${token}`}, body: form, signal: AbortSignal.timeout(30000)});
       const result = await response.json(); if (!response.ok) throw Error(result.error || 'Upload failed.');
       setUploadId(result.uploadId); setTitle(result.title); setHeaders(result.headers); setMapping(defaultMapping(result.headers));
     } catch (problem) {setError(problem instanceof Error ? problem.message : 'Upload failed.');} finally {setBusy(false); if (fileInput.current) fileInput.current.value = '';}
