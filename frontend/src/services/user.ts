@@ -18,8 +18,8 @@ export interface UserProfile {
      * Commercial plan label, not the access entitlement. Entitlement lives in
      * `users/{uid}.tier` as 'free' | 'full' and is owned by the server.
      */
-    tier: 'starter' | 'pro' | 'growth' | 'scale' | 'enterprise';
-    status: 'active' | 'canceled' | 'past_due';
+    tier: 'trial' | 'starter' | 'pro' | 'growth' | 'scale' | 'enterprise';
+    status: 'trialing' | 'active' | 'legacy' | 'expired' | 'canceled' | 'past_due';
     executionsUsed: number;
     executionsLimit: number;
     nextInvoiceDate: string;

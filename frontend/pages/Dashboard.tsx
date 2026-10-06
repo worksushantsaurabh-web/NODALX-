@@ -53,6 +53,7 @@ export default function Dashboard({ defaultTab = 'overview' }: { defaultTab?: st
   const [sort, setSort] = useState<QueueSort>('priority');
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
   const [nextCursor, setNextCursor] = useState<string | null>(null);
+  const [sourceNotice, setSourceNotice] = useState<string | null>(null);
   const [isLoadingOlder, setIsLoadingOlder] = useState(false);
   const olderController = useRef<AbortController | null>(null);
   const previousOwner = useRef(user?.uid);
@@ -76,6 +77,7 @@ export default function Dashboard({ defaultTab = 'overview' }: { defaultTab?: st
       previousOwner.current = user?.uid;
       setSources({backend: emptySource, 'apps-script': emptySource});
       setNextCursor(null);
+      setSourceNotice(null);
       setSelectedKey(null);
     }
     setIsRefreshing(true);
@@ -83,6 +85,7 @@ export default function Dashboard({ defaultTab = 'overview' }: { defaultTab?: st
       if (controller.signal.aborted) return;
       setSources(previous => ({...previous, backend: settleSource(previous.backend, {status: 'fulfilled', value: page}, Date.now())}));
       setNextCursor(page.nextCursor);
+      setSourceNotice(page.notice || null);
     }).catch(() => {
       if (!controller.signal.aborted) setSources(previous => ({...previous, backend: settleSource(previous.backend, {status: 'rejected', reason: 'Fetch failed'}, Date.now())}));
     }).finally(() => {
@@ -225,6 +228,7 @@ export default function Dashboard({ defaultTab = 'overview' }: { defaultTab?: st
             {hasWarnings ? <AlertCircle className="h-4 w-4 shrink-0 text-text-primary" aria-hidden="true" /> : <span className="h-2 w-2 shrink-0 rounded-full bg-text-tertiary" aria-hidden="true" />}
             <p role="status" aria-atomic="true" className="min-w-0 flex-1 font-medium text-text-primary">{isRefreshing ? hasFetched ? 'Refreshing inquiries; existing records remain visible.' : 'Loading inquiries from your source…' : (hasWarnings && sources.backend.warning?.includes('SERVICE_UNAVAILABLE')) ? 'Service is temporarily unavailable due to a maintenance hold. Please try again later.' : hasWarnings ? 'Source issue — loaded records may be incomplete or out of date.' : 'Showing records returned by the backend.'}</p>
           </div>
+          {sourceNotice && <p role="status" className="mt-2 text-text-secondary">{sourceNotice}</p>}
           <details className="mt-2 pl-5 text-xs text-text-secondary">
             <summary className="w-fit cursor-pointer rounded text-text-secondary hover:text-text-primary">Source details</summary>
             {configuredSources.map(source => (
@@ -346,10 +350,10 @@ export default function Dashboard({ defaultTab = 'overview' }: { defaultTab?: st
                   {[['Status', selected.status], ['Intent', selected.intent], ['Urgency', selected.urgency], ['Category', selected.category], ['Service', selected.service], ['Industry', selected.industry], ['Fit score (source value)', selected.fit_score], ['Source activity', formatActivity(selected.last_active)]].map(([label, value]) => <div key={label} className="min-w-0"><dt className="text-xs text-text-secondary">{label}</dt><dd className="mt-1 break-words font-medium">{value || 'Unknown'}</dd></div>)}
                 </dl>
                 {selected.processing_status && selected.processing_status !== 'unknown' && <p className="text-xs text-text-secondary">AI processing: {selected.processing_status.replaceAll('_', ' ')}</p>}
-                {selected.source === 'backend' && ['awaiting_analysis', 'not_configured', 'not_requested', 'failed', 'no_classification'].includes(selected.processing_status) && <button className={control} disabled={!!saveState?.pending || isRefreshing} onClick={async () => {
+                {selected.source === 'backend' && ['awaiting_analysis', 'not_configured', 'not_requested', 'failed', 'no_classification'].includes(selected.processing_status) && <button className={control} disabled={!!saveState?.pending || isRefreshing || !workspaceUsage.data?.workflowConfigured || !workspaceUsage.data.active || workspaceUsage.data.remaining < 1} onClick={async () => {
                   setSaveState({key: selected.key, pending: true});
                   try {await apiRequest(`/api/workspace/inquiries/${encodeURIComponent(selected.id)}/analyze`, {method: 'POST', body: '{}'}); setSaveState({key: selected.key, pending: false, message: 'Analysis queued. Track it in Imports & processing.'}); setRefreshVersion(value => value + 1);} catch (error) {setSaveState({key: selected.key, pending: false, error: error instanceof Error ? error.message : 'Could not start analysis.'});}
-                }}>Analyze inquiry · reserve 1 credit</button>}
+                }}>{workspaceUsage.data?.workflowConfigured ? 'Analyze inquiry · reserve 1 credit' : 'Analysis unavailable — processing is not configured'}</button>}
                 <p className="text-xs leading-relaxed text-text-secondary">Missing classifications are unknown, not low priority. Score scale and classification method are not verified by this desk.</p>
 
                 {selected.summary && <div><h3 className="text-xs font-semibold uppercase tracking-wider text-text-secondary">Source-provided summary</h3><p className="mt-2 whitespace-pre-wrap break-words text-sm leading-relaxed">{selected.summary}</p></div>}

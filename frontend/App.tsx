@@ -12,6 +12,7 @@ import Changelog from './pages/Changelog';
 import NotFound from './pages/NotFound';
 import ProtectedRoute from './components/ProtectedRoute';
 import AnalyticsConsent from './components/AnalyticsConsent';
+import AuthCallback from './components/AuthCallback';
 
 const Dashboard = lazy(() => import('./pages/Dashboard'));
 
@@ -35,7 +36,7 @@ export default function App() {
       <ThemeProvider>
         <AuthProvider>
           <FeedbackProvider>
-            <HashRouter>
+            {window.location.pathname === '/auth/callback' ? <AuthCallback /> : <HashRouter>
               <Routes>
                 <Route path="/" element={<Home />} />
                 <Route path="/privacy" element={<PrivacyPolicy />} />
@@ -54,7 +55,7 @@ export default function App() {
                 <Route path="*" element={<NotFound />} />
               </Routes>
               <AnalyticsConsent />
-            </HashRouter>
+            </HashRouter>}
             <FeedbackWidget />
           </FeedbackProvider>
         </AuthProvider>

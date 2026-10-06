@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { api } from '../src/services/api';
-import { auth } from '../lib/firebase';
+import { authorizationHeader } from '../lib/session';
 import {
   Upload, FileSpreadsheet, Table2, Download, ArrowRight, Check, AlertCircle,
   Loader2, CloudUpload, Sparkles, Trash2, Eye, FileText, Sheet, Globe, Webhook,
@@ -183,9 +183,7 @@ export default function DataConnectors() {
       const formData = new FormData();
       formData.append('file', file);
 
-      const token = auth ? await auth.currentUser?.getIdToken() : null;
-      const headers: Record<string, string> = {};
-      if (token) headers['Authorization'] = `Bearer ${token}`;
+      const headers: Record<string, string> = await authorizationHeader();
 
       const res = await fetch('/api/analyze/upload', {
         method: 'POST',

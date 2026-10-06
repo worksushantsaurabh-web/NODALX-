@@ -1,7 +1,7 @@
 import React, { useRef, useState } from 'react';
 import { Download, RefreshCw } from 'lucide-react';
 import { api } from '../../src/services/api';
-import { auth } from '../../lib/firebase';
+import { getAccessToken } from '../../lib/session';
 import { button, input, panel, Notice, PageTitle, Loading, useResource, Usage, downloadCsv } from './ui';
 import {batchLimit, canSaveRecipeDraft, importReadiness, matchesJob, type ImportMode} from './importReadiness';
 
@@ -167,7 +167,7 @@ export default function ImportWorkspace({onConnections}: {onConnections: () => v
     reset(); setUploadId(''); setBusy(true);
     try {
       if (file.size > 4 * 1024 * 1024) throw Error('Choose a file smaller than 4 MB.');
-      const token = await auth?.currentUser?.getIdToken();
+      const token = await getAccessToken();
       if (!token) throw Error('Sign in to upload a file.');
       const form = new FormData(); form.append('file', file);
       const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || ''}/api/workspace/uploads`, {method: 'POST', headers: {Authorization: `Bearer ${token}`}, body: form, signal: AbortSignal.timeout(30000)});

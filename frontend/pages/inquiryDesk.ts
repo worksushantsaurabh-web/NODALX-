@@ -118,7 +118,8 @@ export function parseInquiryPage(payload: unknown) {
     (payload.nextCursor !== null && typeof payload.nextCursor !== 'string')) {
     throw new Error('The server returned an invalid inquiry page.');
   }
-  return {...parseInquiries(payload.records, 'backend'), nextCursor: payload.nextCursor as string | null};
+  const notice = 'notice' in payload && typeof payload.notice === 'string' ? payload.notice.slice(0, 500) : undefined;
+  return {...parseInquiries(payload.records, 'backend'), nextCursor: payload.nextCursor as string | null, ...(notice ? {notice} : {})};
 }
 
 export function appendInquiryPage(previous: Inquiry[], incoming: Inquiry[]): Inquiry[] {

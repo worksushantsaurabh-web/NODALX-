@@ -10,6 +10,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@supabase/supabase-js": "2.117.2",
     "firebase": "^11.7.0",
     "lucide-react": "latest",
     "motion": "^13.2.0",

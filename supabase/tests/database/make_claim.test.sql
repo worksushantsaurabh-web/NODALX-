@@ -1,0 +1,13 @@
+BEGIN;
+CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
+SET search_path = public, extensions;
+SELECT plan(6);
+SELECT is(has_function_privilege('anon', 'public.claim_make_processing_job()', 'EXECUTE'), false, 'anonymous cannot claim');
+SELECT is(has_function_privilege('authenticated', 'public.claim_make_processing_job()', 'EXECUTE'), false, 'browser cannot claim');
+SELECT is(has_function_privilege('service_role', 'public.claim_make_processing_job()', 'EXECUTE'), true, 'machine can claim');
+UPDATE private.processing_configuration SET enabled = false;
+SELECT is(public.claim_make_processing_job(), NULL::jsonb, 'machine cannot bypass operator pause');
+SELECT throws_ok('SELECT public.claim_make_processing_job()', 'P0429', NULL, 'duplicate poll is rate limited atomically');
+SELECT is((SELECT ready FROM private.processing_workers WHERE id = '00000000-0000-4000-8000-000000000001'), true, 'successful poll records readiness');
+SELECT * FROM finish();
+ROLLBACK;

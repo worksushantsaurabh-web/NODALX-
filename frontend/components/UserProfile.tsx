@@ -34,6 +34,9 @@ const TIMEZONES = [
 ];
 
 const TIER_LABELS: Record<string, { label: string; color: string; bg: string }> = {
+  trial: { label: 'Trial', color: 'text-text-primary', bg: 'bg-surface-hover' },
+  starter: { label: 'Starter', color: 'text-text-primary', bg: 'bg-surface-hover' },
+  growth: { label: 'Growth', color: 'text-text-primary', bg: 'bg-surface-hover' },
   free: { label: 'Free', color: 'text-text-tertiary ', bg: 'bg-surface-hover ' },
   pro: { label: 'Pro', color: 'text-text-primary ', bg: 'bg-surface-hover ' },
   enterprise: { label: 'Enterprise', color: 'text-indigo-700 ', bg: 'bg-indigo-500/10' },

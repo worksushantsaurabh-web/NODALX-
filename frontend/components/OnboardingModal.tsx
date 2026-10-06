@@ -1,10 +1,8 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { X } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
-import { useNavigate } from 'react-router-dom';
 import { NodalXLogo } from './Navbar';
-import { auth } from '../lib/firebase';
-import { signInWithPopup, GoogleAuthProvider, getAdditionalUserInfo } from 'firebase/auth';
+import SignInModal, {startGoogleSignIn} from './SignInModal';
 import { Analytics } from '../lib/analytics';
 
 interface OnboardingModalProps {
@@ -13,10 +11,11 @@ interface OnboardingModalProps {
 }
 
 export default function OnboardingModal({ isOpen, onClose }: OnboardingModalProps) {
-  const { login, isLoading, setIsLoading } = useAuth();
-  const navigate = useNavigate();
+  const { isLoading, setIsLoading } = useAuth();
   // Track whether auth completed so we can fire abandon on non-completing close
   const didComplete = useRef(false);
+  const [authError, setAuthError] = useState('');
+  const [emailSignIn, setEmailSignIn] = useState(false);
 
   // Prevent body scrolling when modal is open + fire open/abandon events
   useEffect(() => {
@@ -25,6 +24,7 @@ export default function OnboardingModal({ isOpen, onClose }: OnboardingModalProp
       document.body.style.overflow = 'hidden';
       Analytics.onboardingOpen();
     } else {
+      setEmailSignIn(false);
       document.body.style.overflow = 'unset';
     }
     return () => {
@@ -41,43 +41,19 @@ export default function OnboardingModal({ isOpen, onClose }: OnboardingModalProp
 
   const handleGoogleAuth = async () => {
     Analytics.onboardingGoogleClick();
-    if (!auth) {
-      console.warn('Firebase auth not available');
-      return;
-    }
     try {
       setIsLoading(true);
-      const provider = new GoogleAuthProvider();
-      provider.setCustomParameters({ prompt: 'select_account' });
-      const result = await signInWithPopup(auth, provider);
-
-      if (result.user) {
-        didComplete.current = true;
-        const info = getAdditionalUserInfo(result);
-        if (info?.isNewUser) {
-          // Flag the dashboard to show the onboarding wizard on first load
-          localStorage.setItem('nodalx_wizard', '1');
-        }
-        await login({
-          uid: result.user.uid,
-          displayName: result.user.displayName || result.user.email?.split('@')[0] || 'User',
-          email: result.user.email || '',
-          photoURL: result.user.photoURL || '',
-        });
-        Analytics.signupComplete('google');
-      }
-      onClose();
-      navigate('/dashboard');
+      setAuthError('');
+      await startGoogleSignIn();
     } catch (error: any) {
-      if (error.code !== 'auth/popup-closed-by-user' && error.code !== 'auth/cancelled-popup-request') {
-        console.error("Authentication failed", error);
-      }
+      setAuthError(error.message || 'Authentication failed. Please retry.');
     } finally {
       setIsLoading(false);
     }
   };
 
   if (!isOpen) return null;
+  if (emailSignIn) return <SignInModal isOpen onClose={onClose} />;
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6">
@@ -107,13 +83,15 @@ export default function OnboardingModal({ isOpen, onClose }: OnboardingModalProp
             Get early access
           </h3>
           <p className="text-text-tertiary  text-sm leading-relaxed">
-            Sign in to generate your API key and set up your inquiry pipeline in under 2 minutes.
+            Sign in to review your workspace and configure your inquiry sources. Some services are still being migrated.
           </p>
         </div>
 
+        {authError && <p role="alert" className="text-sm text-text-primary mb-4">{authError}</p>}
+        <button onClick={() => setEmailSignIn(true)} className="w-full mb-3 py-3 btn-primary rounded-lg">Continue with email</button>
         <button
           onClick={handleGoogleAuth}
-          disabled={isLoading}
+          disabled={isLoading || import.meta.env.VITE_SUPABASE_GOOGLE_ENABLED !== 'true'}
           className="w-full py-3 rounded-lg bg-neutral-900  hover:bg-surface-hover :bg-neutral-100 text-white  font-semibold text-sm transition-colors flex items-center justify-center gap-3 disabled:opacity-70"
         >
           {isLoading ? (
@@ -136,6 +114,7 @@ export default function OnboardingModal({ isOpen, onClose }: OnboardingModalProp
             </>
           )}
         </button>
+        {import.meta.env.VITE_SUPABASE_GOOGLE_ENABLED !== 'true' && <p className="mt-3 text-xs text-text-secondary">Google sign-in is not configured. Please continue with email.</p>}
 
         <p className="text-center text-xs text-text-secondary mt-4">
           By continuing, you agree to our{' '}

@@ -1,28 +1,23 @@
 /**
- * Analytics module — wraps Firebase logEvent with typed helpers.
+ * Analytics module — typed, provider-neutral event helpers.
  *
  * All calls are fire-and-forget: wrapped in try/catch, never block UI.
- * In development, events are printed to the console instead of (or alongside)
- * being sent to Firebase so you can verify instrumentation without opening
- * the Firebase DebugView.
- *
- * To see events in Firebase DebugView during testing, open the app with:
- *   ?debug_mode=1   in the URL
- * Firebase will then surface events in real-time at:
- *   https://console.firebase.google.com → Analytics → DebugView
+ * Events are forwarded only to an explicitly installed `AnalyticsSink` and
+ * only after the deployment opt-in plus browser consent. Firebase Analytics
+ * was retired during the Supabase migration; no external tracker is installed
+ * by default, so in production these helpers are no-ops. In development,
+ * events are printed to the console so instrumentation can still be verified.
  */
 
-import { getAnalytics, logEvent, setAnalyticsCollectionEnabled, setConsent, type Analytics as FirebaseAnalytics } from 'firebase/analytics';
-import app from './firebase';
-import {analyticsEnabled, readAnalyticsConsent, writeAnalyticsConsent} from './analyticsConsent';
+import {analyticsEnabled, getAnalyticsSink, readAnalyticsConsent, writeAnalyticsConsent} from './analyticsConsent';
 
-let analyticsInstance: FirebaseAnalytics | null = null;
+const collectionAllowed = () => analyticsEnabled() && readAnalyticsConsent() === true;
 
 export function syncAnalyticsConsent() {
-  const allowed = analyticsEnabled() && readAnalyticsConsent() === true;
-  if (analyticsInstance) {
-    setConsent({analytics_storage: allowed ? 'granted' : 'denied', ad_storage: 'denied', ad_user_data: 'denied', ad_personalization: 'denied'});
-    setAnalyticsCollectionEnabled(analyticsInstance, allowed);
+  try {
+    getAnalyticsSink()?.setCollectionEnabled(collectionAllowed());
+  } catch {
+    // Never crash the app on analytics failure
   }
 }
 
@@ -34,25 +29,11 @@ export function updateAnalyticsConsent(allowed: boolean): boolean {
 
 // ─── Internals ─────────────────────────────────────────────────────────────
 
-function getAnalyticsInstance() {
-  try {
-    // `app` is null when Firebase failed to initialize.
-    if (!app || !analyticsEnabled() || readAnalyticsConsent() !== true) return null;
-    if (!analyticsInstance) {
-      setConsent({analytics_storage: 'granted', ad_storage: 'denied', ad_user_data: 'denied', ad_personalization: 'denied'});
-      analyticsInstance = getAnalytics(app);
-    }
-    return analyticsInstance;
-  } catch {
-    return null;
-  }
-}
-
 function track(eventName: string, params?: Record<string, string | number | boolean>): void {
   try {
-    const instance = getAnalyticsInstance();
-    if (instance) {
-      logEvent(instance, eventName, params);
+    const sink = getAnalyticsSink();
+    if (sink && collectionAllowed()) {
+      sink.track(eventName, params);
     }
     if (import.meta.env.DEV) {
       // eslint-disable-next-line no-console

@@ -13,7 +13,7 @@ All must be prefixed with `VITE_` for Vite to expose them to the client bundle.
 
 | Variable | Value | Notes |
 |----------|-------|-------|
-| `VITE_FIREBASE_API_KEY` | `AIzaSyAw3fTbn8QVoiRO9st6ERw8yQ4gSn0zmkU` | Firebase client key (public) |
+| `VITE_FIREBASE_API_KEY` | `<from Firebase console>` | Firebase client key (public) |
 | `VITE_FIREBASE_AUTH_DOMAIN` | `nodalxai-b9eb5.firebaseapp.com` | |
 | `VITE_FIREBASE_PROJECT_ID` | `nodalxai-b9eb5` | |
 | `VITE_FIREBASE_STORAGE_BUCKET` | `nodalxai-b9eb5.firebasestorage.app` | |

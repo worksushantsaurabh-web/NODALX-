@@ -2,6 +2,9 @@
   "name": "nodalx",
   "private": true,
   "scripts": {
+    "dev:supabase": "node scripts/dev-supabase.mjs",
+    "test:supabase": "node scripts/test-supabase.mjs",
+    "test:supabase:account": "TEST_LOCAL_SUPABASE=true node --test tests/supabase-account.local.test.mjs",
     "test:intake": "node --test tests/*.test.mjs",
     "check:intake": "node scripts/check-intake.mjs",
     "build:aws-intake": "node scripts/package-aws-intake.mjs",
@@ -10,6 +13,10 @@
     "dev": "concurrently \"npm run dev-frontend\" \"npm run dev-backend\""
   },
   "devDependencies": {
-    "concurrently": "latest"
+    "concurrently": "latest",
+    "supabase": "2.119.0"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "2.117.2"
   }
 }

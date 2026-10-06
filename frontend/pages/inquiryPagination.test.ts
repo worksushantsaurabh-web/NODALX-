@@ -17,3 +17,9 @@ test('an incompatible or failed endpoint is not presented as an empty inbox', ()
   }
   assert.deepEqual(parseInquiryPage({records: [], nextCursor: null}), {records: [], skipped: 0, nextCursor: null});
 });
+
+test('source migration notices survive page normalization without inventing records', () => {
+  const page = parseInquiryPage({records: [], nextCursor: null, notice: 'Owner Sheet synchronization is pending.'});
+  assert.equal(page.notice, 'Owner Sheet synchronization is pending.');
+  assert.deepEqual(page.records, []);
+});

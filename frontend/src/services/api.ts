@@ -1,4 +1,4 @@
-import { auth } from '../../lib/firebase';
+import { getAccessToken, getCurrentSessionUser } from '../../lib/session';
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
 
 interface RequestOptions extends RequestInit {
@@ -30,9 +30,10 @@ async function request<T>(endpoint: string, options: RequestOptions = {}): Promi
     ...headers,
   };
 
-  // Add auth header if available. `auth` is null when Firebase failed to
-  // initialize, so it is guarded rather than dereferenced.
-  const token = auth ? await auth.currentUser?.getIdToken() : null;
+  // Add auth header if available. The session boundary returns null when the
+  // identity provider is unavailable or signed out.
+  const token = await getAccessToken();
+  const requestIdentity = getCurrentSessionUser()?.uid;
   if (token) {
     (defaultHeaders as Record<string, string>)['Authorization'] = `Bearer ${token}`;
   }
@@ -43,6 +44,8 @@ async function request<T>(endpoint: string, options: RequestOptions = {}): Promi
     signal: fetchOptions.signal || AbortSignal.timeout(20000),
     cache: 'no-store',
   });
+
+  if (requestIdentity !== getCurrentSessionUser()?.uid) throw new ApiError('Your session changed. Please refresh this view.', 401, 'SESSION_CHANGED');
 
   if (!response.ok) {
     const contentType = response.headers.get("content-type") || "";
@@ -63,7 +66,9 @@ async function request<T>(endpoint: string, options: RequestOptions = {}): Promi
   if (!contentType.includes("application/json")) {
     throw new Error(`SERVICE_UNAVAILABLE: Service is temporarily unavailable`);
   }
-  return response.json();
+  const result = await response.json();
+  if (requestIdentity !== getCurrentSessionUser()?.uid) throw new ApiError('Your session changed. Please refresh this view.', 401, 'SESSION_CHANGED');
+  return result;
 }
 
 export const apiRequest = request;

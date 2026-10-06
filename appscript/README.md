@@ -42,10 +42,7 @@ Your n8n workflow handled:
 2. Click **"New Project"**
 3. Delete the default `myFunction()` code
 4. Copy and paste the entire contents of `InquiryPipeline.gs` into the editor
-5. **Replace** `YOUR_GEMINI_API_KEY_HERE` with your actual API key:
-   ```javascript
-   GEMINI_API_KEY: 'AIzaSyYourActualKeyHere',
-   ```
+5. Setup Script Properties for your secrets under Project Settings.
 
 ---
 

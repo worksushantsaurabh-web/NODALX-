@@ -17,32 +17,59 @@
  * 4. Deploy → New Deployment → Web App
  *    - Execute as: Me
  *    - Who has access: Anyone
- * 5. Copy the Web App URL and paste it in your frontend
+ * 5. Configure the Web App URL only in the server-side connector
  */
 
 // ═══════════════════════════════════════════════════════════════
 // CONFIGURATION
 // ═══════════════════════════════════════════════════════════════
 
+// Non-secret settings only. Secrets and personal data live in Script
+// Properties (Project Settings → Script properties), never in source:
+//   GEMINI_API_KEY   – optional; classification is skipped when absent
+//   OWNER_EMAIL      – optional; owner notification is skipped when absent
+//   ALLOWED_ORIGIN   – optional; defaults to the production site origin
+//   INTAKE_SECRET    – required by isAuthorized() in Code.gs
 const CONFIG = {
-  // Get your free API key from: https://aistudio.google.com/app/apikey
-  GEMINI_API_KEY: 'YOUR_GEMINI_API_KEY_HERE',
-
   // Sheet name where inquiries are stored
   SHEET_NAME: 'NodalX_Inquiries',
 
   // Gemini model to use
   GEMINI_MODEL: 'gemini-2.0-flash',
 
-  // CORS allowed origin (your frontend URL)
-  // Use '*' for any origin during testing, restrict in production
-  ALLOWED_ORIGIN: '*',
-
   // Email notifications
-  OWNER_EMAIL: 'sushant.dravid999@gmail.com',
   SEND_OWNER_EMAIL: true,
   SEND_USER_CONFIRMATION: true,
 };
+
+const DEFAULT_ALLOWED_ORIGIN = 'https://nodalx.in';
+
+/**
+ * Reads a Script Property and returns a trimmed string, or '' when unset or
+ * when the property store is unavailable. Callers must treat '' as "feature
+ * disabled" (fail closed) and must never log the returned value.
+ */
+function getScriptSetting_(name) {
+  try {
+    const value = PropertiesService.getScriptProperties().getProperty(name);
+    return typeof value === 'string' ? value.trim() : '';
+  } catch (error) {
+    Logger.log('Script property store unavailable for ' + name);
+    return '';
+  }
+}
+
+function getGeminiApiKey_() {
+  const key = getScriptSetting_('GEMINI_API_KEY');
+  // Reject obvious placeholders and header-injection characters.
+  if (!key || /[\s\r\n]/.test(key) || /YOUR_|REPLACE|CHANGEME/i.test(key)) return '';
+  return key;
+}
+
+function getAllowedOrigin_() {
+  const origin = getScriptSetting_('ALLOWED_ORIGIN');
+  return /^https:\/\/[a-z0-9.-]+(:\d+)?$/i.test(origin) ? origin : DEFAULT_ALLOWED_ORIGIN;
+}
 
 // ═══════════════════════════════════════════════════════════════
 // SHEET SETUP
@@ -167,10 +194,10 @@ function doPost(e) {
     }, 201);
     
   } catch (error) {
-    Logger.log('Error in doPost: ' + error.toString());
+    Logger.log('Error in doPost: ' + (error && error.name ? error.name : 'unknown'));
     return jsonResponse({
       success: false,
-      error: 'Internal error: ' + error.toString()
+      error: 'Internal error'
     }, 500);
   } finally {
     lock.releaseLock();
@@ -215,10 +242,10 @@ function doGet(e) {
     }, 400);
     
   } catch (error) {
-    Logger.log('Error in doGet: ' + error.toString());
+    Logger.log('Error in doGet: ' + (error && error.name ? error.name : 'unknown'));
     return jsonResponse({
       success: false,
-      error: 'Internal error: ' + error.toString()
+      error: 'Internal error'
     }, 500);
   }
 }
@@ -250,8 +277,18 @@ Return ONLY a valid JSON object with these exact fields:
   "category": "<one of: enterprise, smb, individual, unknown>"
 }`;
 
+  const apiKey = getGeminiApiKey_();
+  if (!apiKey) {
+    // Fail closed: no key means no AI call, the inquiry is still stored and
+    // routed to manual review. Never block intake on optional enrichment.
+    Logger.log('Gemini classification skipped: GEMINI_API_KEY is not configured.');
+    return getDefaultClassification();
+  }
+
   try {
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/${CONFIG.GEMINI_MODEL}:generateContent?key=${CONFIG.GEMINI_API_KEY}`;
+    // Key goes in a header, never the URL: query strings are recorded in
+    // proxy, access and error logs.
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(CONFIG.GEMINI_MODEL)}:generateContent`;
     
     const requestBody = {
       contents: [{
@@ -267,30 +304,32 @@ Return ONLY a valid JSON object with these exact fields:
     
     const options = {
       method: 'POST',
+      contentType: 'application/json',
       headers: {
-        'Content-Type': 'application/json'
+        'x-goog-api-key': apiKey
       },
       payload: JSON.stringify(requestBody),
-      muteHttpExceptions: true
+      muteHttpExceptions: true,
+      followRedirects: false
     };
     
     const response = UrlFetchApp.fetch(url, options);
     const responseCode = response.getResponseCode();
-    const responseText = response.getContentText();
     
     if (responseCode !== 200) {
-      Logger.log('Gemini API error: ' + responseCode + ' - ' + responseText);
+      // Status only: provider error bodies can echo request content.
+      Logger.log('Gemini API error: HTTP ' + responseCode);
       return getDefaultClassification();
     }
     
-    const jsonResponse = JSON.parse(responseText);
+    const jsonResponse = JSON.parse(response.getContentText());
     const aiText = jsonResponse.candidates?.[0]?.content?.parts?.[0]?.text || '';
     
     // Extract JSON from the response
     return parseClassificationResponse(aiText);
     
   } catch (error) {
-    Logger.log('Error calling Gemini: ' + error.toString());
+    Logger.log('Error calling Gemini: ' + (error && error.name ? error.name : 'unknown'));
     return getDefaultClassification();
   }
 }
@@ -449,7 +488,8 @@ function getInquiryStats() {
 function sendEmailNotifications(payload, classification) {
   try {
     // Notify the owner about new inquiry
-    if (CONFIG.SEND_OWNER_EMAIL && CONFIG.OWNER_EMAIL) {
+    const ownerEmail = getScriptSetting_('OWNER_EMAIL');
+    if (CONFIG.SEND_OWNER_EMAIL && ownerEmail) {
       const ownerSubject = `🔥 New Inquiry from ${payload.name} (${classification.intent} / ${classification.urgency} urgency)`;
       const ownerBody = `
 New inquiry received on NodalX:
@@ -484,12 +524,12 @@ Reply directly to this lead: ${payload.email}
 `;
 
       MailApp.sendEmail({
-        to: CONFIG.OWNER_EMAIL,
+        to: ownerEmail,
         subject: ownerSubject,
         body: ownerBody,
         replyTo: payload.email,
       });
-      Logger.log('Owner notification email sent to: ' + CONFIG.OWNER_EMAIL);
+      Logger.log('Owner notification email sent.');
     }
 
     // Send confirmation to the user who submitted the inquiry
@@ -525,10 +565,10 @@ https://nodalx.in
         body: userBody,
         name: 'NodalX',
       });
-      Logger.log('User confirmation email sent to: ' + payload.email);
+      Logger.log('User confirmation email sent.');
     }
   } catch (emailError) {
-    Logger.log('Email notification error: ' + emailError.toString());
+    Logger.log('Email notification error: ' + (emailError && emailError.name ? emailError.name : 'unknown'));
   }
 }
 
@@ -539,13 +579,7 @@ https://nodalx.in
 function jsonResponse(data, statusCode) {
   return ContentService
     .createTextOutput(JSON.stringify(data))
-    .setMimeType(ContentService.MimeType.JSON)
-    .setHeaders({
-      'Access-Control-Allow-Origin': CONFIG.ALLOWED_ORIGIN,
-      'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-      'Access-Control-Allow-Headers': 'Content-Type',
-      'Access-Control-Max-Age': '86400'
-    });
+    .setMimeType(ContentService.MimeType.JSON);
 }
 
 // Handle CORS preflight
@@ -554,7 +588,7 @@ function doOptions(e) {
     .createTextOutput('')
     .setMimeType(ContentService.MimeType.TEXT)
     .setHeaders({
-      'Access-Control-Allow-Origin': CONFIG.ALLOWED_ORIGIN,
+      'Access-Control-Allow-Origin': getAllowedOrigin_(),
       'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
       'Access-Control-Allow-Headers': 'Content-Type',
       'Access-Control-Max-Age': '86400'

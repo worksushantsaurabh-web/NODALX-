@@ -1,7 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { X, Star } from 'lucide-react';
-import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
-import { db } from '../lib/firebase';
+import { api } from '../src/services/api';
 import { useAuth } from '../contexts/AuthContext';
 import { Analytics } from '../lib/analytics';
 import type { SurveyConfig } from '../contexts/FeedbackContext';
@@ -18,6 +17,7 @@ export default function MicroSurvey({ config, onClose }: MicroSurveyProps) {
   const [comment, setComment] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  const [error, setError] = useState('');
 
   // Auto-dismiss after 8 seconds with no interaction
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -40,23 +40,20 @@ export default function MicroSurvey({ config, onClose }: MicroSurveyProps) {
     clearAutoDismiss();
     setSubmitting(true);
     try {
-      if (!db) return;
-      await addDoc(collection(db, 'feedback'), {
+      setError('');
+      const result = await api.post<{saved: boolean}>('/api/feedback', {
         type: 'survey',
         surveyContext: config.context,
         rating,
         message: comment.trim(),
-        email: user?.email ?? null,
-        userId: user?.uid ?? null,
-        page: window.location.hash || '/',
-        createdAt: serverTimestamp(),
+        page: window.location.hash.replace(/^#/, '').split('?')[0] || '/',
       });
+      if (!result.saved) throw new Error('Feedback was not confirmed.');
       Analytics.surveySubmitted(config.context, rating);
       setSubmitted(true);
       setTimeout(onClose, 2000);
     } catch {
-      // Silent — never crash the app on feedback failure
-      onClose();
+      setError(user ? 'Could not save your response. Please retry.' : 'Sign in to send a response.');
     } finally {
       setSubmitting(false);
     }
@@ -126,6 +123,7 @@ export default function MicroSurvey({ config, onClose }: MicroSurveyProps) {
             </div>
 
             {/* Optional comment */}
+            {error && <p role="alert" className="text-xs text-text-primary mb-3">{error}</p>}
             <textarea
               value={comment}
               onChange={(e) => { clearAutoDismiss(); setComment(e.target.value); }}

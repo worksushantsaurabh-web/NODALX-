@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, Link2, CheckCircle2, AlertCircle, RefreshCw, FileSpreadsheet, ExternalLink } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
-import { auth } from '../lib/firebase';
+import { getAccessToken } from '../lib/session';
 import { Button, Input } from '../ui';
 import { Analytics } from '../lib/analytics';
 import { api } from '../src/services/api';
@@ -15,7 +15,7 @@ interface GoogleSheetsModalProps {
 type ModalState = 'input' | 'loading' | 'success' | 'error';
 
 export default function GoogleSheetsModal({ isOpen, onClose, onSuccess }: GoogleSheetsModalProps) {
-  const { firebaseUser } = useAuth();
+  const { user } = useAuth();
   const [spreadsheetInput, setSpreadsheetInput] = useState('');
   const [modalState, setModalState] = useState<ModalState>('input');
   const [errorMessage, setErrorMessage] = useState('');
@@ -23,11 +23,11 @@ export default function GoogleSheetsModal({ isOpen, onClose, onSuccess }: Google
   const [serviceAccountEmail, setServiceAccountEmail] = useState('');
 
   useEffect(() => {
-    if (!isOpen || !(firebaseUser || auth?.currentUser)) return;
+    if (!isOpen || !user) return;
     void api.get<{ serviceAccountEmail: string }>('/api/connectors/google-sheets/service-account')
       .then(result => setServiceAccountEmail(result.serviceAccountEmail))
       .catch(() => setServiceAccountEmail(''));
-  }, [isOpen, firebaseUser]);
+  }, [isOpen, user?.uid]);
 
   useEffect(() => {
     if (!isOpen) {
@@ -58,8 +58,7 @@ export default function GoogleSheetsModal({ isOpen, onClose, onSuccess }: Google
       return;
     }
 
-    const currentUser = firebaseUser || auth?.currentUser;
-    if (!currentUser) {
+    if (!user) {
       setErrorMessage('You must be signed in to connect a Google Sheet. Please sign in and try again.');
       setModalState('error');
       return;
@@ -70,7 +69,9 @@ export default function GoogleSheetsModal({ isOpen, onClose, onSuccess }: Google
 
     let token: string;
     try {
-      token = await currentUser.getIdToken(true);
+      const fresh = await getAccessToken({ forceRefresh: true });
+      if (!fresh) throw new Error('No active session');
+      token = fresh;
     } catch (tokenError) {
       console.error('[GoogleSheetsModal] Failed to get auth token:', tokenError);
       setErrorMessage('Authentication error. Please sign out and sign back in.');
@@ -223,7 +224,7 @@ export default function GoogleSheetsModal({ isOpen, onClose, onSuccess }: Google
           {modalState !== 'success' && (
             <form onSubmit={handleVerify} className="space-y-5">
               {/* Not Signed In Warning */}
-              {!firebaseUser && !auth?.currentUser && (
+              {!user && (
                 <div className="p-4 bg-amber-50/80   border border-amber-200/60  rounded-xl flex items-start gap-3">
                   <AlertCircle className="w-5 h-5 text-amber-600  flex-shrink-0 mt-0.5" />
                   <div>
@@ -294,7 +295,7 @@ export default function GoogleSheetsModal({ isOpen, onClose, onSuccess }: Google
                 type="submit"
                 variant="primary"
                 className="w-full"
-                disabled={modalState === 'loading' || !spreadsheetInput.trim() || (!firebaseUser && !auth?.currentUser)}
+                disabled={modalState === 'loading' || !spreadsheetInput.trim() || !user}
                 loading={modalState === 'loading'}
               >
                 {modalState !== 'loading' && <Link2 className="w-4 h-4" />}

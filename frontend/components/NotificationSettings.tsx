@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Bell, Webhook, Mail, RefreshCw, CheckCircle2, AlertCircle, Save, Send } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
-import { auth } from '../lib/firebase';
+import { getAccessToken } from '../lib/session';
 import { Button } from '../ui';
 
 interface NotificationSettingsData {
@@ -10,7 +10,7 @@ interface NotificationSettingsData {
 }
 
 export default function NotificationSettings() {
-  const { firebaseUser } = useAuth();
+  const { user } = useAuth();
 
   const [slackWebhookUrl, setSlackWebhookUrl] = useState('');
   const [emailAlerts, setEmailAlerts] = useState(true);
@@ -22,16 +22,16 @@ export default function NotificationSettings() {
 
   useEffect(() => {
     fetchSettings();
-  }, [firebaseUser]);
+  }, [user?.uid]);
 
   const getAuthToken = async (): Promise<string | null> => {
-    const currentUser = firebaseUser || auth?.currentUser;
-    if (!currentUser) {
-      setError('You must be signed in to manage notification settings.');
-      return null;
-    }
     try {
-      return await currentUser.getIdToken(true);
+      const token = await getAccessToken({ forceRefresh: true });
+      if (!token) {
+        setError('You must be signed in to manage notification settings.');
+        return null;
+      }
+      return token;
     } catch (err) {
       console.error('[NotificationSettings] Failed to get auth token:', err);
       setError('Authentication error. Please sign out and sign back in.');

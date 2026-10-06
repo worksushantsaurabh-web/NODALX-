@@ -22,11 +22,24 @@ const CONFIG = {
   SPREADSHEET_ID: '1djfUM9Qe0BrVZGdqucu36knltLnycKc4gULz8Sh7Xdk',
 
   SHEET_NAME: 'NodalX_Inquiries',
-  ALLOWED_ORIGIN: '*', // Change to your domain in production
-  OWNER_EMAIL: 'thesushantsaurabh@gmail.com',
   SEND_OWNER_EMAIL: true,
   SEND_USER_CONFIRMATION: true,
 };
+
+/**
+ * Owner notification address from Script Properties (OWNER_EMAIL). Personal
+ * data stays out of source. Returns '' when unset or malformed so callers
+ * skip the notification instead of failing intake.
+ * @return {string}
+ */
+function getOwnerEmail_() {
+  try {
+    const value = (PropertiesService.getScriptProperties().getProperty('OWNER_EMAIL') || '').trim();
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value) ? value : '';
+  } catch (error) {
+    return '';
+  }
+}
 
 /**
  * Script Property holding the shared secret for every inbound request.
@@ -446,7 +459,8 @@ function sendEmailNotifications(payload, classification) {
   if (!payload || !payload.name) return;
   if (!classification) classification = {};
   try {
-    if (CONFIG.SEND_OWNER_EMAIL && CONFIG.OWNER_EMAIL) {
+    const ownerEmail = getOwnerEmail_();
+    if (CONFIG.SEND_OWNER_EMAIL && ownerEmail) {
       const ownerSubject = '🔥 New Inquiry from ' + (payload.name || 'Unknown') + ' (' + classification.intent + ' / ' + classification.urgency + ' urgency)';
       const ownerBody = 'New inquiry received on NodalX:\n\n' +
         '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n' +
@@ -473,12 +487,12 @@ function sendEmailNotifications(payload, classification) {
         'Reply directly to this lead: ' + (payload.email || '');
 
       MailApp.sendEmail({
-        to: CONFIG.OWNER_EMAIL,
+        to: ownerEmail,
         subject: ownerSubject,
         body: ownerBody,
         replyTo: payload.email || '',
       });
-      Logger.log('Owner notification sent to: ' + CONFIG.OWNER_EMAIL);
+      Logger.log('Owner notification sent.');
     }
 
     if (CONFIG.SEND_USER_CONFIRMATION && payload.email) {
@@ -641,19 +655,24 @@ function testGetAll() {
 }
 
 function testEmail() {
+  const ownerEmail = getOwnerEmail_();
+  if (!ownerEmail) {
+    Logger.log('Test skipped: OWNER_EMAIL not set.');
+    return;
+  }
   MailApp.sendEmail({
-    to: CONFIG.OWNER_EMAIL,
+    to: ownerEmail,
     subject: 'NodalX — Email Test',
     body: 'If you see this, email permissions are working correctly.\n\nThis is a test from your NodalX Apps Script.',
     name: 'NodalX',
   });
-  Logger.log('Test email sent to: ' + CONFIG.OWNER_EMAIL);
+  Logger.log('Test email sent.');
 }
 
 function testFullPost() {
   var mockPayload = {
     name: 'Test User',
-    email: CONFIG.OWNER_EMAIL,
+    email: getOwnerEmail_() || 'test@example.com',
     company: 'Test Corp',
     industry: 'technology',
     service: 'ai-automation',

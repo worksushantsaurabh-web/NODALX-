@@ -64,6 +64,13 @@ const SECRET_PATTERNS = [
     // A literal assigned to a header/key/secret/token name in source.
     regex: /['"]x-app-proxy['"]\s*:\s*['"][A-Za-z0-9_-]{16,}['"]/gi,
   },
+  {
+    name: 'Google AI / server API key',
+    // Firebase web keys share the AIza prefix and are public by design, so
+    // only flag AIza keys in server/Gemini contexts: GEMINI_/GOOGLE_AI_/
+    // GOOGLE_API_ assignments, ?key= query strings and x-goog-api-key headers.
+    regex: /(?:(?:GEMINI|GENAI|GOOGLE_AI|GOOGLE_API)[A-Z_]*['"]?\s*[:=]\s*['"]?|[?&]key=|x-goog-api-key['"]?\s*[:=]\s*['"])AIza[0-9A-Za-z_-]{35}/gi,
+  },
 ];
 
 /**

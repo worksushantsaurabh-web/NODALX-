@@ -1,7 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { MessageSquare, X, AlertCircle, Lightbulb, HelpCircle, Check } from 'lucide-react';
-import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
-import { db } from '../lib/firebase';
+import { api } from '../src/services/api';
 import { useAuth } from '../contexts/AuthContext';
 import { Analytics } from '../lib/analytics';
 
@@ -19,15 +18,11 @@ export default function FeedbackWidget() {
   const [open, setOpen] = useState(false);
   const [category, setCategory] = useState<Category>('general');
   const [message, setMessage] = useState('');
-  const [email, setEmail] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const panelRef = useRef<HTMLDivElement>(null);
 
-  // Pre-fill email from auth
-  useEffect(() => {
-    if (user?.email) setEmail(user.email);
-  }, [user?.email]);
 
   // Close panel on outside click
   useEffect(() => {
@@ -44,8 +39,8 @@ export default function FeedbackWidget() {
   const reset = () => {
     setCategory('general');
     setMessage('');
-    if (!user?.email) setEmail('');
     setSubmitted(false);
+    setError(null);
   };
 
   const handleOpen = () => {
@@ -62,29 +57,28 @@ export default function FeedbackWidget() {
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!message.trim()) return;
-    // Firestore is unavailable when config is missing. Report the failure
-    // instead of referencing a state setter that does not exist, which threw a
-    // ReferenceError on every submit in that configuration.
-    if (!db) {
-      setSubmitted(true);
-      return;
-    }
     setSubmitting(true);
+    setError(null);
     try {
-      await addDoc(collection(db, 'feedback'), {
-        type: 'widget',
-        category,
-        message: message.trim(),
-        email: email.trim() || user?.email || null,
-        userId: user?.uid ?? null,
-        page: window.location.hash || '/',
-        createdAt: serverTimestamp(),
+      const result = await api.post<{saved: boolean}>('/api/feedback', {
+          type: 'widget',
+          category,
+          message: message.trim(),
+          page: window.location.hash.replace(/^#/, '').split('?')[0] || '/',
       });
+      if (!result.saved) throw new Error('Feedback was not confirmed.');
       Analytics.feedbackSubmitted(category);
       setSubmitted(true);
       setTimeout(handleClose, 2200);
-    } catch {
-      // Silent failure — don't crash the app
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Could not send feedback.';
+      if (message.includes('rate limit')) {
+        setError('You have sent a lot of feedback recently. Please try again in an hour.');
+      } else if (message.includes('Workspace unavailable') || message.includes('42501')) {
+        setError('Sign in to send feedback.');
+      } else {
+        setError('Could not send feedback. Please try again.');
+      }
     } finally {
       setSubmitting(false);
     }
@@ -151,20 +145,16 @@ export default function FeedbackWidget() {
               />
 
               {/* Email */}
-              {!user?.email && (
-                <input
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="your@email.com (optional)"
-                  className="w-full rounded-lg border border-neutral-200  bg-white  px-3 py-2 text-sm text-neutral-900  placeholder-neutral-400  focus:outline-none focus:ring-2 focus:ring-neutral-400/20 focus:border-neutral-400 transition-colors"
-                />
-              )}
+              {!user && <p className="text-xs text-text-secondary">Sign in to send feedback.</p>}
 
               {user?.email && (
                 <p className="text-xs text-text-secondary">
                   Sending as <span className="font-medium text-text-tertiary ">{user.email}</span>
                 </p>
+              )}
+
+              {error && (
+                <p role="alert" className="text-xs text-red-600">{error}</p>
               )}
 
               <button

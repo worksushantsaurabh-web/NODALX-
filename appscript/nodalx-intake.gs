@@ -55,9 +55,18 @@ function getSheetId() {
   return prop('SHEET_ID');
 }
 
+/**
+ * Owner notification address from Script Properties (OWNER_EMAIL). Returns ''
+ * when unset or malformed so notifications are skipped, never intake.
+ * @return {string}
+ */
+function getOwnerEmail_() {
+  const value = prop('OWNER_EMAIL').trim();
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value) ? value : '';
+}
+
 const CONFIG = {
   SHEET_NAME: 'NodalX_Inquiries',
-  OWNER_EMAIL: 'thesushantsaurabh@gmail.com',
   SEND_OWNER_EMAIL: true,
   SEND_USER_CONFIRMATION: true,
 };
@@ -415,7 +424,7 @@ function buildUserConfirmationEmail(payload, rowId) {
   return {
     to: payload.email,
     name: 'NodalX',
-    replyTo: CONFIG.OWNER_EMAIL,
+    replyTo: getOwnerEmail_() || '',
     subject: 'Your inquiry is received | NodalX',
     body: `Hi ${firstName},\n\n${introduction}\n\nYOUR INQUIRY\n${details.map(detail => detail[0] + ': ' + detail[1]).join('\n')}\n\nWHAT HAPPENS NEXT\n${nextSteps}\n\n${replyPrompt}\n\nExplore NodalX: https://nodalx.in\n\nThe NodalX team\nYou received this confirmation because this email address was used to submit an inquiry at nodalx.in. If that was not you, you can ignore this message.`,
     htmlBody: `<!doctype html>
@@ -438,9 +447,10 @@ function sendEmailNotifications(payload, classification, rowId) {
   if (!payload || !payload.name) return;
 
   try {
-    if (CONFIG.SEND_OWNER_EMAIL && CONFIG.OWNER_EMAIL) {
+    const ownerEmail = getOwnerEmail_();
+    if (CONFIG.SEND_OWNER_EMAIL && ownerEmail) {
       MailApp.sendEmail({
-        to: CONFIG.OWNER_EMAIL,
+        to: ownerEmail,
         subject: 'New Inquiry from ' + payload.name + ' (' + classification.intent +
           ' / ' + classification.urgency + ' urgency)',
         body:

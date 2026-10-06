@@ -40,7 +40,7 @@ function scriptFixture({initialRows = [], secret = 'fixture-secret', lockFails =
   const sheet = {getLastRow: () => rows.length, getRange: range, appendRow: values => rows.push([...values]), autoResizeColumns() {}, setFrozenRows() {}};
   const spreadsheet = {getSheets: () => [sheet], getUrl: () => 'https://example.invalid/sheet'};
   const context = {
-    PropertiesService: {getScriptProperties: () => ({getProperty: name => ({INTAKE_SECRET: secret, SHEET_ID: 'fixture-sheet'}[name])})},
+    PropertiesService: {getScriptProperties: () => ({getProperty: name => ({INTAKE_SECRET: secret, SHEET_ID: 'fixture-sheet', OWNER_EMAIL: 'owner@example.test'}[name])})},
     SpreadsheetApp: {openById: id => {assert.equal(id, 'fixture-sheet'); return spreadsheet;}},
     Utilities: {getUuid: randomUUID, DigestAlgorithm: {SHA_256: 'sha256'}, Charset: {UTF_8: 'utf8'}, computeDigest: (algorithm, content, encoding) => [...createHash(algorithm).update(content, encoding).digest()]},
     ContentService: {MimeType: {JSON: 'application/json', TEXT: 'text/plain'}, createTextOutput: text => ({text, setMimeType() {return this;}})},
@@ -146,7 +146,7 @@ test('confirmation email has branded HTML, plain text, useful details and a real
   fixture.post({...inquiry, service: 'custom-integration'});
   const mail = fixture.messages.find(message => message.to === inquiry.email);
   assert.equal(mail.name, 'NodalX');
-  assert.equal(mail.replyTo, 'thesushantsaurabh@gmail.com');
+  assert.equal(mail.replyTo, 'owner@example.test');
   assert.equal(mail.subject, 'Your inquiry is received | NodalX');
   for (const body of [mail.body, mail.htmlBody]) {
     assert.ok(body.includes('Test Company'));
