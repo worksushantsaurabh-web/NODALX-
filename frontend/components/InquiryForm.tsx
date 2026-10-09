@@ -4,6 +4,7 @@ import { Analytics } from '../lib/analytics';
 import { useFeedback } from '../contexts/FeedbackContext';
 
 const INQUIRY_SUBMISSION_TIMEOUT_MS = 55000;
+const inquiryFormEnabled = import.meta.env.VITE_INQUIRY_FORM_ENABLED === 'true';
 
 export default function InquiryForm() {
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -110,7 +111,13 @@ export default function InquiryForm() {
 
         <div className="min-w-0 border border-border bg-surface rounded-xl p-5 sm:p-8 md:p-10 min-h-[400px]">
 
-          {isSubmitted ? (
+          {!inquiryFormEnabled ? (
+            <div role="status" className="flex min-h-[320px] items-center justify-center text-center">
+              <p className="max-w-md text-text-secondary">
+                Inquiry submissions are temporarily unavailable while we complete the storage migration.
+              </p>
+            </div>
+          ) : isSubmitted ? (
             <div className="flex flex-col items-center justify-center py-8 text-center animate-fade-in">
               <div className="w-16 h-16 border border-border rounded-full flex items-center justify-center mb-6">
                 <CheckCircle2 className="w-8 h-8 text-white" />

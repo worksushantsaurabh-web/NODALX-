@@ -1,10 +1,11 @@
 import {createHash, randomUUID, timingSafeEqual} from 'node:crypto';
 import {createClient} from '@supabase/supabase-js';
 import {receiveContact} from './contact.mjs';
+import {createRdsClient} from './rds-client.mjs';
 
 const credentialPattern = /^[A-Za-z0-9_-]{32,256}$/;
 const uuidPattern = /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i;
-const fields = ['name','email','company','message','phone','industry','service'];
+const acceptedFields = ['name','email','company','message','phone','industry','service','submittedAt'];
 
 function response(status, body) {
   return {status, headers: {'Content-Type': 'application/json', 'Cache-Control': 'no-store',
@@ -33,9 +34,16 @@ function databaseOrigin(environment) {
 }
 
 export function intakeRouterConfiguration(environment = process.env) {
-  const missing = ['SUPABASE_URL','SUPABASE_SERVICE_ROLE_KEY','INTAKE_ENVIRONMENT','INTAKE_SOURCE_TOKEN'].filter(name => !environment[name]);
+  const required = environment.DATA_BACKEND === 'rds'
+    ? ['RDS_DATABASE_URL','INTAKE_ENVIRONMENT','INTAKE_SOURCE_TOKEN']
+    : ['SUPABASE_URL','SUPABASE_SERVICE_ROLE_KEY','INTAKE_ENVIRONMENT','INTAKE_SOURCE_TOKEN'];
+  const missing = required.filter(name => !environment[name]);
   let validEndpoint = false;
-  try {databaseOrigin(environment); validEndpoint = true;} catch {validEndpoint = false;}
+  if (environment.DATA_BACKEND === 'rds') {
+    validEndpoint = Boolean(environment.RDS_DATABASE_URL && environment.ALLOW_INTAKE_NETWORK === 'true');
+  } else {
+    try {databaseOrigin(environment); validEndpoint = true;} catch {validEndpoint = false;}
+  }
   return {ready: validEndpoint && credentialPattern.test(environment.INTAKE_SOURCE_TOKEN || '') &&
     environment.INTAKE_SOURCE_TOKEN !== environment.MAKE_INTAKE_TOKEN, missing, validEndpoint,
     consumerEnabled: environment.MAKE_INTAKE_ENABLED === 'true' && credentialPattern.test(environment.MAKE_INTAKE_TOKEN || '') &&
@@ -43,6 +51,10 @@ export function intakeRouterConfiguration(environment = process.env) {
 }
 
 function clientFor(environment, options) {
+  if (environment.DATA_BACKEND === 'rds') {
+    if (environment.ALLOW_INTAKE_NETWORK !== 'true') throw new Error('Intake is disabled.');
+    return options.createClient ? options.createClient() : createRdsClient({role: 'service_role', environment});
+  }
   return (options.createClient || createClient)(databaseOrigin(environment), environment.SUPABASE_SERVICE_ROLE_KEY, {
     auth: {persistSession: false, autoRefreshToken: false, detectSessionInUrl: false},
     global: {fetch: (input, init) => fetch(input, {...init, signal: AbortSignal.timeout(10000)})},
@@ -58,25 +70,33 @@ function databaseFailure(error) {
 
 export async function receiveWebsiteIntake(request, options = {}) {
   const environment = options.environment || process.env;
+  if (environment.DATA_BACKEND === 'rds' &&
+    (environment.RDS_INTAKE_ENABLED !== 'true' || environment.INTAKE_PROVIDER !== 'rds-direct')) {
+    return response(503, {code: 'INTAKE_DISABLED'});
+  }
   if (!environment.INTAKE_PROVIDER || environment.INTAKE_PROVIDER === 'apps-script') return receiveContact(request, options);
-  if (environment.INTAKE_PROVIDER !== 'make-supabase') return response(503, {code: 'INTAKE_NOT_CONFIGURED'});
+  const directStorage = environment.INTAKE_PROVIDER === 'supabase-direct' ||
+    (environment.DATA_BACKEND === 'rds' && environment.INTAKE_PROVIDER === 'rds-direct');
+  if (!directStorage && environment.INTAKE_PROVIDER !== 'make-supabase') return response(503, {code: 'INTAKE_NOT_CONFIGURED'});
   if (request.method !== 'POST') return {...response(405, {code: 'METHOD_NOT_ALLOWED'}), headers: {...response(405, {}).headers, Allow: 'POST'}};
   let inquiry;
   try {
     if (typeof request.idempotencyKey !== 'string' || !/^[A-Za-z0-9_-]{8,100}$/.test(request.idempotencyKey)) throw new Error();
-    inquiry = parseObject(request.body, fields);
+    inquiry = parseObject(request.body, acceptedFields);
     if (Object.entries(inquiry).some(([field, value]) => typeof value !== 'string' || value.length > (field === 'message' ? 12000 : 500)) ||
       ['name','company','message'].some(field => !inquiry[field]?.trim()) || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(inquiry.email || '')) throw new Error();
+    delete inquiry.submittedAt;
   } catch {return response(400, {code: 'INVALID_INQUIRY', error: 'Valid inquiry data and a stable Idempotency-Key are required.'});}
   try {
     if (!credentialPattern.test(environment.INTAKE_SOURCE_TOKEN || '') || environment.INTAKE_SOURCE_TOKEN === environment.MAKE_INTAKE_TOKEN) throw new Error();
     const client = clientFor(environment, options);
-    const result = await client.rpc('stage_source_inquiry', {source_key_hash: createHash('sha256').update(environment.INTAKE_SOURCE_TOKEN).digest('hex'),
+    const result = await client.rpc(directStorage ? 'ingest_source_inquiry' : 'stage_source_inquiry', {source_key_hash: createHash('sha256').update(environment.INTAKE_SOURCE_TOKEN).digest('hex'),
       source_id: request.idempotencyKey, inquiry});
     if (result.error) return databaseFailure(result.error);
-    if (typeof result.data?.id !== 'string' || !uuidPattern.test(result.data.id) || !['queued','processing','stored','failed'].includes(result.data.status)) throw new Error();
+    const validStatuses = directStorage ? ['stored'] : ['queued','processing','stored','failed'];
+    if (typeof result.data?.id !== 'string' || !uuidPattern.test(result.data.id) || !validStatuses.includes(result.data.status)) throw new Error();
     if (result.data.status === 'failed') return response(503, {code: 'INTAKE_RECOVERY_REQUIRED', error: 'The saved submission needs operator recovery. Do not create a new request ID.'});
-    return response(202, {id: result.data.id, status: result.data.status, sourceInquiryId: request.idempotencyKey,
+    return response(directStorage ? (result.data.duplicate ? 200 : 201) : 202, {id: result.data.id, status: result.data.status, sourceInquiryId: request.idempotencyKey,
       duplicate: result.data.duplicate === true, accepted: true, processingStatus: result.data.status});
   } catch {return response(503, {code: 'INTAKE_UNAVAILABLE', error: 'Intake could not confirm acceptance. Retry using the same request ID.'});}
 }

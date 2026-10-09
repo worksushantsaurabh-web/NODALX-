@@ -27,7 +27,7 @@ export function serializeInquiry(row) {
   };
 }
 
-async function listInquiries(client, workspaceId, query, intakeProvider) {
+async function listInquiries(client, workspaceId, query, intakeProvider, dataSource) {
   const rawLimit = query.get('limit') || '50';
   if (!/^\d{1,3}$/.test(rawLimit) || Number(rawLimit) < 1 || Number(rawLimit) > 100) throw failure(400, 'INVALID_INPUT', 'Limit must be between 1 and 100.');
   const limit = Number(rawLimit);
@@ -49,7 +49,7 @@ async function listInquiries(client, workspaceId, query, intakeProvider) {
   return {
     records: records.map(serializeInquiry),
     nextCursor: result.data.length > limit ? Buffer.from(records.at(-1).id).toString('base64url') : null,
-    source: 'supabase',
+    source: dataSource,
     notice: intakeProvider === 'make-supabase'
       ? 'New website inquiries appear after the Make intake handoff completes. Historical Google Sheet inquiries are not migrated automatically.'
       : 'Website inquiries stored in the owner’s Google Sheet are not synchronized into this workspace yet.',
@@ -85,7 +85,9 @@ async function usage(client, workspaceId) {
 
 export async function receiveWorkspaceRequest(request, options = {}) {
   const requestId = randomUUID();
-  const headers = {'Cache-Control': 'no-store', 'X-Request-ID': requestId, 'X-NodalX-Data-Source': 'supabase'};
+  const environment = options.environment || process.env;
+  const dataSource = environment.DATA_BACKEND === 'rds' ? 'rds' : 'supabase';
+  const headers = {'Cache-Control': 'no-store', 'X-Request-ID': requestId, 'X-NodalX-Data-Source': dataSource};
   try {
     const url = new URL(request.path, 'http://localhost');
     const path = url.pathname;
@@ -99,7 +101,7 @@ export async function receiveWorkspaceRequest(request, options = {}) {
     }
     let body;
     if (path === '/api/workspace/inquiries' && request.method === 'GET') {
-      body = await listInquiries(client, workspaceId, url.searchParams, (options.environment || process.env).INTAKE_PROVIDER);
+      body = await listInquiries(client, workspaceId, url.searchParams, environment.INTAKE_PROVIDER, dataSource);
     } else if (/^\/api\/workspace\/inquiries\/[^/]+\/analyze$/.test(path) && request.method === 'POST') {
       const id = decodedRecordId(path.split('/').at(-2));
       if (!request.body || typeof request.body !== 'object' || Array.isArray(request.body) ||

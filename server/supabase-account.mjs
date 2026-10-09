@@ -1,5 +1,6 @@
 import {randomUUID} from 'node:crypto';
 import {createClient} from '@supabase/supabase-js';
+import {createRdsClient, syncRdsIdentity} from './rds-client.mjs';
 
 const profileFields = new Set(['displayName', 'workspace', 'role', 'timezone', 'notifications']);
 const notificationFields = new Set(['flowFailure', 'weeklySummary', 'securityAlerts']);
@@ -93,10 +94,15 @@ export async function authorizeWorkspace(authorization, options = {}) {
   if (!user || user.is_anonymous || !(user.email_confirmed_at || user.phone_confirmed_at)) {
     throw failure(401, 'INVALID_SESSION', 'Please verify your account and sign in.');
   }
-  const bootstrap = await client.rpc('bootstrap_workspace');
+  let dataClient = client;
+  if (environment.DATA_BACKEND === 'rds') {
+    await syncRdsIdentity(user, environment);
+    dataClient = createRdsClient({role: 'authenticated', userId: user.id, environment});
+  }
+  const bootstrap = await dataClient.rpc('bootstrap_workspace');
   databaseError(bootstrap.error);
   if (typeof bootstrap.data !== 'string' || !bootstrap.data) throw failure(403, 'WORKSPACE_UNAVAILABLE', 'Workspace access is not configured.');
-  return {client, user, workspaceId: bootstrap.data};
+  return {client: dataClient, user, workspaceId: bootstrap.data};
 }
 
 async function readProfile(client, user) {

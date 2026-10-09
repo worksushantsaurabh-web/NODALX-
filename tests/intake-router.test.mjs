@@ -30,6 +30,42 @@ test('website acceptance requires durable queue acknowledgement and preserves ex
   assert.equal(JSON.stringify(result).includes(inquiry.email), false);
 });
 
+test('direct Supabase mode stores canonically without Make and returns an idempotent receipt', async () => {
+  const stored = {id: deliveryId, status: 'stored', sourceInquiryId: website.idempotencyKey, duplicate: false};
+  const {calls, options} = fixture(stored);
+  options.environment = {...environment, INTAKE_PROVIDER: 'supabase-direct', MAKE_INTAKE_ENABLED: 'false'};
+  const result = await receiveWebsiteIntake(website, options);
+  assert.equal(result.status, 201);
+  assert.equal(result.body.accepted, true);
+  assert.equal(result.body.status, 'stored');
+  assert.equal(calls[0].name, 'ingest_source_inquiry');
+  assert.equal(calls[0].input.inquiry.message, inquiry.message);
+  assert.equal(JSON.stringify(result).includes(inquiry.email), false);
+
+  const replay = fixture({...stored, duplicate: true});
+  replay.options.environment = options.environment;
+  const duplicate = await receiveWebsiteIntake(website, replay.options);
+  assert.equal(duplicate.status, 200);
+  assert.equal(duplicate.body.id, deliveryId);
+  assert.equal(duplicate.body.duplicate, true);
+});
+
+test('website legacy timestamp is ignored rather than rejected or trusted', async () => {
+  const {calls, options} = fixture();
+  const requestWithTimestamp = {...website, body: {...inquiry, submittedAt: '2000-01-01T00:00:00.000Z'}};
+  const result = await receiveWebsiteIntake(requestWithTimestamp, options);
+  assert.equal(result.status, 202);
+  assert.equal(Object.hasOwn(calls[0].input.inquiry, 'submittedAt'), false);
+  assert.equal(calls[0].input.inquiry.message, inquiry.message);
+});
+
+test('direct Supabase mode remains fail-closed until the intake network gate is enabled', async () => {
+  const {calls, options} = fixture({id: deliveryId, status: 'stored', duplicate: false});
+  options.environment = {...environment, INTAKE_PROVIDER: 'supabase-direct', ALLOW_INTAKE_NETWORK: 'false'};
+  assert.equal((await receiveWebsiteIntake(website, options)).status, 503);
+  assert.equal(calls.length, 0);
+});
+
 test('missing key, tenant injection, malformed or oversized requests never reach storage', async () => {
   const {calls, options} = fixture();
   for (const change of [{idempotencyKey: undefined}, {body: {...inquiry, workspace_id: 'foreign'}}, {body: {...inquiry, message: ' '}},
