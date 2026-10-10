@@ -2,15 +2,21 @@
   "name": "nodalx",
   "private": true,
   "scripts": {
+    "dev:cloud": "node --env-file=.env.local scripts/dev-cloud.mjs",
+    "dev:rds": "node --env-file=.env.local --env-file=.env.rds.local scripts/dev-rds.mjs",
+    "check:rds": "node --env-file=.env.rds.local scripts/check-rds.mjs",
+    "migrate:rds": "node --env-file=.env.rds.local scripts/migrate-rds.mjs",
+    "test:rds": "node --env-file=.env.rds.local scripts/test-rds-db.mjs",
     "dev:supabase": "node scripts/dev-supabase.mjs",
     "test:supabase": "node scripts/test-supabase.mjs",
     "test:supabase:account": "TEST_LOCAL_SUPABASE=true node --test tests/supabase-account.local.test.mjs",
     "test:intake": "node --test tests/*.test.mjs",
+    "test:intake:hosted": "TEST_TARGET=hosted-rds TEST_LOCAL_INTAKE_E2E=true node --env-file=.env.local --env-file=.env.rds.local --test tests/intake-e2e.local.test.mjs",
     "check:intake": "node scripts/check-intake.mjs",
     "build:aws-intake": "node scripts/package-aws-intake.mjs",
     "dev-frontend": "npm run dev --prefix frontend",
     "dev-backend": "npm run dev --prefix backend",
-    "dev": "concurrently \"npm run dev-frontend\" \"npm run dev-backend\""
+    "dev": "npm run dev:rds"
   },
   "devDependencies": {
     "concurrently": "latest",
@@ -18,6 +24,7 @@
   },
   "dependencies": {
     "@supabase/supabase-js": "2.117.2",
-    "pg": "8.23.1"
+    "pg": "8.23.1",
+    "resend": "^6.32.1"
   }
 }

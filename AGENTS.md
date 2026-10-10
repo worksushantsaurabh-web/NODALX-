@@ -828,3 +828,21 @@ was part of this release. Vercel CLI and connector lost project access during
 the release, so the authorized signed-in dashboard was used for environment
 changes and Production redeploy; repair CLI/connector authentication before
 the next CLI-managed release.
+
+Database endpoint health check — 10 October 2026: read-only verification of the
+RDS-backed deployment. `npm run check:rds` reports PostgreSQL 18.3 with TLS and
+all schemas; `npm run migrate:rds` shows all 19 steps Already applied on
+`nodalx_app`; introspection confirms 27 public tables with RLS enabled and the
+versioned `service_role` BYPASSRLS grant still set; data = 1 owner workspace,
+auth user and identity binding with zero inquiries and zero outbound emails.
+`npm run test:rds` passes 146/146 assertions again. Production liveness returns
+200 with the RDS data-source header. A boundary-valid contact POST returned 201
+`stored`, re-confirming the deliberate live website intake from release
+`0eee233`; two earlier 400 `INVALID_INQUIRY` responses were the probe payload
+missing the required `company` field (validation runs before the gate), not a
+gate change. The probe's own synthetic row (`3db9d4e3-a4bc-4f65-abc9-365d02d9b293`,
+source reference `gate-probe-20261009`) was deleted immediately, its source
+counter restored to 0 (no events or emails had been created), and final counts
+are all zero. No environment setting, deployment, credential or cloud config
+was changed. `docs/LLM-MIND.md` refreshed in the same turn, including the
+lesson to re-verify current gate state before probing any write endpoint.

@@ -2,6 +2,7 @@ import {createClient} from '@supabase/supabase-js';
 import {createHttpProcessor} from '../server/processing-worker.mjs';
 import {cloudWorkerConfiguration, runProcessingDaemon} from '../server/processing-daemon.mjs';
 import {createGeminiProcessor} from '../server/gemini-processor.mjs';
+import {createRdsClient} from '../server/rds-client.mjs';
 
 let configuration;
 let processor;
@@ -22,8 +23,10 @@ try {
   console.error('Worker startup blocked: approved environment, provider adapter and private credentials are required.');
   process.exit(1);
 }
-const client = createClient(configuration.url, configuration.key, {auth: {persistSession: false, autoRefreshToken: false},
-  global: {fetch: (input, init) => fetch(input, {...init, signal: AbortSignal.timeout(10000)})}});
+const client = process.env.DATA_BACKEND === 'rds'
+  ? createRdsClient({role: 'service_role'})
+  : createClient(configuration.url, configuration.key, {auth: {persistSession: false, autoRefreshToken: false},
+    global: {fetch: (input, init) => fetch(input, {...init, signal: AbortSignal.timeout(10000)})}});
 const stop = new AbortController();
 process.once('SIGINT', () => stop.abort());
 process.once('SIGTERM', () => stop.abort());

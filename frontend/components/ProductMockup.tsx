@@ -1,4 +1,3 @@
-import React from 'react';
 
 const rows = [
   { name: 'Sarah K.', company: 'Meridian Group', score: 'High fit', status: 'Ready to review', intent: 'Sales inquiry' },

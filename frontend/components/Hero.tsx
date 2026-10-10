@@ -1,4 +1,3 @@
-import React from 'react';
 import { ArrowRight } from 'lucide-react';
 import ProductMockup from './ProductMockup';
 import { Button } from '../ui';

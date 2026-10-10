@@ -1,5 +1,4 @@
-import React from 'react';
-import { Mail, Sparkles, CheckCircle2 } from 'lucide-react';
+import { Mail, Sparkles } from 'lucide-react';
 
 export default function EmailPreview() {
   const emailPayload = {

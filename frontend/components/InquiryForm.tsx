@@ -2,6 +2,9 @@ import React, { useState, useRef } from 'react';
 import { Send, CheckCircle2, AlertCircle } from 'lucide-react';
 import { Analytics } from '../lib/analytics';
 import { useFeedback } from '../contexts/FeedbackContext';
+import { resolveApiOrigin } from '../lib/apiOrigin';
+
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
 
 const INQUIRY_SUBMISSION_TIMEOUT_MS = 55000;
 const inquiryFormEnabled = import.meta.env.VITE_INQUIRY_FORM_ENABLED === 'true';
@@ -49,7 +52,8 @@ export default function InquiryForm() {
       requestId.current ||= crypto.randomUUID();
       lastPayload.current = identity;
 
-      const response = await fetch('/api/contact', {
+      const apiOrigin = resolveApiOrigin(API_BASE_URL, window.location.origin);
+      const response = await fetch(`${apiOrigin}/api/contact`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Idempotency-Key': requestId.current },
         body: JSON.stringify(payload),

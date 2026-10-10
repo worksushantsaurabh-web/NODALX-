@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import { useEffect } from 'react';
 import { CheckCircle2, X } from 'lucide-react';
 
 interface SuccessModalProps {

@@ -7,9 +7,14 @@ aliases: [system-overview, how-it-works]
 
 # Architecture
 
-> Firebase remains the workspace backend. The alternate Vercel intake route and
-> an AWS intake pilot are prepared locally, not verified production replacements.
-> See `docs/runbooks/aws-migration.md` for the 4 October audit and staged cutover.
+> Current target: Website → secured Vercel backend → Supabase → authenticated
+> dashboard. Make is optional; classification and email are separate services.
+> Native Supabase Auth and direct intake exist locally; staging deployment and
+> source activation are not equivalent to a verified production cutover.
+> See `docs/migration/route-matrix.md` and
+> `docs/runbooks/phase-0-2-verification.md` for current scope and evidence.
+> The Firebase diagram and implementation notes below are historical, not the
+> current pilot contract. Do not reactivate suspended Firebase billing.
 
 ## System Diagram
 

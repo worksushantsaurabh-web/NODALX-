@@ -55,7 +55,7 @@ export function validateFeedback(body) {
 }
 
 export function databaseError(error) {
-  if (error?.code === 'P0409') throw failure(409, 'JOB_CONFLICT', 'This request conflicts with an existing job. Use a new request key to retry a failed job.');
+  if (error?.code === 'P0409') throw failure(409, 'REQUEST_CONFLICT', 'This request key was already used with different content. Create a new draft and try again.');
   if (error?.code === 'P0429') throw failure(429, 'PROCESSING_LIMIT', 'Processing credits or concurrent job allowance exhausted.');
   if (error?.code === 'P0503') throw failure(503, 'PROCESSING_UNAVAILABLE', 'Processing is not enabled or its required configuration is unavailable.');
   if (!error) return;
@@ -64,7 +64,7 @@ export function databaseError(error) {
   }
   if (error.code === '42501') throw failure(403, 'ACCESS_DENIED', 'Workspace access denied.');
   if (error.code === 'P0002') throw failure(404, 'NOT_FOUND', 'Record not found.');
-  if (error.code === 'P0001' && ['Feedback rate limit reached', 'Profile rate limit reached', 'Desk rate limit reached'].includes(error.message)) {
+  if (error.code === 'P0001' && ['Feedback rate limit reached', 'Profile rate limit reached', 'Desk rate limit reached', 'Outbound email rate limit reached'].includes(error.message)) {
     throw failure(429, 'RATE_LIMITED', 'Request limit reached. Please try again later.');
   }
   throw failure(503, 'DATABASE_UNAVAILABLE', 'Workspace storage is temporarily unavailable.');

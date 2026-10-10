@@ -1,4 +1,3 @@
-import React from 'react';
 import { Users, Flame, Clock, CheckCircle2, ArrowUpRight, ArrowDownRight, MoreHorizontal, LayoutDashboard, Search, Filter, Eye } from 'lucide-react';
 
 const stats = [

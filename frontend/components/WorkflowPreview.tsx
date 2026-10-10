@@ -1,4 +1,3 @@
-import React from 'react';
 import { FileText, ListFilter, MessageSquareText, ScanSearch } from 'lucide-react';
 import { BlurFade } from '../ui/BlurFade';
 

@@ -1,7 +1,7 @@
 BEGIN;
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
 SET search_path = public, extensions;
-SELECT plan(21);
+SELECT plan(26);
 INSERT INTO auth.users(id, email_confirmed_at) VALUES ('00000000-0000-4000-8000-000000000081', now());
 INSERT INTO public.workspaces(id) VALUES ('intake-a'), ('intake-b');
 INSERT INTO public.identity_bindings(auth_user_id, workspace_id) VALUES ('00000000-0000-4000-8000-000000000081', 'intake-a');
@@ -9,12 +9,15 @@ INSERT INTO private.intake_sources(workspace_id, secret_hash, enabled) VALUES
   ('intake-a', repeat('a',64), true), ('intake-a', repeat('b',64), false), ('intake-b', repeat('c',64), true);
 CREATE TEMP TABLE fixture AS SELECT jsonb_build_object('name','Synthetic','email','repeat@example.test',
   'company','Synthetic company','message', E'  Original\nmessage "quoted"  ') AS payload;
+UPDATE private.intake_sources SET source_kind = 'website' WHERE secret_hash = repeat('a',64);
 SELECT is(has_function_privilege('anon','public.ingest_source_inquiry(text,text,jsonb)','EXECUTE'), false, 'anonymous cannot ingest');
 SELECT is(has_function_privilege('authenticated','public.ingest_source_inquiry(text,text,jsonb)','EXECUTE'), false, 'browser cannot ingest');
 SELECT is(has_table_privilege('authenticated','private.intake_sources','SELECT'), false, 'source secrets hidden');
 SELECT throws_ok('SELECT public.ingest_source_inquiry(repeat(''d'',64), ''source-one'', (SELECT payload FROM fixture))','42501',NULL,'unknown source rejected');
 SELECT throws_ok('SELECT public.ingest_source_inquiry(repeat(''b'',64), ''source-one'', (SELECT payload FROM fixture))','42501',NULL,'disabled source rejected');
 SELECT lives_ok('SELECT public.ingest_source_inquiry(repeat(''a'',64), ''source-one'', (SELECT payload FROM fixture))','source inquiry stores');
+SELECT is((SELECT source_reference->>'kind' FROM public.inquiries WHERE source_inquiry_id='source-one'),'website','verified website source is accurately labelled');
+SELECT throws_ok('UPDATE private.intake_sources SET source_kind = ''made-up''','23514',NULL,'invalid source kind rejected');
 SELECT is((public.ingest_source_inquiry(repeat('a',64),'source-one',(SELECT payload FROM fixture))->>'duplicate')::boolean,true,'identical retry deduplicates');
 SELECT is((SELECT count(*) FROM public.inquiries WHERE workspace_id = 'intake-a'),1::bigint,'retry stores one row');
 SELECT throws_ok('SELECT public.ingest_source_inquiry(repeat(''a'',64), ''source-one'', (SELECT payload || ''{"message":"Changed"}'' FROM fixture))','P0409',NULL,'changed payload cannot overwrite retry');
@@ -28,8 +31,11 @@ SELECT throws_ok('SELECT public.ingest_source_inquiry(repeat(''a'',64), ''source
 UPDATE private.intake_sources SET received_count = 60 WHERE secret_hash = repeat('a',64);
 SELECT throws_ok('SELECT public.ingest_source_inquiry(repeat(''a'',64), ''source-three'', (SELECT payload FROM fixture))','P0429',NULL,'source rate limit enforced');
 SELECT public.ingest_source_inquiry(repeat('c',64),'source-one',(SELECT payload FROM fixture));
+SELECT is((SELECT source_reference->>'kind' FROM public.inquiries WHERE workspace_id='intake-b'),'unknown','unspecified source remains unknown');
+SELECT is((SELECT source_reference->>'kind' FROM public.inquiries WHERE workspace_id='intake-a' AND source_inquiry_id='source-one'),'website','replay preserves original source metadata');
 SET LOCAL ROLE authenticated;
 SELECT set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000081',true);
+SELECT is((public.own_workspace_overview(30)->'sources'->>'website')::integer,2,'overview counts verified website inquiries');
 SELECT is((SELECT count(*) FROM public.inquiries),2::bigint,'native auth binding sees owned records');
 SELECT throws_ok('INSERT INTO public.inquiries(workspace_id,id,original_message) VALUES (''intake-b'',''injected'',''Synthetic'')','42501',NULL,'browser cannot write inquiries');
 SELECT is((SELECT count(*) FROM public.inquiries WHERE workspace_id = 'intake-b'),0::bigint,'foreign inquiries hidden');

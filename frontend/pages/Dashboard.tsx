@@ -3,14 +3,11 @@ import { useSearchParams } from 'react-router-dom';
 import { AlertCircle, ArrowLeft, ArrowRight, Check, Copy, CreditCard, Inbox, LayoutDashboard, Link2, LogOut, Mail, Menu, Moon, RefreshCw, Repeat, Search, Settings2, Sun } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { NodalXLogo } from '../components/Navbar';
-import ImportWorkspace, { WorkspaceConnections } from '../components/workspace/ImportWorkspace';
-import WorkspacePipeline from '../components/workspace/WorkspacePipeline';
-import AutomationWorkspace from '../components/workspace/AutomationWorkspace';
-import { WorkspaceOverview, WorkspaceBilling, WorkspaceSettings, InquiryActivity } from '../components/workspace/WorkspaceViews';
-import { useResource, Usage, downloadCsv, PageTitle } from '../components/workspace/ui';
-import OnboardingWizard from '../components/OnboardingWizard';
+import { PilotDeferred, PilotJobs, PilotUsage } from '../components/workspace/PilotWorkspace';
+import { WorkspaceOverview, WorkspaceSettings, InquiryActivity } from '../components/workspace/WorkspaceViews';
+import { useResource, Usage, downloadCsv } from '../components/workspace/ui';
 import { apiRequest } from '../src/services/api';
-import { activityTime, matchesFilter, normalize, parseInquiryPage, appendInquiryPage, priorityReasons, queueFilters, queueRules, selectQueue, settleSource } from './inquiryDesk';
+import { activityTime, defaultEmailDraft, hasValidEmail, matchesFilter, normalize, parseInquiryPage, appendInquiryPage, priorityReasons, queueFilters, queueRules, selectQueue, settleSource } from './inquiryDesk';
 import { resolveDashboardTab, type DashboardTab } from './dashboardTabs';
 import type { Inquiry, InquirySource, QueueFilter, QueueSort, SourceSnapshot } from './inquiryDesk';
 import { useTheme } from '../contexts/ThemeContext';
@@ -43,7 +40,6 @@ export default function Dashboard({ defaultTab = 'overview' }: { defaultTab?: st
   const [searchParams, setSearchParams] = useSearchParams();
   const requestedTab = searchParams.get('tab');
   const activeTab = resolveDashboardTab(requestedTab, defaultTab);
-  const [showWizard, setShowWizard] = useState(() => localStorage.getItem('nodalx_wizard') === '1');
   const [mobileOpen, setMobileOpen] = useState(false);
   const [sources, setSources] = useState<Record<InquirySource, SourceSnapshot>>({ backend: emptySource, 'apps-script': emptySource });
   const [isRefreshing, setIsRefreshing] = useState(true);
@@ -60,6 +56,8 @@ export default function Dashboard({ defaultTab = 'overview' }: { defaultTab?: st
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
   const [saveState, setSaveState] = useState<{ key: string; pending: boolean; error?: string; message?: string } | null>(null);
   const [copyState, setCopyState] = useState<{ key: string; pending: boolean; error?: string; message?: string } | null>(null);
+  const [emailDraft, setEmailDraft] = useState({subject: '', body: '', confirmed: false});
+  const [emailState, setEmailState] = useState<{ key: string; pending: boolean; error?: string; message?: string } | null>(null);
   const saving = useRef(false);
   const copying = useRef(false);
   const detailHeading = useRef<HTMLHeadingElement>(null);
@@ -142,6 +140,12 @@ export default function Dashboard({ defaultTab = 'overview' }: { defaultTab?: st
   }, [selectedKey, selected, isDesk]);
 
   useEffect(() => {
+    if (!selected) return;
+    setEmailDraft({...defaultEmailDraft(selected), confirmed: false});
+    setEmailState(null);
+  }, [selected?.key]);
+
+  useEffect(() => {
     if (selectedKey && !selected && !isRefreshing) {
       setSelectedKey(null);
       queueHeading.current?.focus();
@@ -206,6 +210,25 @@ export default function Dashboard({ defaultTab = 'overview' }: { defaultTab?: st
       setSaveState({ key: inquiry.key, pending: false, error: `Status was not saved. ${error instanceof Error ? error.message : 'Request failed.'} Your displayed status is unchanged.` });
     } finally {
       saving.current = false;
+    }
+  };
+
+  const sendEmail = async (inquiry: Inquiry) => {
+    if (inquiry.source !== 'backend' || !hasValidEmail(inquiry) || emailState?.pending || !emailDraft.confirmed) return;
+    const requestKey = crypto.randomUUID();
+    setEmailState({key: inquiry.key, pending: true});
+    try {
+      const result = await apiRequest<{sent: boolean; state: string}>(`/api/workspace/inquiries/${encodeURIComponent(inquiry.id)}/emails`, {
+        method: 'POST', body: JSON.stringify({requestKey, subject: emailDraft.subject, body: emailDraft.body, confirmed: true}),
+        signal: AbortSignal.timeout(20000),
+      });
+      if (!result.sent) throw new Error(`Message state is ${result.state}. It was not sent again.`);
+      setSources(previous => ({...previous, backend: {...previous.backend, records: previous.backend.records.map(record =>
+        record.key === inquiry.key ? {...record, status: 'Contacted'} : record)}}));
+      setEmailDraft(previous => ({...previous, confirmed: false}));
+      setEmailState({key: inquiry.key, pending: false, message: 'Email accepted by the provider. This inquiry is now marked Contacted.'});
+    } catch (error) {
+      setEmailState({key: inquiry.key, pending: false, error: error instanceof Error ? error.message : 'Email could not be sent.'});
     }
   };
 
@@ -362,13 +385,22 @@ export default function Dashboard({ defaultTab = 'overview' }: { defaultTab?: st
                   <p className="mt-2 whitespace-pre-wrap break-words text-sm leading-relaxed">{selected.suggested_action || (matchesFilter(selected, 'spam') ? 'Review the original message before deciding whether to respond. This record is marked spam.' : matchesFilter(selected, 'contacted') ? 'Check your email history before following up. Contacted status does not verify delivery or a reply.' : 'Read the original message and confirm the request before drafting a response.')}</p>
                 </div>
 
-                <div className="space-y-3 border-t border-border pt-5">
-                  <div className="flex flex-wrap gap-2">
-                    {selected.email && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(selected.email) && <a href={`mailto:${encodeURIComponent(selected.email)}?subject=${encodeURIComponent(`Re: Inquiry from ${selected.name}`)}`} className={control}><Mail aria-hidden="true" className="h-4 w-4 text-accent" /> Open email draft</a>}
+                <div className="space-y-4 border-t border-border pt-5">
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div><h3 className="text-xs font-semibold uppercase tracking-wider text-text-secondary">Reply to lead</h3><p className="mt-1 text-xs text-text-secondary">Drafted locally from a fixed template. Review every field before sending.</p></div>
                     <button onClick={() => copyEmail(selected)} disabled={!selected.email || copyState?.pending} className={control}><Copy aria-hidden="true" className="h-4 w-4" /> {copyState?.key === selected.key && copyState.pending ? 'Copying...' : 'Copy email'}</button>
                   </div>
-                  <p className="text-xs leading-relaxed text-text-secondary">Opening your email app does not send a reply or mark this inquiry contacted. A valid email is required to open a draft.</p>
+                  {selected.source !== 'backend' ? <p className="rounded-lg border border-border bg-surface p-3 text-sm text-text-secondary">Direct sending is available only for inquiries stored in this NodalX workspace.</p> : !hasValidEmail(selected) ? <p className="rounded-lg border border-border bg-surface p-3 text-sm text-text-secondary">A valid stored lead email is required before a message can be drafted or sent.</p> : <form className="space-y-3" onSubmit={event => {event.preventDefault(); void sendEmail(selected);}}>
+                    <label className="block text-xs font-medium text-text-secondary">To<input value={selected.email} readOnly className="mt-1 min-h-11 w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-text-primary" /></label>
+                    <label className="block text-xs font-medium text-text-secondary">Subject<input value={emailDraft.subject} maxLength={200} required onChange={event => setEmailDraft(draft => ({...draft, subject: event.target.value, confirmed: false}))} className="mt-1 min-h-11 w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-text-primary" /></label>
+                    <label className="block text-xs font-medium text-text-secondary">Message<textarea value={emailDraft.body} maxLength={10000} required rows={9} onChange={event => setEmailDraft(draft => ({...draft, body: event.target.value, confirmed: false}))} className="mt-1 w-full resize-y rounded-lg border border-border bg-surface px-3 py-2 text-sm leading-relaxed text-text-primary" /></label>
+                    {priorityReasons(selected).length > 0 && <p className="rounded-lg border border-accent px-3 py-2 text-xs text-text-secondary"><span className="font-semibold text-text-primary">Priority signal:</span> {priorityReasons(selected).join('; ')}. This is advisory only; confirm the recipient and message yourself.</p>}
+                    <label className="flex items-start gap-3 text-sm text-text-secondary"><input type="checkbox" checked={emailDraft.confirmed} onChange={event => setEmailDraft(draft => ({...draft, confirmed: event.target.checked}))} className="mt-1 h-4 w-4 accent-[var(--color-accent)]" /><span>I reviewed the recipient, subject, and message and want to send this email now.</span></label>
+                    <button type="submit" disabled={!emailDraft.confirmed || !emailDraft.subject.trim() || !emailDraft.body.trim() || emailState?.pending} className={`${control} w-full`}><Mail aria-hidden="true" className="h-4 w-4 text-accent" />{emailState?.pending ? 'Sending…' : 'Send email'}</button>
+                  </form>}
+                  <p className="text-xs leading-relaxed text-text-secondary">NodalX never sends automatically from urgency or fit score. A successful provider acceptance marks this inquiry Contacted; delivery or a reply is not guaranteed.</p>
                   {copyState?.key === selected.key && <p role={copyState.error ? 'alert' : 'status'} className={`text-sm leading-relaxed ${copyState.error ? 'border-l-2 border-border-strong pl-3 font-medium' : 'text-text-secondary'}`}>{copyState.error || copyState.message}</p>}
+                  {emailState?.key === selected.key && <p role={emailState.error ? 'alert' : 'status'} className={`text-sm leading-relaxed ${emailState.error ? 'border-l-2 border-border-strong pl-3 font-medium' : 'text-text-secondary'}`}>{emailState.pending ? 'Sending email…' : emailState.error || emailState.message}</p>}
                 </div>
 
                 <div className="space-y-3 border-t border-border pt-5">
@@ -402,13 +434,11 @@ export default function Dashboard({ defaultTab = 'overview' }: { defaultTab?: st
 
   let content: React.ReactNode = desk;
   if (activeTab === 'overview') content = <WorkspaceOverview onOpenDesk={() => openTab('inquiries')} onOpenImports={() => openTab('connectors')} />;
-  if (activeTab === 'connectors') content = <ImportWorkspace onConnections={() => openTab('connections')} />;
-  if (activeTab === 'automation') content = <AutomationWorkspace />;
-  if (activeTab === 'connections') content = <div className="space-y-8"><PageTitle title="Sources & connections" description="Connect your website or automation platform and import inquiry spreadsheets you control." /><WorkspacePipeline compact /><WorkspaceConnections compact /></div>;
-  if (activeTab === 'billing') content = <WorkspaceBilling />;
+  if (activeTab === 'connectors') content = <PilotJobs />;
+  if (activeTab === 'automation') content = <PilotDeferred title="Automation" description="Scheduled recipes and exception handling are not available in this pilot. Review saved inquiries manually; analysis is available only when processing is configured." onOpenDesk={() => openTab('inquiries')} />;
+  if (activeTab === 'connections') content = <PilotDeferred title="Sources & connections" description="Website intake requires an operator-verified source binding to your workspace. Self-service API keys, spreadsheet imports and Sheets connections are not available in this pilot. Do not reuse another workspace’s source credentials." onOpenDesk={() => openTab('inquiries')} />;
+  if (activeTab === 'billing') content = <PilotUsage />;
   if (activeTab === 'settings') content = <WorkspaceSettings />;
-
-  if (showWizard) return <OnboardingWizard userName={user?.displayName || 'there'} onComplete={() => setShowWizard(false)} />;
 
   return (
     <div style={{ backgroundImage: 'none' }} className="dashboard-shell before:!hidden min-h-screen w-full bg-bg text-text-primary [&_:focus-visible]:outline [&_:focus-visible]:outline-2 [&_:focus-visible]:outline-offset-[-2px] [&_:focus-visible]:outline-accent">

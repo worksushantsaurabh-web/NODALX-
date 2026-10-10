@@ -53,6 +53,18 @@ export function priorityReasons(inquiry: Inquiry): string[] {
   return reasons;
 }
 
+export function hasValidEmail(inquiry: Inquiry): boolean {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(inquiry.email) && inquiry.email.length <= 320;
+}
+
+export function defaultEmailDraft(inquiry: Inquiry): {subject: string; body: string} {
+  const firstName = inquiry.name.trim().split(/\s+/)[0];
+  return {
+    subject: `Re: your inquiry to NodalX`,
+    body: `Hi ${firstName && firstName !== 'Unnamed' ? firstName : 'there'},\n\nThank you for reaching out. I reviewed your inquiry and would like to understand your requirements in more detail.\n\nCould you share a convenient time for a short conversation?\n\nBest,\nNodalX`,
+  };
+}
+
 export function matchesFilter(inquiry: Inquiry, filter: QueueFilter): boolean {
   const status = normalize(inquiry.status);
   switch (filter) {

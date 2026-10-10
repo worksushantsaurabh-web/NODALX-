@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { activityTime, matchesFilter, parseInquiries, priorityReasons, selectQueue, settleSource } from './inquiryDesk.ts';
+import { activityTime, defaultEmailDraft, hasValidEmail, matchesFilter, parseInquiries, priorityReasons, selectQueue, settleSource } from './inquiryDesk.ts';
 
 const inquiry = (fields: Record<string, unknown> = {}) => parseInquiries([{ id: '1', ...fields }], 'backend').records[0];
 
@@ -27,6 +27,16 @@ test('intent and urgency independently establish priority, never fit score', () 
   assert.equal(matchesFilter(inquiry({ intent: 'partnership', fit_score: 100 }), 'priority'), false);
   assert.equal(matchesFilter(inquiry({ status: 'spam', intent: 'purchase', urgency: 'high' }), 'priority'), false);
   assert.equal(matchesFilter(inquiry({ intent: 'high-ish', urgency: 'higher' }), 'priority'), false);
+});
+
+test('email drafts are editable templates and require a valid stored address', () => {
+  const row = inquiry({name: 'Ada Lovelace', email: 'ada@example.com'});
+  assert.equal(hasValidEmail(row), true);
+  assert.equal(hasValidEmail(inquiry({email: 'not-an-email'})), false);
+  const draft = defaultEmailDraft(row);
+  assert.match(draft.subject, /inquiry/i);
+  assert.match(draft.body, /^Hi Ada,/);
+  assert.doesNotMatch(draft.body, /fit score|urgency|\bAI\b/i);
 });
 
 test('search covers all four fields, combines with filters, and does not mutate input', () => {

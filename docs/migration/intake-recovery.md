@@ -9,12 +9,16 @@ another dashboard database. Successful canonical completion clears its payload.
 ## Configuration
 
 Default `INTAKE_PROVIDER=apps-script` preserves the existing public endpoint.
-Opt-in `make-supabase` requires explicit `INTAKE_ENVIRONMENT`, approved Supabase
-URL/service credentials, `ALLOW_INTAKE_NETWORK=true`, and `INTAKE_SOURCE_TOKEN`.
-Consumer requires `MAKE_INTAKE_ENABLED=true` and a DIFFERENT `MAKE_INTAKE_TOKEN`.
-Never reuse processing tokens. Do not copy service-role credentials to Make.
-Use an enabled private source binding whose credential hash matches the server
-source secret. Keep its binding ID unchanged during credential rotation.
+`supabase-direct` writes website inquiries directly to canonical Supabase through
+the server-only `ingest_source_inquiry` RPC; it is the staging target when Make is
+optional. `make-supabase` remains an optional durable queue mode where Make must
+complete the handoff before dashboard visibility. Both Supabase modes require
+explicit `INTAKE_ENVIRONMENT`, approved Supabase URL/service credentials,
+`ALLOW_INTAKE_NETWORK=true`, and `INTAKE_SOURCE_TOKEN`. The Make consumer also
+requires `MAKE_INTAKE_ENABLED=true` and a DIFFERENT `MAKE_INTAKE_TOKEN`. Never
+reuse processing tokens or copy service-role credentials to Make. Use an enabled
+private source binding whose credential hash matches the server source secret.
+Keep its binding ID unchanged during credential rotation.
 
 Local mode permits only 127.0.0.1. Staging/production permit only HTTPS approved
 Supabase cloud origins. Production accounts/resources/deployment have not been
@@ -22,8 +26,10 @@ created or modified. Neither website acceptance nor this router calls Gemini.
 
 ## Response meanings
 
-- Website 202: the original is durably queued, processing, or previously stored.
+- Website 202 in `make-supabase`: the original is durably queued, processing, or previously stored.
   `id` is the stable transport ID, NOT a dashboard inquiry ID. No email/AI claim.
+- Website 201 in `supabase-direct`: canonical inquiry storage is confirmed;
+  same-payload retry returns 200 with the original inquiry ID and `duplicate:true`.
 - Make `claim` returns only IDs and a lease, never message/email/credential hash.
 - Make `complete` resolves original payload/tenant from durable state; no client
   payload or workspace is accepted. 200 `stored` confirms canonical storage.

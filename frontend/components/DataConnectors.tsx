@@ -1,11 +1,10 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { api } from '../src/services/api';
-import { authorizationHeader } from '../lib/session';
 import {
-  Upload, FileSpreadsheet, Table2, Download, ArrowRight, Check, AlertCircle,
-  Loader2, CloudUpload, Sparkles, Trash2, Eye, FileText, Sheet, Globe, Webhook,
-  Clock, BarChart3, Target, Zap, TrendingUp
+  Upload, FileSpreadsheet, Download, Check, AlertCircle,
+  Loader2, Sparkles, Trash2, FileText, Sheet, Webhook,
+  Clock, BarChart3, Target
 } from 'lucide-react';
 
 interface AnalysisResult {
@@ -33,13 +32,8 @@ interface Analysis {
 
 export default function DataConnectors() {
   const { user } = useAuth();
-  const fileInputRef = useRef<HTMLInputElement>(null);
   const analyzingRef = useRef(false);
 
-  const [file, setFile] = useState<File | null>(null);
-  const [isDragging, setIsDragging] = useState(false);
-  const [filePreview, setFilePreview] = useState<{ headers: string[]; rows: string[][] } | null>(null);
-  
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [results, setResults] = useState<AnalysisResult[] | null>(null);
   const [resultsMeta, setResultsMeta] = useState<{ batchId: string; fileName: string; totalRows: number; processedRows: number; wasLimited: boolean; maxRows: number } | null>(null);
@@ -110,112 +104,6 @@ export default function DataConnectors() {
       }
     } catch (err) {
       console.error('Failed to fetch history', err);
-    }
-  };
-
-  const parseFilePreview = async (selectedFile: File) => {
-    return new Promise<{ headers: string[]; rows: string[][] }>((resolve) => {
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        const text = e.target?.result as string;
-        const lines = text.split('\n').filter(l => l.trim());
-        if (lines.length === 0) {
-          resolve({ headers: [], rows: [] });
-          return;
-        }
-        
-        const headers = lines[0].split(',').map(h => h.trim().replace(/^"|"$/g, ''));
-        const rows = lines.slice(1, 4).map(line => 
-          line.split(',').map(cell => cell.trim().replace(/^"|"$/g, ''))
-        );
-        resolve({ headers, rows });
-      };
-      reader.readAsText(selectedFile);
-    });
-  };
-
-  const handleFileSelect = async (selectedFile: File) => {
-    if (!selectedFile.name.endsWith('.csv') && !selectedFile.name.endsWith('.xlsx') && !selectedFile.name.endsWith('.xls')) {
-      setError('Please upload a CSV or Excel file.');
-      return;
-    }
-    
-    setError(null);
-    setFile(selectedFile);
-    
-    try {
-      const preview = await parseFilePreview(selectedFile);
-      setFilePreview(preview);
-    } catch (err) {
-      setError('Failed to read file preview.');
-    }
-  };
-
-  const handleDragOver = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    setIsDragging(true);
-  }, []);
-
-  const handleDragLeave = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    setIsDragging(false);
-  }, []);
-
-  const handleDrop = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    setIsDragging(false);
-    
-    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-      handleFileSelect(e.dataTransfer.files[0]);
-    }
-  }, []);
-
-  const handleAnalyze = async () => {
-    if (!file || analyzingRef.current) return;
-    analyzingRef.current = true;
-    
-    setIsAnalyzing(true);
-    setError(null);
-    setResults(null);
-    setResultsMeta(null);
-    
-    try {
-      const formData = new FormData();
-      formData.append('file', file);
-
-      const headers: Record<string, string> = await authorizationHeader();
-
-      const res = await fetch('/api/analyze/upload', {
-        method: 'POST',
-        headers,
-        body: formData,
-      });
-
-      if (!res.ok) {
-        const err = await res.json().catch(() => null);
-        throw new Error(err?.error || `Upload failed (status ${res.status}). Please try again.`);
-      }
-      const data = await res.json();
-      if (!data || data.success === false || !Array.isArray(data.results)) {
-        throw new Error(data?.error || 'Invalid upload response. Please try again.');
-      }
-      
-      setResults(data.results);
-      setResultsMeta({
-        batchId: data.batchId,
-        fileName: data.fileName,
-        totalRows: data.totalRows,
-        processedRows: data.processedRows,
-        wasLimited: data.wasLimited,
-        maxRows: data.maxRows
-      });
-      setFilePreview(null);
-      fetchHistory();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to analyze file');
-    } finally {
-      analyzingRef.current = false;
-      setIsAnalyzing(false);
     }
   };
 
@@ -331,19 +219,9 @@ export default function DataConnectors() {
   };
 
   const resetForm = () => {
-    setFile(null);
-    setFilePreview(null);
     setResults(null);
     setResultsMeta(null);
     setError(null);
-  };
-
-  const formatFileSize = (bytes: number) => {
-    if (bytes === 0) return '0 Bytes';
-    const k = 1024;
-    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
   };
 
   const getIntentColor = (intent: string) => {
@@ -539,7 +417,7 @@ export default function DataConnectors() {
                 onClick={resetForm}
                 className="px-4 py-2 g-chip text-text-primary rounded-lg hover:border-accent font-medium transition-colors"
               >
-                Upload New File
+                Back to sources
               </button>
               <button 
                 onClick={downloadResultsCSV}

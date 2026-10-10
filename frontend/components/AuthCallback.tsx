@@ -1,4 +1,4 @@
-import React, {useEffect, useState} from 'react';
+import {useEffect, useState} from 'react';
 import {requireSupabase} from '../lib/supabase';
 import {api} from '../src/services/api';
 

@@ -2,15 +2,33 @@
 
 ## Account status
 
-Owner supplied the private scenario editor URL on 6 October 2026. Opening it in
-Codex's browser initially redirected to Make sign-in. The owner completed login;
-the original scenario is visibly Inactive and Shared. No scenario/account setting was
-changed, duplicated, activated or executed. The Clone dialog requires a replacement
-webhook, so it was cancelled without creating one. A new scheduled intake router
-does not need that legacy webhook. Prepare a separate disabled router after the
-approved staging API is deployed; never paste credentials into chat or export them
-with a blueprint. Cloud Supabase, the staging endpoint and secure machine
-credentials remain unverified release prerequisites.
+Owner supplied the private scenario editor URL on 6 October 2026. The original
+"NodalX Inquiry Classification Pipeline" is a legacy Gemini/Airtable flow. The
+owner completed Make sign-in privately. No scenario/account setting was changed,
+duplicated, activated or executed during that review. The owner reports the
+scenario is currently active and its latest scheduled run failed at the
+Airtable connection check with HTTP 400; its Gemini webhook-response module also
+warns that it cannot run on a scheduled trigger. Do not edit, clone, pause, or
+otherwise change its status without owner instruction. To pause it manually:
+open Make > Scenarios, open that exact scenario, use the scheduling toggle in
+the scenario editor to switch scheduling off, then confirm the status reads
+Inactive. This does not delete it. New staging router work must use a separate
+scenario and must not reuse the legacy webhook.
+
+The Make account shows a secure keychain named "NodalX staging router" with
+usage count 1, but the linked scenario and credential contents were not inspected
+or exposed. No separate staging router was verified in the scenario inventory.
+Do not assume that key is correctly configured or reuse it in a module until its
+owner and intended scenario are confirmed. Never reveal, export, or paste its value.
+
+The stable staging Vercel deployment is Ready, but its preview APIs redirect
+unauthenticated requests to Vercel SSO. Do not put a project-wide Vercel
+protection-bypass credential in Make or disable protection. No approved
+machine-reachable API host is currently verified. A narrow API-only staging
+deployment/host with application Bearer authentication and fail-closed gates is
+needed before the Make modules can be safely saved or run. The preview gates
+remain disabled. Cloud migrations are aligned at 15; no live Make execution or
+cloud inquiry write was performed in this checkpoint.
 
 The delegated Make review did not produce a final artifact and was stopped.
 Parent implemented/validated the backend and wrote this integration contract.

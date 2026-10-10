@@ -65,11 +65,11 @@ export default function Footer() {
             </p>
             <div className="space-y-2 pt-2">
               <a
-                href="mailto:nodalxai@gmail.com"
+                href="mailto:support@nodalx.in"
                 className="flex items-center gap-2 text-sm text-text-secondary hover:text-text-primary transition-colors"
               >
                 <Mail className="w-4 h-4 shrink-0" />
-                <span>nodalxai@gmail.com</span>
+                <span>support@nodalx.in</span>
               </a>
               <a
                 href="tel:+918051037012"

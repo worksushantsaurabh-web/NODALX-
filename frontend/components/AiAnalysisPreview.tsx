@@ -1,4 +1,3 @@
-import React from 'react';
 import { Sparkles, Flame, Wallet, AlertCircle, PhoneCall, ChevronRight, Activity, CheckCircle2 } from 'lucide-react';
 
 export default function AiAnalysisPreview() {

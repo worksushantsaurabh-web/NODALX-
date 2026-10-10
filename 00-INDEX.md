@@ -1,52 +1,51 @@
 ---
 title: NodalX — Project Index
 type: MOC
-tags: [index, moc, nodalxai]
+tags: [index, moc, nodalx]
 ---
 
 # NodalX — Project Map of Content
 
-> AI-powered customer intelligence platform. Classifies inbound inquiries, surfaces insights, and automates follow-up workflows.
+> Inquiry intake and follow-up desk for small businesses. Captures inbound inquiries, preserves the original message, optionally applies qualification/classification, and gives a human a clear next action.
 
 ---
 
-## Architecture
+## Current Continuation
 
-- [[Architecture]] — System overview, data flow, how services connect
-- [[Tech-Stack]] — All technologies, versions, and why each is used
+- `docs/runbooks/ide-handoff-current-2026-10-07.md` — authoritative current
+  phase, verified state, missing work, fine-tuned-model integration path and a
+  paste-ready prompt for another IDE.
+
+---
+
+## Current Target Architecture
+
+- **Frontend**: React + TypeScript + Vite + Tailwind (Deployed to Vercel)
+- **Database & Authentication**: Supabase (Native Supabase Auth and PostgreSQL, replacing Firebase/Firestore)
+- **APIs**: Vercel Serverless Functions (`api/` and `server/` directories)
+- **Automation (Optional)**: Make (durable staging, opaque Make lease, and canonical Supabase completion)
+
+*(Note: AWS, Firebase Hosting, Cloud Run, and Google Cloud billing are legacy/suspended or historical paths not used in the current target migration.)*
 
 ---
 
 ## Subsystems
 
-| Module          | Path         | Deploys To         | Note          |
-| --------------- | ------------ | ------------------ | ------------- |
-| Frontend        |              | Vercel             | [[Frontend]]  |
-| Backend         | `backend/`   | Cloud Run          | [[Backend]]   |
-| Cloud Functions | `functions/` | Firebase Functions | [[Functions]] |
-| Apps Script     | `appscript/` | Google Apps Script | [[Appscript]] |
+| Module          | Path         | Deploys To         | Note                                      |
+| --------------- | ------------ | ------------------ | ----------------------------------------- |
+| Frontend & APIs | `frontend/`, `api/`, `server/` | Vercel | React UI and Vercel-hosted API endpoints |
+| Database        | `supabase/`  | Supabase           | PostgreSQL schema, migrations, RLS        |
+| Apps Script     | `appscript/` | Google Apps Script | Legacy intake (retained for recovery)     |
+| Legacy Backend  | `backend/`   | Local / Archived   | Legacy Express/WebSocket server           |
+| Legacy Functions| `functions/` | Firebase Functions | Legacy Firebase backend (suspended)       |
 
 ---
 
 ## Infrastructure & Config
 
-- [[Deployment]] — How to deploy each service
-- [[Environment]] — All environment variables across services
-- [[Firestore-Rules]] — Security rules explained
-- [[Firebase-Config]] — firebase.json, .firebaserc, indexes
-
----
-
-## Key Files (quick reference)
-
-| File | Purpose |
-|------|---------|
-| `vercel.json` | Vercel deployment config (Vite SPA) |
-| `firebase.json` | Firebase hosting, functions, emulators |
-| `firestore.rules` | Firestore security rules |
-| `firestore.indexes.json` | Composite indexes |
-| `.firebaserc` | Firebase project alias |
-| `package.json` | Root workspace (dev scripts only) |
+- **Supabase**: Source of truth, schema migrations in `supabase/migrations/`
+- **Vercel**: `vercel.json` used for deployment configuration and API rewrites
+- **Environment**: Server secrets managed in proper secret managers (e.g., Vercel Preview/Production variables). Never commit secrets to code.
 
 ---
 
@@ -54,18 +53,22 @@ tags: [index, moc, nodalxai]
 
 ```
 NODALXAI/
-├── frontend/        → [[Frontend]]
-├── backend/         → [[Backend]]
-├── functions/       → [[Functions]]
-├── appscript/       → [[Appscript]]
-├── docs/            → All vault notes live here
+├── frontend/        → React + Vite SPA components
+├── api/ & server/   → Vercel serverless API handlers and backend logic
+├── supabase/        → PostgreSQL database migrations and types
+├── appscript/       → Google Apps Script source (legacy intake)
+├── backend/         → Legacy Express backend
+├── functions/       → Legacy Firebase Functions
+├── docs/            → Project documentation, runbooks, and system design
 ├── _archive/        → Deprecated files (safe to ignore)
 └── .obsidian/       → Vault config
 ```
 
 ---
 
-## Status & Decisions
+## Status, Rules, and Checkpoints
 
-- [[Decisions]] — Key architectural decisions and why
-- [[TODO]] — Active tasks and next steps
+- `AGENTS.md` — Authoritative repository rules, pipeline migration logs, and latest implementation checkpoints. **Read this before modifying the codebase.**
+- `docs/LLM-MIND.md` — Compact operating context, guardrails, and knowledge states.
+- `docs/runbooks/` — Detailed staging, setup, and migration logs (e.g., `nodalx-ide-handoff.md`, `supabase-migration-log.md`).
+- `docs/migration/` — Route matrix, data models, and Make automation contracts.

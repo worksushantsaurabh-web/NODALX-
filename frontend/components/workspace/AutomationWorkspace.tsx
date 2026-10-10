@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { RefreshCw } from 'lucide-react';
 import { api } from '../../src/services/api';
 import { button, input, panel, Notice, PageTitle, Loading, useResource } from './ui';
@@ -52,7 +52,6 @@ function RecipeCard({recipe, onChanged}: {recipe: Recipe; onChanged: () => void}
     } finally { setBusy(''); }
   };
 
-  const canEnable = recipe.status !== 'active';
   return <li className="min-w-0 space-y-4 rounded-lg border border-border p-4">
     <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
       <div className="min-w-0">

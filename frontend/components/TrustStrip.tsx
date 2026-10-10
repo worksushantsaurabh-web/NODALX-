@@ -1,4 +1,3 @@
-import React from 'react';
 
 const principles = [
   { number: '01', label: 'Bring inquiries together' },

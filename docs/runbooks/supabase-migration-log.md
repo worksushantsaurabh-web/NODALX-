@@ -1,5 +1,44 @@
 # Supabase Migration Log
 
+## Release roadmap phases 0–2 — 7 October 2026
+
+These are release-roadmap phases, not the historical migration phase numbering below.
+
+- Phase 0 implemented locally: route matrix reconciled; unavailable dashboard
+  import/recipe/key/billing controls replaced with deferred notices, read-only
+  jobs and usage. Legacy wizard no longer blocks entry. Architecture header now
+  distinguishes historical Firebase notes from the Supabase pilot.
+- Phase 1 partially verified: current Vercel Preview revision `1b8d694` is ready;
+  CLI-authorized health is 200 JSON and unauthenticated workspace reads are 401.
+  Ordinary requests still return 302. Intake/Supabase variables have branch-only
+  Preview scopes; values were not displayed. Supabase has 15 migrations and one
+  confirmed bound identity. Browser session/callback/recovery tests remain open.
+- Phase 2 local implementation verified: safe preparation-only source setup,
+  verified identity-derived workspace, disabled hashed source, owner-only ignored
+  output files. Direct handler → real local Supabase → authenticated dashboard API
+  proves concurrent replay, conflict, repeat customer, immutable originals,
+  tenant denial and Make independence. This is API integration, not visual browser
+  verification. Cloud has no source bindings and no live test was submitted.
+- Build/typecheck, Functions lint, provisioning syntax and focused unused-variable
+  lint passed. SQL suite: 131 assertions passed. Working-tree secret scan passed.
+  Full backend run with every local integration enabled: 96 passed, zero skipped.
+  See `phase-0-2-verification.md` for exact proposed request and remaining approvals.
+
+No commit, push, deployment, public protection exception, gate activation, email,
+Make run, billing change or production mutation. Source-kind metadata still needs
+a versioned correction; keep this visible rather than claiming complete reporting.
+
+## Release roadmap — 7 October 2026
+
+Added `release-roadmap-2026-10-07.md` with source-backed release gaps, phase
+dependencies, acceptance criteria and classification choices. Linked older
+remaining-work/mind/handoff documents to the direct-Supabase, Make-optional
+sequence. Gemini adapter exists; live provider/worker verification remains open.
+Migrated workspace API still reports Sheets sync and billing unavailable and
+returns MIGRATION_PENDING for unsupported routes. No runtime or cloud changes.
+Verification: working-tree secret scan (317 files) and `git diff --check` passed.
+Runtime tests were not repeated for these documentation-only changes.
+
 ## Phase 0: Baseline
 - **Status:** Complete.
 - **Notes:** All tests passed (intake, frontend, functions). Typecheck, build, lint, and secret scan passed.
@@ -419,3 +458,240 @@ This is still a local rehearsal, not a production cutover or full Firebase retir
 - Publish this fix only on the approved staging branch. Updated Preview build,
   auth callbacks/SMTP, secret validity, owned source bindings, private intake
   tokens and owner-approved synthetic Make round-trip remain release gates.
+## Staging preview verification — 6 October 2026
+
+- Vercel Preview is Ready from `nodalx-staging` commit `1b8d694`.
+- Landing page and email/password sign-in modal load; Google is disabled.
+- Anonymous API smoke requests returned Vercel SSO redirects (302), not backend
+  health responses. Browser API navigation was blocked by the client; protection
+  was preserved. Cloud auth, source credentials and Make E2E remain release gates.
+- No customer submissions, emails, production promotion or Make activation.
+## Auth callbacks and pipeline readiness — 6 October 2026
+
+- Owner-approved exact callback/recovery URLs saved for the stable Vercel
+  nodalx-staging branch alias. Site URL unchanged; no wildcard or Google enablement.
+- Custom SMTP is disabled; signup/recovery delivery has not been tested.
+- Re-ran 83 default backend tests, four actual local integration tests, 131 SQL
+  assertions, API/server boundary lint and Functions lint successfully.
+- Local Make handoff uses a simulated consumer; no live Make execution occurred.
+  Inventory has the two legacy scenarios, not the dedicated claim/complete router.
+- Pending owner choices: protected-preview authenticated probe approval and a
+  verified staging Auth account/workspace. Source/machine tokens remain private
+  owner setup; no production cutover or network gate activation.
+## Protected staging probes verified — 6 October 2026
+
+Owner's working CLI used to successfully test staging-only endpoints via Vercel protection bypass token.
+GET `/api/health/live` returned HTTP 200 `{"status":"alive"}`.
+GET `/api/user/profile` without app Auth returned HTTP 401 `AUTH_REQUIRED`.
+POST `/api/intake?action=claim` while disabled returned HTTP 503 `INTAKE_NOT_CONFIGURED`.
+Application-level denial and intake disabled states verified.
+Private source and machine tokens securely generated and provisioned to Vercel Preview.
+Pending: owner must execute the generated SQL to bind the source in Supabase, and
+setup the disabled Make router using the new credentials.
+## IDE continuation handoff — 6 October 2026
+
+Owner reports staging app account verification completed and local Vercel CLI
+whoami succeeds. Verify native workspace binding and protected-preview backend
+responses next; do not treat earlier agent CLI failure as proof of owner logout.
+Added docs/runbooks/nodalx-ide-handoff.md (full context and next-IDE prompt) and
+docs/LLM-MIND.md (compact invariant/state model). No application code changes,
+new cloud writes, Make activation, production promotion, commit or push.
+
+## Staging router readiness recheck — 6 October 2026
+
+- Confirmed the latest inspected `nodalx-staging` deployment is Ready and Preview;
+  Supabase linked migration history matches all 15 repository migrations. Vercel
+  dashboard metadata shows `MAKE_INTAKE_TOKEN` and `INTAKE_SOURCE_TOKEN` scoped
+  to Preview/nodalx-staging. Secret values were not revealed. Make key inventory
+  contains `NodalX staging router` with one usage, but the linked scenario/value
+  was not verified; no new dedicated router is confirmed.
+- Owner reports the legacy Gemini/Airtable scenario is active and its latest
+  scheduled run failed at Airtable connection validation (HTTP 400); Gemini's
+  webhook-response module is incompatible with scheduled triggering. Left it
+  untouched. `docs/migration/make-intake-router.md` explains manual pause steps.
+- Preview API SSO redirect remains a hard machine-access blocker. Do not disable
+  protection or put broad Vercel bypass credentials in Make. A narrowly scoped
+  API-only staging host with app Bearer auth is not yet configured. The signup
+  verification report does not independently prove the authenticated identity's
+  server-owned workspace binding; no identity/token was available to verify it.
+- Local verification passed: 83/87 backend tests (4 opt-in tests skipped in this
+  suite), 131 SQL assertions, all 4 opt-in local Supabase integration tests,
+  Functions lint, API/router syntax checks, 305-file secret scan, and `git diff
+  --check`. These are local tests only, not live Make/Supabase intake evidence.
+- No Make module was executed or activated, no `MAKE_INTAKE_ENABLED` gate was
+  changed, and no cloud inquiry/email was created. Before live test, owner approval
+  is required for the exact synthetic request and its side effects. The untracked
+  `scripts/setup-intake-bindings.mjs` was inspected but not run: raw token values
+  appear in shell command arguments and its SQL includes a placeholder workspace.
+  Replace/review that provisioning path before any use.
+
+## Staging SSO and Make-optional intake — 7 October 2026
+
+- Added a `supabase-direct` provider path: the website handler calls the existing
+  service-only `ingest_source_inquiry` RPC to write canonical inquiries
+  immediately. Same-ID replay returns the same receipt; changed-payload conflicts
+  and repeat-customer rules remain in the database. Make is not required for a
+  new staging inquiry to appear in the dashboard.
+- Kept `ALLOW_INTAKE_NETWORK` fail-closed and unchanged. No cloud inquiry, email,
+  Make run, provider activation, or deployment-protection setting was changed.
+- Vercel SSO happens before application code. Current docs describe project-wide
+  automation bypass or domain-wide exceptions, not ordinary per-route bypass.
+  A one-alias exception publicly exposes all static staging assets; app-level
+  Supabase Auth and route-specific source/Bearer auth remain enforced. Alternative:
+  dedicated API-only staging host. Owner approval is required before either
+  access change.
+- Focused intake/account tests: 11 passed. Full backend, SQL, lint, secret-scan
+  and build checks are pending for this implementation turn.
+- Follow-up validation passed: 85 default backend tests (4 local opt-ins skipped),
+  131 SQL assertions, all 4 local Supabase integration tests, Functions lint,
+  frontend typecheck/build, syntax checks, 305-file secret scan and whitespace
+  checks. These remain local simulations—not live Vercel or external writes.
+
+## Live-readiness code review — 7 October 2026
+
+- Code review found the public website form includes `submittedAt`, while the
+  backend rejects unknown payload fields. The intake handler now accepts this
+  legacy optional value but strips it before DB calls; server-side time remains
+  authoritative. Regression coverage added.
+- The staging deployment remains behind SSO. This shell's Vercel CLI identity
+  command fails with a Node/Vercel CLI error, and the browser session returns
+  Vercel 404 under a different account. No Vercel access setting was changed.
+- No cloud gates, submissions, Make execution or deployment occurred. The exact
+  public-access decision remains open: an exception for one staging alias makes
+  the whole host public, while a separate API-only project keeps the web Preview
+  protected. Owner needs to select/approve the access model and authenticate the
+  correct Vercel team before external deployment/configuration steps.
+- Added a compatibility regression for the form's legacy `submittedAt` field;
+  latest checks passed 86/90 default tests (4 opt-in skipped), 131 SQL assertions,
+  all 4 local Supabase integration tests, Functions lint, frontend typecheck/build,
+  syntax checks, secret scan and whitespace checks.
+
+## API-only SSO isolation scaffold — 7 October 2026
+
+- Added a distinct `staging-api/` Vercel project root that packages thin wrappers
+  around existing server intake, Supabase account/workspace and automation
+  handlers. This avoids exposing protected website static assets to make APIs
+  reachable.
+- Added exact-origin CORS allowlisting via empty-by-default
+  `API_ALLOWED_ORIGINS`; requests without `Origin` remain available to server
+  callers, while application routes retain their existing auth/token gates.
+- Updated the inquiry form to honor the public `VITE_API_BASE_URL` override and
+  documented the new project setup. Root project, protections, DNS, Vercel
+  environments, gates and Make scenario were not changed.
+- Remaining: correct Vercel team sign-in; create/configure the API-only project,
+  assign its domain and exact staging CORS origin; obtain explicit approval
+  before any domain-level protection exception; redeploy web Preview; then run
+  only approved non-mutating probes. No cloud deployment or live inquiry test.
+- Local checks: 88 backend tests passed and 4 opt-in tests skipped in the default
+  run; all four opt-in local Supabase integration tests passed; 131 SQL
+  assertions passed; Functions lint and frontend typecheck/build passed; staging
+  API lockfile install and handler syntax checks passed; working-tree secret
+  scan found no secret-like values; `git diff --check` passed. The intake config
+  diagnostic still reports the local Apps Script connector as unconfigured,
+  which is expected for this staging-only setup.
+- These are local results—not a live SSO fix until cloud project configuration,
+  API-domain access, deployment, and machine-safe protected-access probes pass.
+
+## Human-reviewed dashboard email — 7 October 2026
+
+- Added an editable, fixed-template composer to the inquiry detail. It is
+  available only for canonical backend inquiries with a valid stored email and
+  requires an explicit review checkbox before every send. Priority labels remain
+  advisory and never trigger a send.
+- Added a tenant-scoped `outbound_emails` ledger, RLS read policy, service-only
+  finalization, idempotent reservation RPC, content-conflict detection and a
+  10-new-sends/minute workspace limit. The recipient is resolved from the owned
+  inquiry; client workspace and recipient values are never accepted.
+- Added a fail-closed Resend REST adapter using provider idempotency. Provider
+  acceptance records the send and marks the inquiry Contacted atomically at the
+  application boundary; ambiguous responses are not retried automatically.
+- `OUTBOUND_EMAIL_ENABLED` remains false. Marketplace terms are accepted, but
+  Resend resource provisioning/domain verification/API-key injection are not
+  confirmed. No cloud schema or email was sent.
+- Verification: clean local database reset, 146 SQL assertions, 94 default
+  backend tests with five opt-in local tests skipped, focused composer tests,
+  frontend typecheck/build, server syntax, secret scan and diff checks passed.
+
+### Cloud continuation
+
+- Applied the source metadata, outbound ledger and service-role-only hardening
+  migrations to staging Supabase; local/remote migration histories match.
+- Provisioned the free Resend Vercel Marketplace resource and connected it to
+  Preview. Added `OUTBOUND_EMAIL_FROM` and the disabled email gate only for the
+  `nodalx-staging` Preview branch.
+- Deployed Preview `dpl_5XYEwW8mDhAaWYpqTFBfRYbyFe65`. Deployment is Ready and
+  Vercel-protected; authorized liveness returned 200 and an unauthenticated email
+  mutation returned the expected application 401.
+- Resend remains in onboarding. Required DNS records were inspected, but GoDaddy
+  was not authoritative for this zone; Cloudflare is authoritative. Added only
+  the required DKIM TXT, MAIL FROM MX and SPF TXT records in Cloudflare. Public
+  DNS-over-HTTPS resolution confirms all three exact values. Existing DNS records
+  were preserved.
+- Resend now reports `verified` and confirms the domain is ready to send. Enabled
+  `OUTBOUND_EMAIL_ENABLED` only for Preview branch `nodalx-staging` and deployed
+  Ready Preview `dpl_73auVBdLga45MK9AcG1zttYtMLF2`. Authorized liveness returned
+  200; an unauthenticated email mutation returned application 401 `AUTH_REQUIRED`.
+  No real email occurred. Local Supabase remains running for continuation. Next:
+  obtain explicit approval for one labelled real-email test from an authenticated
+  staging dashboard session.
+
+## Supabase Auth redirect repair — 7 October 2026
+
+- Diagnosed confirmation emails redirecting to localhost: cloud Auth `Site URL`
+  was still `http://localhost:3000`. Supabase uses Site URL as the fallback when
+  no requested redirect is supplied or the requested URL is not allowlisted.
+- Changed Site URL to the stable `nodalx-staging` Vercel branch host. Preserved
+  its exact signup and recovery callback URLs and added the same two exact paths
+  for Ready Preview `dpl_73auVBdLga45MK9AcG1zttYtMLF2`. No wildcard, production
+  URL, provider, user state or email template was changed.
+- Existing emails retain their old localhost link. Sending a replacement email
+  is a separate external action and still needs explicit owner approval.
+- Added a public, branch-scoped `VITE_AUTH_REDIRECT_ORIGIN` pointing to the exact
+  stable staging alias. Signup, password recovery, OAuth and confirmation resend
+  now use that origin, avoiding per-deployment callback drift. Added a resend
+  control that appears only after Supabase reports `email_not_confirmed` and uses
+  a generic success message.
+- Frontend typecheck/build and whitespace checks passed. Deployed Ready Preview
+  `dpl_8oqDGb2dNNJcWy7YQNoN74GaUZM5`; authorized liveness returned 200 and its
+  served bundle contains the stable allowlisted redirect origin. No verification
+  email was sent by the agent.
+
+## Current IDE handoff — 7 October 2026
+
+- Added `docs/runbooks/ide-handoff-current-2026-10-07.md` as the current
+  continuation brief. It records Phase 3 as active, the incomplete Phase 2 cloud
+  rehearsal, verified Auth/email infrastructure, ordered Phase 2–7 work and a
+  paste-ready prompt for another IDE.
+- Owner reports a fine-tuned model exists. No provider, immutable tuned/base model
+  ID, endpoint, schema, data-provenance record, held-out evaluation, cost/latency
+  evidence or serving integration was found in the repository. The handoff treats
+  it as an offline candidate and keeps processing gates disabled until verified.
+- No cloud setting, inquiry, email, provider call, commit, push or production
+  promotion was performed for this documentation step.
+
+## Supabase Auth recovery email — 8 October 2026
+
+- Custom Resend SMTP is active. An owner-approved recovery test was accepted by
+  Supabase Auth and marked Delivered by Resend before this template change.
+- Applied the existing white/navy/indigo NodalX email design to the hosted
+  `Reset password` template in project `ozovfbwhcvbgpgrxxjcj`. It includes
+  `{{ .Token }}` for the in-app OTP flow and `{{ .ConfirmationURL }}` as a link
+  fallback. Subject: `Reset your NodalX password`.
+- Updated `supabase/templates/recovery.html` and `supabase/config.toml` to keep
+  local configuration aligned. Supabase preview and a fresh dashboard reload
+  show the saved branded content with the default copy removed.
+- No new recovery email was sent after publication. Confirmation and magic-link
+  templates remain unchanged in the hosted project; local designs already exist
+  in `supabase/templates/` for a separately reviewed rollout.
+
+## Recovery code-length correction — 8 October 2026
+
+- A single test recovery email was accepted by Supabase and marked Delivered by
+  Resend. It rendered the new branded template but contained an eight-digit code
+  while the copy and Auth form expected six digits. The reset link was not opened.
+- Updated the hosted and local recovery template to say "one-time code" without
+  exposing the code in preview text; retained `{{ .Token }}` and
+  `{{ .ConfirmationURL }}`. A fresh cloud reload/preview confirmed the wording.
+- Updated the Auth modal to accept six- to eight-digit numeric codes without
+  truncation. This change is local only until the frontend is deployed; no
+  second email, password reset, deployment, commit or push was performed.

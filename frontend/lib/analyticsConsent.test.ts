@@ -11,7 +11,7 @@ test('analytics defaults to no consent and inaccessible storage fails closed', (
 
 test('a saved decline remains separate from a saved grant', () => {
   let value = '';
-  const storage = {getItem: () => value, setItem: (key: string, next: string) => {value = next;}};
+  const storage = {getItem: () => value, setItem: (_key: string, next: string) => {value = next;}};
   assert.equal(writeAnalyticsConsent(true, storage), true);
   assert.equal(readAnalyticsConsent(storage), true);
   assert.equal(writeAnalyticsConsent(false, storage), true);

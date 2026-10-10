@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Bell, Webhook, Mail, RefreshCw, CheckCircle2, AlertCircle, Save, Send } from 'lucide-react';
+import { Bell, Webhook, Mail, CheckCircle2, AlertCircle, Save, Send } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { getAccessToken } from '../lib/session';
 import { resolveApiOrigin } from '../lib/apiOrigin';

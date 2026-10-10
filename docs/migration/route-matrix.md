@@ -2,7 +2,31 @@
 
 This document maps the existing Express endpoints (from `functions/index.js` and `functions/lib/workspaceRoutes.js`) to their proposed Supabase replacements, noting authentication, callers, and datastore interactions.
 
-## Implemented local routes (5 October 2026)
+## Pilot contract audit (7 October 2026)
+
+Current pilot entry points are `App.tsx` → `Dashboard.tsx`, the website inquiry
+form, profile and feedback. Old component files are not proof of reachable support.
+The dashboard no longer mounts ImportWorkspace, AutomationWorkspace,
+WorkspacePipeline, WorkspaceConnections, WorkspaceBilling or the legacy API-key
+onboarding wizard. Existing tab URLs resolve to explicit deferred notices or
+read-only job/usage views. No endpoints were enabled by hiding their controls.
+
+| Contract | Current caller | Pilot decision |
+|---|---|---|
+| POST `/api/contact` | InquiryForm | Direct Supabase supported in source with `INTAKE_PROVIDER=supabase-direct`; source and network gate required. Cloud activation not verified. Apps Script remains a selectable legacy provider. |
+| GET `/api/workspace/jobs`, GET `/api/workspace/jobs/:id` | PilotJobs (list); backend detail available | Authenticated owned reads supported; list is capped at latest 50, not an all-time total. |
+| POST `/api/workspace/inquiries/:id/analyze` | Dashboard | Supported but disabled by backend processing availability and quota; no worker activated. |
+| GET invoices; POST checkout/cancel-subscription | Legacy WorkspaceBilling | Deferred; pilot uses GET usage only. |
+| Sheet connect/sync, import preview/upload, POST jobs, retry/export | Legacy ImportWorkspace | Deferred; no pilot mutation controls. |
+| Recipes, exceptions | Legacy AutomationWorkspace | Deferred; notice only. |
+| Key generate/read/rotate/delete, onboarding business/status | Legacy wizard/pipeline | Deferred; operator source provisioning only, verified identity required. |
+| Flows, notifications, connector APIs | Legacy services/components | No active Dashboard imports; unimplemented routes remain fail-closed. |
+| GET/PUT profile, POST feedback | Account and feedback consumers | Native verified Supabase auth; owned data only. |
+
+Public process health does not establish database, source, worker or email readiness.
+No direct-intake confirmation or owner email is implemented; email is a later phase.
+
+## Implemented local routes
 
 The table below this section is the original replacement plan, not a completion claim.
 The current dispatcher is `api/migration.mjs` → `server/supabase-workspace.mjs`;
@@ -22,8 +46,8 @@ a verified Supabase identity and a server-owned binding.
 | GET | `/api/health/live` | Public process liveness only |
 | GET | `/api/health/ready`, `/api/health` | Authenticated partial service readiness |
 
-Other routes currently return authenticated `503 MIGRATION_PENDING`, except the
-unchanged public `/api/contact` Apps Script intake. No existing Sheet/customer data
+Other routes currently return authenticated `503 MIGRATION_PENDING`; `/api/contact`
+uses the explicitly configured intake provider. No existing Sheet/customer data
 has been migrated and no production deployment is verified.
 
 ## Original replacement plan

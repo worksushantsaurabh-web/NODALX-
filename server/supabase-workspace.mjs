@@ -1,5 +1,6 @@
 import {randomUUID} from 'node:crypto';
 import {authorizeWorkspace, databaseError, failure, receiveAccountRequest} from './supabase-account.mjs';
+import {listInquiryEmails, sendInquiryEmail} from './outbound-email.mjs';
 
 const limits = {
   trial: {inquiries: 100, credits: 50, sheets: 1, batchRows: 25, concurrentJobs: 1},
@@ -50,9 +51,11 @@ async function listInquiries(client, workspaceId, query, intakeProvider, dataSou
     records: records.map(serializeInquiry),
     nextCursor: result.data.length > limit ? Buffer.from(records.at(-1).id).toString('base64url') : null,
     source: dataSource,
-    notice: intakeProvider === 'make-supabase'
-      ? 'New website inquiries appear after the Make intake handoff completes. Historical Google Sheet inquiries are not migrated automatically.'
-      : 'Website inquiries stored in the owner’s Google Sheet are not synchronized into this workspace yet.',
+    notice: intakeProvider === 'supabase-direct'
+      ? 'New website inquiries are stored directly in this workspace. Optional processing can run separately. Historical Google Sheet inquiries are not migrated automatically.'
+      : intakeProvider === 'make-supabase'
+        ? 'New website inquiries appear after the Make intake handoff completes. Historical Google Sheet inquiries are not migrated automatically.'
+        : 'Website inquiries stored in the owner’s Google Sheet are not synchronized into this workspace yet.',
   };
 }
 
@@ -165,6 +168,12 @@ export async function receiveWorkspaceRequest(request, options = {}) {
       databaseError(events.error);
       body = {note: record.data.note, followUpAt: record.data.follow_up_at ? Date.parse(record.data.follow_up_at) : null,
         events: events.data.map(event => ({id: event.id, previousStatus: event.previous_status, changes: event.changes, at: Date.parse(event.created_at)}))};
+    } else if (/^\/api\/workspace\/inquiries\/[^/]+\/emails$/.test(path) && request.method === 'GET') {
+      const id = decodedRecordId(path.split('/').at(-2));
+      body = {emails: await listInquiryEmails(client, workspaceId, id)};
+    } else if (/^\/api\/workspace\/inquiries\/[^/]+\/emails$/.test(path) && request.method === 'POST') {
+      const id = decodedRecordId(path.split('/').at(-2));
+      body = await sendInquiryEmail({client, workspaceId, inquiryId: id, body: request.body}, options);
     } else if (['/api/health/ready', '/api/health'].includes(path) && request.method === 'GET') {
       const processing = await client.rpc('processing_readiness');
       databaseError(processing.error);

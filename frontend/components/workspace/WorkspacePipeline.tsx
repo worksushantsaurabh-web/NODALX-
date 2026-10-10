@@ -1,4 +1,4 @@
-import React, {useState} from 'react';
+import {useState} from 'react';
 import {useAuth} from '../../contexts/AuthContext';
 import {api} from '../../src/services/api';
 import {button, panel, Notice, PageTitle, useResource} from './ui';

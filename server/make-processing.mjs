@@ -2,6 +2,7 @@ import {createHmac, timingSafeEqual} from 'node:crypto';
 import {createClient} from '@supabase/supabase-js';
 import {cloudWorkerConfiguration} from './processing-daemon.mjs';
 import {buildGeminiRequest, parseGeminiResponse} from './gemini-processor.mjs';
+import {createRdsClient} from './rds-client.mjs';
 
 const headers = {'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff'};
 
@@ -71,7 +72,9 @@ export async function receiveMakeRequest(request, options = {}) {
     } catch {return reply(400, {code: 'INVALID_OUTPUT'});}
   }
   try {
-    const client = (options.createClient || createClient)(configuration.url, configuration.key, {
+    const client = !options.createClient && environment.DATA_BACKEND === 'rds'
+      ? createRdsClient({role: 'service_role', environment})
+      : (options.createClient || createClient)(configuration.url, configuration.key, {
       auth: {persistSession: false, autoRefreshToken: false},
       global: {fetch: (input, init) => fetch(input, {...init, signal: AbortSignal.timeout(10000)})},
     });

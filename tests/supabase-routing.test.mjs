@@ -41,7 +41,7 @@ test('the root deployment bundles Supabase handlers instead of proxying suspende
   assert.match(config.installCommand, /frontend ci --include=dev/);
   const allowlist = readFileSync(new URL('../.vercelignore', import.meta.url), 'utf8').split('\n');
   assert.match(config.rewrites[0].source, /automation/);
-  for (const file of ['api/migration.mjs', 'api/automation.mjs', 'server/make-processing.mjs', 'server/processing-daemon.mjs', 'server/processing-worker.mjs', 'server/gemini-processor.mjs', 'server/supabase-account.mjs', 'server/supabase-workspace.mjs', 'package-lock.json']) {
+  for (const file of ['api/migration.mjs', 'api/automation.mjs', 'server/make-processing.mjs', 'server/processing-daemon.mjs', 'server/processing-worker.mjs', 'server/gemini-processor.mjs', 'server/supabase-account.mjs', 'server/rds-client.mjs', 'server/supabase-workspace.mjs', 'server/outbound-email.mjs', 'certs/rds-us-east-1-bundle.pem', 'package-lock.json']) {
     assert.ok(allowlist.includes(`!${file}`));
   }
 });

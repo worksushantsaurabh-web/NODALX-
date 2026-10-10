@@ -6,10 +6,11 @@
   "installCommand": "npm ci --omit=dev && npm --prefix frontend ci --include=dev",
   "functions": {
     "api/contact.mjs": { "maxDuration": 60 },
-    "api/intake.mjs": { "maxDuration": 30 }
+    "api/intake.mjs": { "maxDuration": 30 },
+    "api/send-email.mjs": { "maxDuration": 30 }
   },
   "rewrites": [
-    { "source": "/api/:path((?!contact(?:/|$)|intake(?:/|$)|migration(?:/|$)|automation(?:/|$)).*)", "destination": "/api/migration?path=:path*" },
+    { "source": "/api/:path((?!contact(?:/|$)|intake(?:/|$)|migration(?:/|$)|automation(?:/|$)|send-email(?:/|$)).*)", "destination": "/api/migration?path=:path*" },
     { "source": "/:path((?!api(?:/|$)).*)", "destination": "/index.html" }
   ],
   "headers": [
@@ -29,7 +30,7 @@
         { "key": "Cross-Origin-Opener-Policy", "value": "same-origin-allow-popups" },
         {
           "key": "Content-Security-Policy-Report-Only",
-          "value": "default-src 'self'; script-src 'self' https://apis.google.com https://www.googletagmanager.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' data: blob: https:; font-src 'self' data: https://fonts.gstatic.com; connect-src 'self' https://*.supabase.co wss://*.supabase.co https://*.googleapis.com https://*.firebaseio.com wss://*.firebaseio.com https://*.google-analytics.com https://*.run.app; frame-src 'self' https://*.firebaseapp.com https://accounts.google.com; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; upgrade-insecure-requests"
+          "value": "default-src 'self'; script-src 'self' https://apis.google.com https://www.googletagmanager.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' data: blob: https:; font-src 'self' data: https://fonts.gstatic.com; connect-src 'self' https://api-staging.nodalx.in https://*.supabase.co wss://*.supabase.co https://*.googleapis.com https://*.firebaseio.com wss://*.firebaseio.com https://*.google-analytics.com https://*.run.app; frame-src 'self' https://*.firebaseapp.com https://accounts.google.com; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; upgrade-insecure-requests"
         }
       ]
     }

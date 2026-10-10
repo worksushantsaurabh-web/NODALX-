@@ -1,4 +1,3 @@
-import React from 'react';
 import { SlidersHorizontal, MessageSquare, LayoutDashboard, Plug, Code2, FileCheck } from 'lucide-react';
 import { Section, SectionHeader } from '../ui';
 

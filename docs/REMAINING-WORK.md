@@ -1,6 +1,25 @@
 # NODALxAI remaining work
 
-Updated: 5 October 2026
+> Current execution plan: [7 October release roadmap](runbooks/release-roadmap-2026-10-07.md).
+> Entries below preserve historical status. The AWS/Firebase release sequence is
+> superseded by Website -> secured backend -> Supabase -> Dashboard, with Make optional.
+
+Updated: 8 October 2026
+
+## Production Baseline: Golden Build (8 October 2026)
+
+The current state of branch `nodalx-staging` is established as the **Golden Build** baseline for production promotion review.
+
+### Staging Verification & Direct Intake [COMPLETED]
+
+- **[COMPLETED] Direct-Intake Architecture**: Implemented `supabase-direct` provider path (`Website -> Backend -> Supabase`), bypassing Make.
+- **[COMPLETED] Staging Verification (E2E Rehearsal)**: Live execution verified on Vercel Preview (`dpl_Ewi1i6z3EhUGN9gPcwCP8Cta4jSR`) and cloud Supabase staging (`ozovfbwhcvbgpgrxxjcj`).
+- **[COMPLETED] Direct Source Provisioning**: High-entropy `INTAKE_SOURCE_TOKEN` generated and bound in `private.intake_sources` storing only SHA-256 hash (never plaintext).
+- **[COMPLETED] Idempotency Protection**: Duplicate submissions with identical `Idempotency-Key` return HTTP 200 with `duplicate: true` and zero duplicate rows.
+- **[COMPLETED] Tenant Isolation & RLS**: Authenticated workspace owner reads inquiry; cross-tenant query returns 0 rows.
+- **[COMPLETED] Dashboard Visibility**: Inquiries stored via direct intake are immediately visible and actionable under the owner session.
+- **[COMPLETED] Fail-Closed Security Gates**: Intake network gates (`ALLOW_INTAKE_NETWORK`) default to disabled and fail closed.
+- **[COMPLETED] Final Validation Suite**: 146/146 pgTAP SQL assertions passed, 102/102 backend integration tests passed (0 skipped, 0 failed), secret scanner passed with 0 findings across 302 tracked files, frontend build and git diff check 100% clean.
 
 ## Latest repair pass
 

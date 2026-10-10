@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import {
   getAccessToken,
   getCurrentSessionUser,
@@ -50,7 +50,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
-  const login = async (userData?: User) => {
+  const login = async (_userData?: User) => {
     // The session provider is the source of truth; this only applies an
     // optimistically supplied profile while that resolves.
     setUser(getCurrentSessionUser());

@@ -1,4 +1,3 @@
-import React from 'react';
 import { Zap, Target, Send, FileSpreadsheet, Clock, Wrench, CheckCircle2 } from 'lucide-react';
 
 const benefits = [

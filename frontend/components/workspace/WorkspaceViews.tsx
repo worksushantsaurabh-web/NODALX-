@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { ArrowRight, RefreshCw } from 'lucide-react';
 import { api } from '../../src/services/api';
 import { button, input, panel, Notice, PageTitle, Loading, useResource, Usage } from './ui';
@@ -21,7 +21,7 @@ export function WorkspaceOverview({onOpenDesk, onOpenImports, reports = false}: 
         <section className={panel}><h2 className="font-semibold">Inquiry sources</h2><p className="mt-2 text-xs text-text-secondary">Other includes older records without a source label.</p><dl className="mt-5 space-y-4">{Object.entries(data.sources).map(([name, count]) => <div key={name}><div className="flex justify-between gap-3 text-sm"><dt className="capitalize">{name.replaceAll('_', ' ')}</dt><dd className="tabular-nums">{count}</dd></div><div className="mt-2 h-1.5 rounded bg-surface-hover" aria-hidden="true"><div className="h-full rounded bg-accent" style={{width: `${data.total ? count / data.total * 100 : 0}%`}} /></div></div>)}</dl></section>
       </div>
       <section className={panel}><h2 className="font-semibold">Processing health</h2><div className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-3 xl:grid-cols-5">{Object.entries(data.processing).map(([name, count]) => <div key={name}><p className="text-xs capitalize text-text-secondary">{name.replaceAll('_', ' ')}</p><p className="mt-2 text-xl font-semibold tabular-nums">{count}</p></div>)}</div><p className="mt-4 text-xs text-text-secondary">Awaiting analysis means the inquiry is saved but has not been processed. Older records may have other processing states.</p></section>
-      {!data.total && <Notice>No inquiries were created in this period. Connect a source or import an inquiry list to get started.</Notice>}
+      {!data.total && <Notice>No inquiries were created in this period. Website intake requires a verified source binding. Imports and self-service connections are deferred during the pilot.</Notice>}
     </>}
   </div>;
 }

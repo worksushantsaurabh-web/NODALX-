@@ -18,11 +18,11 @@ export default function FeedbackWidget() {
   const [open, setOpen] = useState(false);
   const [category, setCategory] = useState<Category>('general');
   const [message, setMessage] = useState('');
+  const [userEmail, setUserEmail] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const panelRef = useRef<HTMLDivElement>(null);
-
 
   // Close panel on outside click
   useEffect(() => {
@@ -39,6 +39,7 @@ export default function FeedbackWidget() {
   const reset = () => {
     setCategory('general');
     setMessage('');
+    setUserEmail('');
     setSubmitted(false);
     setError(null);
   };
@@ -59,26 +60,50 @@ export default function FeedbackWidget() {
     if (!message.trim()) return;
     setSubmitting(true);
     setError(null);
+
+    const senderEmail = user?.email || userEmail.trim();
+    if (!senderEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(senderEmail)) {
+      setError('Please provide a valid email address so we can reply.');
+      setSubmitting(false);
+      return;
+    }
+
     try {
-      const result = await api.post<{saved: boolean}>('/api/feedback', {
-          type: 'widget',
-          category,
-          message: message.trim(),
-          page: window.location.hash.replace(/^#/, '').split('?')[0] || '/',
+      const page = window.location.hash.replace(/^#/, '').split('?')[0] || '/';
+      const response = await fetch('/api/send-email', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+          to: 'support@nodalx.in',
+          subject: `[NodalX ${category.toUpperCase()}] Support message from ${senderEmail}`,
+          message: `Category: ${category}\nFrom: ${senderEmail}\nPage: ${page}\nTimestamp: ${new Date().toISOString()}\n\nMessage:\n${message.trim()}`,
+        }),
       });
-      if (!result.saved) throw new Error('Feedback was not confirmed.');
+
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok || !data.success) {
+        throw new Error(data.error || 'Failed to deliver support email.');
+      }
+
+      if (user) {
+        try {
+          await api.post<{saved: boolean}>('/api/feedback', {
+            type: 'widget',
+            category,
+            message: message.trim(),
+            page,
+          });
+        } catch {
+          // Email was already delivered successfully
+        }
+      }
+
       Analytics.feedbackSubmitted(category);
       setSubmitted(true);
-      setTimeout(handleClose, 2200);
+      setTimeout(handleClose, 2500);
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'Could not send feedback.';
-      if (message.includes('rate limit')) {
-        setError('You have sent a lot of feedback recently. Please try again in an hour.');
-      } else if (message.includes('Workspace unavailable') || message.includes('42501')) {
-        setError('Sign in to send feedback.');
-      } else {
-        setError('Could not send feedback. Please try again.');
-      }
+      const errMsg = err instanceof Error ? err.message : 'Could not send message. Please retry.';
+      setError(errMsg);
     } finally {
       setSubmitting(false);
     }
@@ -90,13 +115,13 @@ export default function FeedbackWidget() {
     <div ref={panelRef} className="fixed bottom-4 right-4 z-40 flex flex-col items-end gap-2">
       {/* Expandable panel */}
       {open && (
-        <div className="w-80 bg-white  rounded-xl border border-neutral-200  shadow-xl overflow-hidden animate-slide-up">
+        <div className="w-80 bg-white rounded-xl border border-neutral-200 shadow-xl overflow-hidden animate-slide-up">
           {/* Header */}
-          <div className="flex items-center justify-between px-4 py-3 border-b border-neutral-100 ">
-            <p className="text-sm font-semibold text-neutral-900 ">What's on your mind?</p>
+          <div className="flex items-center justify-between px-4 py-3 border-b border-neutral-100">
+            <p className="text-sm font-semibold text-neutral-900">What&#39;s on your mind?</p>
             <button
               onClick={handleClose}
-              className="p-1 text-text-secondary hover:text-text-tertiary :text-neutral-200 rounded-md hover:bg-neutral-100 :bg-surface-hover transition-colors"
+              className="p-1 text-text-secondary hover:text-text-tertiary rounded-md hover:bg-neutral-100 transition-colors"
               aria-label="Close"
             >
               <X className="w-4 h-4" />
@@ -105,12 +130,12 @@ export default function FeedbackWidget() {
 
           {submitted ? (
             <div className="flex flex-col items-center gap-3 py-8 px-4 text-center">
-              <div className="w-10 h-10 rounded-full bg-emerald-50  flex items-center justify-center">
-                <Check className="w-5 h-5 text-emerald-600 " />
+              <div className="w-10 h-10 rounded-full bg-emerald-50 flex items-center justify-center">
+                <Check className="w-5 h-5 text-emerald-600" />
               </div>
               <div>
-                <p className="text-sm font-semibold text-neutral-900 ">Sent! Thanks.</p>
-                <p className="text-xs text-text-secondary mt-1">We read every piece of feedback.</p>
+                <p className="text-sm font-semibold text-neutral-900">Sent! Thanks.</p>
+                <p className="text-xs text-text-secondary mt-1">Our support team will get back to you.</p>
               </div>
             </div>
           ) : (
@@ -124,8 +149,8 @@ export default function FeedbackWidget() {
                     onClick={() => setCategory(cat.id)}
                     className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold border transition-colors ${
                       category === cat.id
-                        ? 'bg-neutral-100  border-neutral-400  text-black '
-                        : 'bg-white  border-neutral-200  text-text-tertiary  hover:border-neutral-300 :border-neutral-600'
+                        ? 'bg-neutral-100 border-neutral-400 text-black'
+                        : 'bg-white border-neutral-200 text-text-tertiary hover:border-neutral-300'
                     }`}
                   >
                     <cat.Icon className="w-3 h-3" />
@@ -134,6 +159,22 @@ export default function FeedbackWidget() {
                 ))}
               </div>
 
+              {/* Email */}
+              {!user ? (
+                <input
+                  type="email"
+                  value={userEmail}
+                  onChange={(e) => setUserEmail(e.target.value)}
+                  placeholder="Your email (so we can reply)"
+                  required
+                  className="w-full rounded-lg border border-neutral-200 bg-white px-3 py-2 text-sm text-neutral-900 placeholder-neutral-400 focus:outline-none focus:ring-2 focus:ring-neutral-400/20 focus:border-neutral-400 transition-colors"
+                />
+              ) : (
+                <p className="text-xs text-text-secondary">
+                  Sending as <span className="font-medium text-text-tertiary">{user.email}</span>
+                </p>
+              )}
+
               {/* Message */}
               <textarea
                 value={message}
@@ -141,17 +182,8 @@ export default function FeedbackWidget() {
                 placeholder={activeCat.placeholder}
                 required
                 rows={3}
-                className="w-full rounded-lg border border-neutral-200  bg-white  px-3 py-2 text-sm text-neutral-900  placeholder-neutral-400  focus:outline-none focus:ring-2 focus:ring-neutral-400/20 focus:border-neutral-400 transition-colors resize-none"
+                className="w-full rounded-lg border border-neutral-200 bg-white px-3 py-2 text-sm text-neutral-900 placeholder-neutral-400 focus:outline-none focus:ring-2 focus:ring-neutral-400/20 focus:border-neutral-400 transition-colors resize-none"
               />
-
-              {/* Email */}
-              {!user && <p className="text-xs text-text-secondary">Sign in to send feedback.</p>}
-
-              {user?.email && (
-                <p className="text-xs text-text-secondary">
-                  Sending as <span className="font-medium text-text-tertiary ">{user.email}</span>
-                </p>
-              )}
 
               {error && (
                 <p role="alert" className="text-xs text-red-600">{error}</p>
@@ -160,9 +192,9 @@ export default function FeedbackWidget() {
               <button
                 type="submit"
                 disabled={!message.trim() || submitting}
-                className="w-full py-2.5 rounded-lg bg-black hover:bg-surface-hover  :bg-neutral-200  text-white text-sm font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-full py-2.5 rounded-lg bg-black hover:bg-neutral-800 text-white text-sm font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {submitting ? 'Sending…' : 'Send feedback'}
+                {submitting ? 'Sending…' : 'Send message'}
               </button>
             </form>
           )}

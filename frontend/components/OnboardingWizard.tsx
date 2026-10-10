@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { CheckCircle2, Copy, Check, Zap, Code2, Key, ArrowRight, X } from 'lucide-react';
 import { NodalXLogo } from './Navbar';
 import { Analytics } from '../lib/analytics';

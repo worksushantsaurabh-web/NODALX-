@@ -1,14 +1,14 @@
 import {intakeConfiguration, INTAKE_TIMEOUT_MS} from '../server/contact.mjs';
 import {intakeRouterConfiguration} from '../server/intake-router.mjs';
 
-const migrated = process.env.INTAKE_PROVIDER === 'make-supabase';
-const supported = !process.env.INTAKE_PROVIDER || ['apps-script','make-supabase'].includes(process.env.INTAKE_PROVIDER);
+const migrated = ['make-supabase','supabase-direct'].includes(process.env.INTAKE_PROVIDER);
+const supported = !process.env.INTAKE_PROVIDER || ['apps-script','make-supabase','supabase-direct'].includes(process.env.INTAKE_PROVIDER);
 const configuration = migrated ? intakeRouterConfiguration() : intakeConfiguration();
 console.log(JSON.stringify({configured: configuration.ready, missing: configuration.missing, validEndpoint: configuration.validEndpoint}));
 if (!configuration.ready || !supported) process.exitCode = 1;
 else if (migrated && process.argv.includes('--upstream-health')) {
   console.log(JSON.stringify({consumerEnabled: configuration.consumerEnabled, liveProbePerformed: false,
-    notice: 'Configuration is not live readiness. Run the approved synthetic website/Make/dashboard rehearsal.'}));
+    notice: 'Configuration is not live readiness. Run the separately approved synthetic website/Supabase/dashboard rehearsal.'}));
   process.exitCode = 1;
 }
 else if (process.argv.includes('--upstream-health')) {

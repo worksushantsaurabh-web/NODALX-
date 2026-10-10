@@ -1,4 +1,3 @@
-import React from 'react';
 import { ArrowUpRight } from 'lucide-react';
 import { Section, SectionHeader } from '../ui';
 import { useCases } from '../data/useCases';

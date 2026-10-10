@@ -1,0 +1,13 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "functions": {
+    "api/contact.mjs": { "maxDuration": 60 },
+    "api/intake.mjs": { "maxDuration": 30 }
+  },
+  "rewrites": [
+    {
+      "source": "/api/:path((?!contact(?:/|$)|intake(?:/|$)|migration(?:/|$)|automation(?:/|$)).*)",
+      "destination": "/api/migration?path=:path*"
+    }
+  ]
+}

@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Your NodalX verification code</title>
+</head>
+<body style="margin:0;padding:0;background-color:#f1f5f9;color:#0f172a;font-family:Arial,Helvetica,sans-serif;-webkit-font-smoothing:antialiased;">
+  <div style="display:none;max-height:0;overflow:hidden;opacity:0;mso-hide:all;">Your 6-digit NodalX verification code is {{ .Token }}.</div>
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#f1f5f9;">
+    <tr>
+      <td align="center" style="padding:28px 12px;">
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width:580px;table-layout:fixed;background-color:#ffffff;border:1px solid #e2e8f0;border-radius:16px;box-shadow:0 4px 6px -1px rgba(0,0,0,0.05);overflow:hidden;">
+          <!-- Header -->
+          <tr>
+            <td style="padding:28px 24px;background-color:#0f172a;border-radius:16px 16px 0 0;">
+              <a href="https://nodalx.in" style="font-size:25px;line-height:32px;font-weight:700;letter-spacing:-1px;color:#ffffff;text-decoration:none;">Nodal<span style="color:#a5b4fc;">X</span></a>
+              <p style="margin:8px 0 0;font-size:12px;line-height:18px;color:#cbd5e1;">Less manual work. More clarity.</p>
+            </td>
+          </tr>
+
+          <!-- Content Body -->
+          <tr>
+            <td style="padding:28px 24px 0;overflow-wrap:anywhere;word-wrap:break-word;">
+              <p style="margin:0 0 10px;font-size:11px;line-height:18px;letter-spacing:2px;font-weight:700;color:#4f46e5;">SECURITY VERIFICATION</p>
+              <h1 style="margin:0 0 16px;font-size:24px;line-height:32px;font-weight:700;letter-spacing:-0.5px;color:#0f172a;">Confirm your email address</h1>
+              <p style="margin:0 0 12px;font-size:15px;line-height:24px;color:#0f172a;">Hi there,</p>
+              <p style="margin:0;font-size:15px;line-height:24px;color:#475569;">
+                Thanks for getting started with NodalX. Enter the one-time verification code below to verify your email address and activate your workspace.
+              </p>
+            </td>
+          </tr>
+
+          <!-- OTP Code Box -->
+          <tr>
+            <td style="padding:20px 24px;">
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="table-layout:fixed;background-color:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;">
+                <tr>
+                  <td align="center" style="padding:22px 20px;">
+                    <p style="margin:0 0 8px;font-size:11px;line-height:16px;letter-spacing:1.5px;font-weight:700;color:#64748b;text-transform:uppercase;">One-Time Verification Code</p>
+                    <div style="font-family:'Courier New',Courier,monospace,sans-serif;font-size:36px;line-height:44px;font-weight:700;letter-spacing:8px;color:#0f172a;padding:6px 0;">
+                      {{ .Token }}
+                    </div>
+                    <p style="margin:8px 0 0;font-size:12px;line-height:18px;color:#94a3b8;">This code expires in 60 minutes. Do not share it with anyone.</p>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+          <!-- Instructions -->
+          <tr>
+            <td style="padding:0 24px 24px;">
+              <p style="margin:0 0 14px;font-size:14px;line-height:22px;color:#475569;">
+                Enter this 6-digit code directly into the verification screen on NodalX. You do not need to click any link.
+              </p>
+              <p style="margin:0;font-size:13px;line-height:20px;color:#64748b;">
+                If you did not sign up for a NodalX account, you can safely ignore this email. No account will be activated without this verification code.
+              </p>
+            </td>
+          </tr>
+
+          <!-- Signature -->
+          <tr>
+            <td style="padding:0 24px 28px;">
+              <p style="margin:0;font-size:14px;line-height:22px;color:#475569;">Thank you,<br><strong style="color:#0f172a;">The NodalX team</strong></p>
+            </td>
+          </tr>
+
+          <!-- Footer -->
+          <tr>
+            <td style="padding:20px 24px;border-top:1px solid #e2e8f0;background-color:#fafafa;border-radius:0 0 16px 16px;">
+              <p style="margin:0;font-size:11px;line-height:18px;color:#64748b;">
+                You received this security email because an account registration was initiated for {{ .Email }} at <a href="https://nodalx.in" style="color:#4f46e5;text-decoration:none;">nodalx.in</a>.
+              </p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>

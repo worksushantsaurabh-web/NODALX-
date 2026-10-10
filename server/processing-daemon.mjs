@@ -68,6 +68,15 @@ export function cloudWorkerConfiguration(environment) {
   if (environment.PROCESSING_ENVIRONMENT !== 'staging' && environment.PROCESSING_ENVIRONMENT !== 'production') {
     throw new Error('An explicit staging or production environment is required.');
   }
+  if (environment.DATA_BACKEND === 'rds') {
+    let url;
+    try {url = new URL(environment.RDS_DATABASE_URL);} catch {throw new Error('Approved RDS worker credentials are required.');}
+    if (!['postgres:', 'postgresql:'].includes(url.protocol) || !url.hostname || !url.username || !url.password ||
+      environment.ALLOW_PROCESSING_NETWORK !== 'true') {
+      throw new Error('Approved RDS worker credentials are required.');
+    }
+    return {url: null, key: null};
+  }
   const url = new URL(environment.SUPABASE_URL);
   if (url.protocol !== 'https:' || !/^[a-z0-9]+\.supabase\.co$/.test(url.hostname) || url.port ||
     url.username || url.password || url.pathname !== '/' || url.search || url.hash ||
