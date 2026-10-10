@@ -1081,3 +1081,39 @@ packet settlement stays covered by the worker's `validateNodalxV3Packet` tests.
 No production schema, environment, deployment or gate change. Processing remains
 disabled (`ALLOW_PROCESSING_NETWORK=false`), and this is still synthetic
 evidence, not a production accuracy or readiness claim.
+
+Phase 4 migration applied to RDS — 10 October 2026: reviewed the whole Phase 4
+changeset before committing and fixed a real labeling defect first.
+`buildCorrectionRecord` gave both `edited` and `dismissed` the same fallback
+`reason` (`reviewed_by_operator`) even though they map to opposite
+`review_status` values, so a training curator filtering on reason could not tell
+an operator replacement from an operator rejection. It now emits
+`accepted_as_recommended`, `corrected_by_operator` and `rejected_by_operator`,
+covered by a new assertion. Committed and pushed the full changeset as
+`96188cc` (13 modified and 8 previously untracked files), leaving the working
+tree clean; pre-migration definitions of both affected functions were captured
+to `/private/tmp/nodalx-pre-phase4-functions.sql` before the change as a
+rollback reference.
+
+Applied `20261010214000_inquiry_analysis_persistence_and_review.sql` to RDS
+`nodalx_app` with `npm run migrate:rds`: the 19 prior steps were all reported
+Already applied with matching hashes (applied history was not edited) and only
+the new migration was applied. Introspection then confirmed
+`finish_processing_job` now validates and stores `analysis_packet` and
+`update_own_inquiry` now accepts `review_decision` plus the camelCase
+`reviewDecision` alias, so packet and review persistence are real rather than
+inert. The migration is idempotent on re-run. Production data was untouched
+(0 inquiries, 0 jobs, 0 outbound emails, 0 events before and after), RLS
+remains on all 27 public tables and the `service_role` BYPASSRLS grant is
+unchanged. Live checks after the change: liveness 200 with the RDS data-source
+header, a boundary-invalid contact POST still returns `INVALID_INQUIRY` without
+writing, and an unauthenticated inquiry list still returns `AUTH_REQUIRED`.
+
+Verification: 156/156 SQL assertions on RDS `nodalx_test` (unchanged by this
+production schema change), 110 default backend tests (5 Docker opt-ins
+skipped), 6 NodalX packet/input tests, 12 frontend desk tests, frontend
+production build clean, secret scan 359 tracked files / 0, `git diff --check`
+clean. Processing remains disabled (`ALLOW_PROCESSING_NETWORK=false`); the
+review desk only becomes reachable once the matching code is promoted to
+Production, which is still an owner decision. No customer data was written,
+no email was sent, and no Make or Gemini execution occurred.

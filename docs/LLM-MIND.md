@@ -144,12 +144,15 @@ Email: Resend, nodalx.in verified; desk gate enabled on Preview only
 - Phase 4 re-verification (10 Oct): wrapper 15/15, app packet/input 6/6, desk
   12/12, backend 110 pass/0 fail (5 Docker opt-ins skipped), frontend build
   clean, secret scan 351/0, diff clean; frozen v4 hash unchanged.
-- **Phase 4 migration is NOT applied to RDS.** `finish_processing_job` and
-  `update_own_inquiry` on `nodalx_app` remain pre-Phase-4; last applied
-  migration is `20261007162333`. The worker/workspace/UI code that stores
-  `analysis_packet` and `review_decision` is inert against the live database
-  until it is applied. Migration applies cleanly from zero, so this is a
-  deliberate pending production schema change, not a defect.
+- **Phase 4 is now committed and applied.** Changeset pushed as `96188cc`
+  (working tree clean; pre-migration function defs saved to
+  `/private/tmp/nodalx-pre-phase4-functions.sql`). Migration
+  `20261010214000` applied to RDS `nodalx_app` (19 prior steps verified by
+  hash, idempotent). `finish_processing_job` accepts `analysis_packet`;
+  `update_own_inquiry` accepts `review_decision` + camelCase alias. Production
+  data untouched (0 inquiries), RLS 27/27, `service_role` BYPASSRLS intact;
+  liveness 200 w/ RDS header, invalid POST 400, unauthed list 401. Fixed
+  `buildCorrectionRecord` to emit distinct reasons for edited vs dismissed.
 - Review-decision SQL coverage added: `inquiry_desk.test.sql` 12 -> 22
   assertions (156/156 overall, `--reset` and idempotent). Covers accepted
   decision persistence, camelCase normalization, edited-draft persistence,
@@ -231,12 +234,12 @@ credential distribution to Make.
 4. Put the real hosted Supabase service-role key in gitignored `.env.local`
    (never chat), run `npm run test:intake:hosted`, then convert the remaining
    three opt-in test files using the same dual-mode pattern.
-5. Apply the Phase 4 migration `20261010214000_inquiry_analysis_persistence_and_review.sql`
-   to RDS `nodalx_app` (`npm run migrate:rds`, after owner approval) so packet
-   and review-decision persistence becomes real; it is validated by 156/156
-   assertions but is a production schema change.
+5. Deploy the committed Phase 4 review desk (`96188cc`) through the normal
+   preview → production path when the owner promotes; until then the review
+   path is stored and validated but not reachable in the live UI. Keep
+   `ALLOW_PROCESSING_NETWORK=false`.
 6. Capture real operator corrections from live inquiries before any LoRA
-   dataset decision; keep `ALLOW_PROCESSING_NETWORK=false`.
+   dataset decision.
 7. Follow the release roadmap order; every production/network/spend step
    needs explicit owner authorization.
 
