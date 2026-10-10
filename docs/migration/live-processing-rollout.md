@@ -1,6 +1,12 @@
 # Live processing rollout
 
-Started 6 October 2026. Live activation is pending, not completed.
+Started 6 October 2026. Updated 10 October for the RDS target. Live activation
+is pending, not completed.
+
+The application database is now AWS RDS `nodalx_app`; Supabase remains the Auth
+identity provider. The supervised worker supports `DATA_BACKEND=rds` with a
+server-only `RDS_DATABASE_URL`. The packaged worker now includes its RDS client
+and the pinned AWS RDS CA bundle. No worker host or processor has been activated.
 
 ## Phase A — Deployment readiness (locally implemented; not deployed)
 
@@ -86,8 +92,10 @@ approval remain pending despite the selected Google provider.
 | Key | Requirement |
 |---|---|
 | `PROCESSING_ENVIRONMENT` | `staging` or `production`, never inferred |
-| `SUPABASE_URL` | Approved HTTPS cloud project URL |
-| `SUPABASE_SERVICE_ROLE_KEY` | Worker secret store only; never browser/Vercel frontend |
+| `DATA_BACKEND` | `rds` for the current app-data target |
+| `RDS_DATABASE_URL` | Server-only RDS connection URL; required for RDS worker mode |
+| `SUPABASE_URL` | Legacy cloud-database worker mode only |
+| `SUPABASE_SERVICE_ROLE_KEY` | Legacy cloud-database worker mode only; never browser/Vercel frontend |
 | `ALLOW_PROCESSING_NETWORK` | `true` only after approval |
 | `PROCESSING_PROVIDER` | `gemini` |
 | `GEMINI_API_KEY` | Eligible project key, server-only |
@@ -109,12 +117,14 @@ No image build, push, hosting purchase or cloud deployment is implied by packagi
 
 ### Owner actions before Phase C
 
-1. Create a Supabase account/project through its official dashboard and choose a region
-   and database password yourself. Do not send the password or service key in chat.
-2. Choose a supervised Node/Docker worker host and approve its actual budget. No hosting
+1. Use the existing RDS `nodalx_app` application database and hosted Supabase Auth.
+   Put the worker's RDS URL in a private host secret store; do not send it in chat.
+2. Choose a supervised Node worker host and approve its actual budget. No hosting
    provider has been chosen or provisioned, and no recurring job is scheduled yet.
 3. Confirm Gemini account eligibility despite the suspended Google project. Keep unpaid
    testing synthetic; paid billing is a separate approval gate, not an automatic step.
-4. Configure secrets in provider dashboards, then authorize staging migrations/deployment.
+4. Configure secrets in provider dashboards, then authorize an isolated staging
+   rehearsal against the reviewed RDS schema. Keep the operator processing gate
+   disabled in production.
 5. Approve one synthetic provider smoke test. Only after it passes, revisit customer-data
    privacy, existing-user continuity, intake/source sync, rollback and production release.

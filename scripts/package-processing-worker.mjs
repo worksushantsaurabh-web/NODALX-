@@ -5,12 +5,15 @@ import {fileURLToPath, pathToFileURL} from 'node:url';
 
 const root = fileURLToPath(new URL('../', import.meta.url));
 export const workerFiles = ['package.json', 'package-lock.json', 'server/processing-worker.mjs',
-  'server/processing-daemon.mjs', 'server/gemini-processor.mjs', 'scripts/start-cloud-processing-worker.mjs'];
+  'server/processing-daemon.mjs', 'server/gemini-processor.mjs', 'server/rds-client.mjs',
+  'server/nodalx-v3-result.mjs',
+  'certs/rds-us-east-1-bundle.pem', 'scripts/start-cloud-processing-worker.mjs'];
 
 export async function packageProcessingWorker() {
   const directory = await mkdtemp(path.join(tmpdir(), 'nodalx-worker-'));
   await mkdir(path.join(directory, 'server'));
   await mkdir(path.join(directory, 'scripts'));
+  await mkdir(path.join(directory, 'certs'));
   for (const file of workerFiles) await copyFile(path.join(root, file), path.join(directory, file));
   await copyFile(path.join(root, 'scripts/processing-worker.Dockerfile'), path.join(directory, 'Dockerfile'));
   return directory;

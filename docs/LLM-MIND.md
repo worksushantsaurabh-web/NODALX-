@@ -6,7 +6,7 @@
 > Make is optional (historical mandatory-Make sequence below). **Update this
 > file and `AGENTS.md` after every passed/successful implementation.**
 
-Updated: 9 October 2026. `AGENTS.md` holds authoritative rules and the dated
+Updated: 10 October 2026. `AGENTS.md` holds authoritative rules and the dated
 implementation log. Phase table: `docs/runbooks/ide-handoff-current-2026-10-07.md`.
 Ordered work: `docs/runbooks/release-roadmap-2026-10-07.md`.
 
@@ -31,6 +31,57 @@ on the RDS-backed deployment. Immediate engineering state:
 - The local checkout is now synced to `ac6dda5` (was dirty at `1b8d694`;
   backup branch `backup/pre-sync-20261010`). Do not deploy the checkout
   wholesale without review.
+- Phase 3 history continuity is being prepared. The RDS inquiry-list notice
+  now describes direct storage and unmigrated Google Sheet history correctly;
+  `docs/runbooks/phase-3-history-continuity-2026-10-10.md` records the export,
+  trusted identity mapping and verification gates. This local change is not yet
+  deployed; no legacy data was imported.
+- Phase 4 preparation: the isolated processing worker package now contains
+  `server/rds-client.mjs` and the AWS RDS CA bundle required by its entrypoint.
+  Focused worker tests pass (22/22). The model endpoint/version, eligible host,
+  held-out evaluation and operator activation remain unverified; processing
+  stays disabled.
+- Owner says the trained model runs through Ollama on the Mac. The active
+  `/api/tags` inventory has only two remote-backed entries and no local-weight
+  model. The temporary server was stopped without a prompt. The owner then
+  supplied a GGUF file served by the existing llama.cpp runtime; neither
+  remote Ollama entry was treated as the trained model.
+- Owner supplied the v3 GGUF path. Checksum matched its manifest; existing
+  llama.cpp CPU runtime and wrapper processed one example and eight synthetic
+  fresh cases. Fresh result was 6/8, with two safe rejections; the server was
+  stopped. The earlier saved 7/8 was not reproduced. Phase 4 remains offline
+  candidate only; see `docs/runbooks/phase-4-local-model-2026-10-10.md`.
+- Subsequent wrapper/prompt changes, with unchanged GGUF, address trusted
+  suppression, customer-history evidence and website-only unknown fit. Focused
+  tests pass (4/4); two eight-case synthetic retries scored 7/8 then 8/8.
+  The local server was stopped. This does not establish production accuracy.
+- Phase 4 deeper evaluation: 41 synthetic cases gave 32 raw and 39 wrapped
+  asserted-field matches; nine critical cases repeated three times. Ten new
+  synthetic challenges gave 7 raw and 10 wrapped asserted-field matches, but
+  exposed a privacy deletion draft. Updated wrapper replay now retains verified
+  knowledge provenance and withholds suspect drafts: 40/41 asserted fields on
+  prior raw outputs and 10/10 challenge quality checks with six of ten drafts
+  withheld. These are development regressions, not blind accuracy. A small
+  staged app mapper now strips separate contact PII and accepts server-trusted
+  context only (`server/nodalx-v3-input.mjs`, 2 tests passed). It is not wired to
+  the worker. Processing remains disabled; full result storage, independent
+  reviewer labels, model hosting and synthetic RDS rehearsal remain pending.
+- Owner has no real examples yet and chose to defer model-host selection until
+  evaluation. A new checksummed 16-case synthetic set ran once without recipe
+  edits afterward: 9/16 raw and 11/16 wrapped asserted-field matches. Critical
+  misses include electrical-panel smoke not escalated, privacy deletion not
+  escalated, wrong old day in a reschedule draft, prospect fit errors, and a
+  contradiction between repaired classification and unchanged draft. App
+  shape validator accepted 16/16 despite these. The model server was stopped;
+  processing remains disabled. See the frozen synthetic report in the separate
+  model workspace. New development cases and a newly frozen benchmark are
+  required after fixes; hosting decision follows evaluation.
+- A separate post-benchmark safety pass in the model wrapper fixed hazard and
+  deletion escalation, target-day rescheduling, and stale prose after routing
+  repair. Eight wrapper tests pass; v1 raw-output replay is 14/16 on asserted
+  fields with five review flags. This is a tuned regression score; a new frozen
+  set is needed before claiming improvement. Model weights and app gate are
+  unchanged.
 
 ## TARGET / LEGACY
 
@@ -90,6 +141,20 @@ Email: Resend, nodalx.in verified; desk gate enabled on Preview only
   Resend/outbound-email env staged, Ready Preview `dpl_HLPdoJ9…` smoke-checked
   (200 alive; inquiry email routes 401). CLI production deploy Blocked on
   commit-author team permission; nodalx.in unchanged.
+- Phase 4 re-verification (10 Oct): wrapper 15/15, app packet/input 6/6, desk
+  12/12, backend 110 pass/0 fail (5 Docker opt-ins skipped), frontend build
+  clean, secret scan 351/0, diff clean; frozen v4 hash unchanged.
+- **Phase 4 migration is NOT applied to RDS.** `finish_processing_job` and
+  `update_own_inquiry` on `nodalx_app` remain pre-Phase-4; last applied
+  migration is `20261007162333`. The worker/workspace/UI code that stores
+  `analysis_packet` and `review_decision` is inert against the live database
+  until it is applied. Migration applies cleanly from zero, so this is a
+  deliberate pending production schema change, not a defect.
+- Review-decision SQL coverage added: `inquiry_desk.test.sql` 12 -> 22
+  assertions (156/156 overall, `--reset` and idempotent). Covers accepted
+  decision persistence, camelCase normalization, edited-draft persistence,
+  unknown-value/overlong-notes/foreign-workspace denial, and original-message
+  immutability under review.
 - Earlier staging audits (6–7 Oct): cloud migrations applied, RLS/advisor
   hardening, protected-preview liveness/auth-denial, Auth redirect allowlist.
 
@@ -155,7 +220,10 @@ credential distribution to Make.
    answer 401 before sending one labelled dashboard test email.
 2. Keep Make and Gemini execution off; the owner-trained model is the intended
    processing path. Website RDS intake stays live; outbound email activates
-   only after promotion + the labelled test.
+   only after promotion + the labelled test. For classification, obtain a
+   reviewer-labelled locked set before further tuning; then design full
+   evidence/provenance/review storage and a supervised model service before
+   any worker connection or gate enablement.
 3. Owner housekeeping: delete the two rehearsal emails in `support@nodalx.in`,
    rotate the RDS password (one CLI error echoed it into a transcript),
    regenerate the Deployment Protection bypass token printed in CLI debug,
@@ -163,7 +231,13 @@ credential distribution to Make.
 4. Put the real hosted Supabase service-role key in gitignored `.env.local`
    (never chat), run `npm run test:intake:hosted`, then convert the remaining
    three opt-in test files using the same dual-mode pattern.
-5. Follow the release roadmap order; every production/network/spend step
+5. Apply the Phase 4 migration `20261010214000_inquiry_analysis_persistence_and_review.sql`
+   to RDS `nodalx_app` (`npm run migrate:rds`, after owner approval) so packet
+   and review-decision persistence becomes real; it is validated by 156/156
+   assertions but is a production schema change.
+6. Capture real operator corrections from live inquiries before any LoRA
+   dataset decision; keep `ALLOW_PROCESSING_NETWORK=false`.
+7. Follow the release roadmap order; every production/network/spend step
    needs explicit owner authorization.
 
 ## DECISION HEURISTIC
@@ -182,3 +256,56 @@ with replay safe, conflicts fenced, original text preserved and the email desk
 committing provider acceptance to ledger/status atomically. Release roadmap
 phases complete behind explicit approvals; billing/history/notification parity
 decisions stay separate and owned.
+
+## Phase 4 draft grounding, frozen v4 evaluation, and human review path
+
+- Investigated draft grounding on development cases: added deterministic checks
+  in `classify.mjs` for drafts repeating supplied dimensions, materials, quantities,
+  and colors, safely withholding them (`draft_repeats_known_dimensions`,
+  `draft_repeats_known_material`, `draft_repeats_known_quantity`,
+  `draft_repeats_known_color`), and expanded exploratory low-urgency phrasing.
+  Replaying saved v3 raw outputs scored 12/12 asserted fields (up from 11/12) with
+  4 review flags and 0 quality errors.
+- Genuinely new 15-case benchmark `locked-synthetic-v4.json` was frozen at
+  SHA-256 `295b0658d2dd1484575d78b5cd4fb7bf245b8da7b3a7ed33a170b299c3af71b5`.
+  First run on local llama.cpp CPU server: raw 11/15, wrapped 12/15, 2 review
+  flags, 14/15 quality checks passed, 1 wrapper error (failed closed on evidence
+  grounding when model quoted JSON structure). Ungrounded draft on `v4_quote_signage`
+  was intercepted and withheld. Identified persistent hazard keyword brittleness
+  (`smoking` missed `\bsmoke\b`). Local server was stopped; production processing
+  remains disabled.
+- Built packet persistence and dashboard human review behind the disabled gate:
+  `validateReviewDecision` exported from `server/nodalx-v3-result.mjs`;
+  `server/processing-worker.mjs` validates and persists `analysis_packet` in job settlement;
+  migration `20261010214000_inquiry_analysis_persistence_and_review.sql` extends
+  `finish_processing_job` and `update_own_inquiry` for `review_decision`;
+  `server/supabase-workspace.mjs` validates review decisions on PATCH and serializes
+  `analysis_packet` and `review_decision`; `ModelAnalysisReview` component provides
+  inquiry desk review UI in `Dashboard.tsx` to inspect recommendations, review flags,
+  citations, recipe provenance, record human decisions (`accepted`, `edited`, `dismissed`),
+  or apply drafts.
+- Verification: 109/109 default backend tests passed, 12/12 frontend desk tests passed,
+  frontend build clean, secret scan clean (0 found across 351 tracked files), model tests clean (13/13).
+
+## Phase 4 safety hazard inflection, evidence normalization, v4 replay, and continuous improvement
+
+- Fixed safety hazard keyword coverage in `classify.mjs`: updated `hasImmediatePhysicalHazard`
+  to match inflected verbs and hazard synonyms (`smok\w*`, `fire\w*`, `spark\w*`,
+  `electric(?:al)?\s+(?:shock|fire|hazard)`, `gas\s+leak`, `burning\w*`, `melt\w*`,
+  `live\s+wire`, `short\s+circuit`) and temporal urgency indicators (`urgent\w*`,
+  `immediately`, `asap`, `emergency`), resolving the missed escalation on `v4_hazard_melting_cord`.
+- Hardened evidence normalization against leaked prompt/JSON syntax: `sanitizeEvidenceSnippet`
+  strips leading/trailing envelope formatting (`^(?:[\s\{\}\[\]]*\\?["']?\w+\\?["']?\s*:\s*\\?["']?)+`, quotes)
+  before grounding checks, resolving the ungrounded evidence exception on `v4_prospect_thin` while
+  retaining strict fail-closed rejection for completely ungrounded hallucinations.
+- Added unit tests in `classify.test.mjs` (15/15 passed). Added `locked-synthetic-v4.json` to
+  `replay-audit.mjs` and replayed `locked-synthetic-v4-results.json` into
+  `locked-synthetic-v4-regression-replay.json`: scored **14/15** asserted-field matches (up from 12/15),
+  **15/15** quality checks passed, **6** review flags, and **0** wrapper errors.
+- Continuous improvement feedback data pipeline: added `buildCorrectionRecord` and validated optional
+  `edited_classification` in `server/nodalx-v3-result.mjs`, formatting inquiry desk review decisions
+  (`accepted`, `edited`, `dismissed`) into standardized training candidate rows matching
+  `continuous-improvement.md` and `next-training-data-rubric.md`.
+- Full verification: 110/110 default backend tests passed (5 opt-ins skipped), 12/12 frontend desk tests
+  passed, frontend build clean, `git diff --check` clean, 0 secrets flagged across 351 tracked files.
+  Production model processing remains strictly disabled (`ALLOW_PROCESSING_NETWORK=false`).

@@ -172,7 +172,8 @@ test('local website -> opaque Make handoff -> canonical Supabase -> owned dashbo
       assert.equal(displayed.status, 200);
       assert.equal(displayed.body.records.length, 2);
       assert.ok(displayed.body.records.every(row => row.message === inquiry.message && row.email === inquiry.email));
-      assert.match(displayed.body.notice, /Historical Google Sheet/);
+      assert.match(displayed.body.notice, /New website inquiries are stored directly/);
+      assert.match(displayed.body.notice, /Historical Google Sheet inquiries are not migrated automatically/);
       assert.equal((await make('claim')).body.status, 'idle');
     } finally {
       sql(`DELETE FROM private.intake_deliveries WHERE workspace_id = '${workspace}'; DELETE FROM private.intake_delivery_gates WHERE source_binding_id IN (SELECT id FROM private.intake_sources WHERE workspace_id = '${workspace}')`);

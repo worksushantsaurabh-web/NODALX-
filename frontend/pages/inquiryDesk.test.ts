@@ -119,3 +119,22 @@ test('SERVICE_UNAVAILABLE error yields maintenance warning', () => {
   const unavailable = settleSource(previous, { status: 'rejected', reason: new Error('SERVICE_UNAVAILABLE: Service is temporarily unavailable') }, 200);
   assert.match(unavailable.warning!, /maintenance hold/);
 });
+
+test('parseInquiries preserves analysis_packet and human review_decision when present', () => {
+  const hash = 'a'.repeat(64);
+  const packet = {
+    schema_version: 'nodalx-v3', needs_review: true,
+    classification: {intent: 'sales', urgency: 'normal', next_action: 'send_quote', lead_priority: 'warm',
+      prospect_fit: 'not_applicable', category: 'pre_sales', summary: 'Requests quote.',
+      evidence: ['Quote request'], follow_up_draft: 'What date?'},
+    evidence_sources: [{text: 'Quote request', source_type: 'customer_message', source_id: null}],
+    review_reasons: [], recipe: {model_sha256: hash, prompt_sha256: hash, wrapper_sha256: hash},
+  };
+  const decision = {decision: 'accepted', notes: 'Looks good', reviewed_at: '2026-10-10T20:00:00Z'};
+  const raw = [{id: 'inq-1', name: 'Alice', email: 'alice@example.com', message: 'Quote request',
+    status: 'new', analysis_packet: packet, review_decision: decision}];
+  const {records} = parseInquiries(raw, 'backend');
+  assert.equal(records.length, 1);
+  assert.deepEqual(records[0].analysis_packet, packet);
+  assert.deepEqual(records[0].review_decision, decision);
+});

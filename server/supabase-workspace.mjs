@@ -1,6 +1,7 @@
 import {randomUUID} from 'node:crypto';
 import {authorizeWorkspace, databaseError, failure, receiveAccountRequest} from './supabase-account.mjs';
 import {listInquiryEmails, sendInquiryEmail} from './outbound-email.mjs';
+import {validateReviewDecision} from './nodalx-v3-result.mjs';
 
 const limits = {
   trial: {inquiries: 100, credits: 50, sheets: 1, batchRows: 25, concurrentJobs: 1},
@@ -25,6 +26,8 @@ export function serializeInquiry(row) {
     ...Object.fromEntries(fields.map(field => [field, typeof payload[field] === 'string' || typeof payload[field] === 'number' ? payload[field] : ''])),
     id: row.id, name: row.name, email: row.email, message: row.original_message,
     status: row.status, processing_status: row.processing_status, last_active: row.created_at,
+    analysis_packet: payload.analysis_packet && typeof payload.analysis_packet === 'object' ? payload.analysis_packet : null,
+    review_decision: payload.review_decision && typeof payload.review_decision === 'object' ? payload.review_decision : null,
   };
 }
 
@@ -51,7 +54,7 @@ async function listInquiries(client, workspaceId, query, intakeProvider, dataSou
     records: records.map(serializeInquiry),
     nextCursor: result.data.length > limit ? Buffer.from(records.at(-1).id).toString('base64url') : null,
     source: dataSource,
-    notice: intakeProvider === 'supabase-direct'
+    notice: ['supabase-direct', 'rds-direct'].includes(intakeProvider)
       ? 'New website inquiries are stored directly in this workspace. Optional processing can run separately. Historical Google Sheet inquiries are not migrated automatically.'
       : intakeProvider === 'make-supabase'
         ? 'New website inquiries appear after the Make intake handoff completes. Historical Google Sheet inquiries are not migrated automatically.'
@@ -155,6 +158,8 @@ export async function receiveWorkspaceRequest(request, options = {}) {
       body = {success: true};
     } else if (/^\/api\/(?:workspace\/)?inquiries\/[^/]+(?:\/status)?$/.test(path) && request.method === 'PATCH') {
       const id = decodedRecordId(path.split('/').at(path.endsWith('/status') ? -2 : -1));
+      if (request.body?.review_decision) validateReviewDecision(request.body.review_decision);
+      if (request.body?.reviewDecision) validateReviewDecision(request.body.reviewDecision);
       const result = await client.rpc('update_own_inquiry', {record_id: id, updates: request.body});
       databaseError(result.error);
       body = {success: true};

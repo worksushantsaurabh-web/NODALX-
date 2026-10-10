@@ -63,6 +63,28 @@ test('processor output rejects malformed fields and unbounded scores', () => {
   }
 });
 
+test('processor output accepts valid analysis_packet and persists it through worker settlement', async () => {
+  const hash = 'a'.repeat(64);
+  const validPacket = {
+    schema_version: 'nodalx-v3', needs_review: true,
+    classification: {intent: 'sales', urgency: 'normal', next_action: 'send_quote', lead_priority: 'warm',
+      prospect_fit: 'not_applicable', category: 'pre_sales', summary: 'Requests quote.',
+      evidence: ['Quote please'], follow_up_draft: 'What date?'},
+    evidence_sources: [{text: 'Quote please', source_type: 'customer_message', source_id: null}],
+    review_reasons: [], recipe: {model_sha256: hash, prompt_sha256: hash, wrapper_sha256: hash},
+  };
+  const output = {summary: 'Requests quote.', suggested_action: 'send_quote: What date?', analysis_packet: validPacket};
+  assert.equal(validateProcessingOutput(output), output);
+
+  const invalidOutput = {...output, analysis_packet: {...validPacket, schema_version: 'invalid'}};
+  assert.throws(() => validateProcessingOutput(invalidOutput));
+
+  const {calls, client} = fixture();
+  const result = await runProcessingOnce({client, processor: async () => output});
+  assert.equal(result.status, 'completed');
+  assert.deepEqual(calls[1].input.output.analysis_packet, validPacket);
+});
+
 test('HTTP processor uses only the approved endpoint, no redirects or secret query parameters', async () => {
   for (const endpoint of ['http://processor.example.test', 'https://other.example.test', 'https://processor.example.test/?secret=value']) {
     assert.throws(() => createHttpProcessor({endpoint, allowedHost: 'processor.example.test', token: 'synthetic-token'}));

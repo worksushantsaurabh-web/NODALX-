@@ -11,6 +11,7 @@ import { activityTime, defaultEmailDraft, hasValidEmail, matchesFilter, normaliz
 import { resolveDashboardTab, type DashboardTab } from './dashboardTabs';
 import type { Inquiry, InquirySource, QueueFilter, QueueSort, SourceSnapshot } from './inquiryDesk';
 import { useTheme } from '../contexts/ThemeContext';
+import { ModelAnalysisReview } from '../components/ModelAnalysisReview';
 
 const PAGE_SIZE = 20;
 const control = 'inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-border-strong bg-surface px-4 py-2 text-sm font-medium text-text-primary transition-colors hover:bg-surface-hover disabled:cursor-not-allowed disabled:opacity-40';
@@ -384,6 +385,20 @@ export default function Dashboard({ defaultTab = 'overview' }: { defaultTab?: st
                   <h3 className="text-xs font-semibold uppercase tracking-wider text-text-secondary">Suggested action / {selected.suggested_action ? 'From source' : 'Desk rule'}</h3>
                   <p className="mt-2 whitespace-pre-wrap break-words text-sm leading-relaxed">{selected.suggested_action || (matchesFilter(selected, 'spam') ? 'Review the original message before deciding whether to respond. This record is marked spam.' : matchesFilter(selected, 'contacted') ? 'Check your email history before following up. Contacted status does not verify delivery or a reply.' : 'Read the original message and confirm the request before drafting a response.')}</p>
                 </div>
+
+                {selected.analysis_packet && (
+                  <ModelAnalysisReview
+                    inquiry={selected}
+                    onReviewSubmitted={() => {
+                      setRefreshVersion(v => v + 1);
+                    }}
+                    onApplyDraft={draft => {
+                      setEmailDraft(current => ({...current, body: draft, confirmed: false}));
+                    }}
+                    apiRequest={apiRequest}
+                    disabled={isRefreshing}
+                  />
+                )}
 
                 <div className="space-y-4 border-t border-border pt-5">
                   <div className="flex flex-wrap items-center justify-between gap-3">

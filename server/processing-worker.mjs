@@ -1,3 +1,5 @@
+import {validateNodalxV3Packet} from './nodalx-v3-result.mjs';
+
 const textFields = new Set(['intent', 'urgency', 'category', 'summary', 'suggested_action']);
 
 export function validateProcessingOutput(value) {
@@ -5,6 +7,8 @@ export function validateProcessingOutput(value) {
   for (const [key, field] of Object.entries(value)) {
     if (key === 'fit_score') {
       if (!Number.isFinite(field) || field < 0 || field > 100) throw new Error('Invalid processing score.');
+    } else if (key === 'analysis_packet') {
+      validateNodalxV3Packet(field);
     } else if (!textFields.has(key) || typeof field !== 'string' || field.length > 4000) {
       throw new Error('Invalid processing output field.');
     }

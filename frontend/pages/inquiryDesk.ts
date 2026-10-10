@@ -22,6 +22,35 @@ export interface Inquiry {
   suggested_action: string;
   processing_status: string;
   last_active: string;
+  analysis_packet?: {
+    schema_version: string;
+    classification: {
+      intent: string;
+      urgency: string;
+      next_action: string;
+      lead_priority: string;
+      prospect_fit: string;
+      category: string;
+      summary: string;
+      evidence: string[];
+      follow_up_draft: string;
+    };
+    evidence_sources: Array<{ text: string; source_type: string; source_id: string | null }>;
+    review_reasons: string[];
+    needs_review: boolean;
+    recipe: {
+      model_sha256: string;
+      prompt_sha256: string;
+      wrapper_sha256: string;
+    };
+  } | null;
+  review_decision?: {
+    decision: 'accepted' | 'edited' | 'dismissed';
+    notes?: string;
+    reviewed_at?: string;
+    applied_action?: string;
+    edited_draft?: string;
+  } | null;
 }
 
 export const queueFilters: Array<{ id: QueueFilter; label: string }> = [
@@ -114,6 +143,8 @@ export function parseInquiries(payload: unknown, source: InquirySource): { recor
       summary: text(row.summary), suggested_action: text(row.suggested_action),
       processing_status: text(row.processing_status),
       last_active: text(row.last_active).trim(),
+      analysis_packet: row && typeof row === 'object' && 'analysis_packet' in row && row.analysis_packet && typeof row.analysis_packet === 'object' ? row.analysis_packet as any : null,
+      review_decision: row && typeof row === 'object' && 'review_decision' in row && row.review_decision && typeof row.review_decision === 'object' ? row.review_decision as any : null,
     });
   });
   return { records, skipped: payload.length - records.length };

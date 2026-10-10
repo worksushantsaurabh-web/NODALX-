@@ -875,3 +875,209 @@ remaining three opt-in files are not yet converted. Make and Gemini execution
 remain excluded per owner; the owner-trained model is the intended processing
 path. Owner housekeeping still open: delete the two rehearsal emails and
 rotate the RDS password echoed earlier into a transcript.
+
+Phase 3 continuity checkpoint — 10 October 2026: fixed the inquiry-list notice
+for `rds-direct` so it correctly says new website inquiries are stored directly
+and historical Google Sheet inquiries are not migrated automatically. Added the
+read-only export, trusted UID mapping, dry-run, tenant-verification and rollback
+gates in `docs/runbooks/phase-3-history-continuity-2026-10-10.md`. No legacy
+export/import, customer data write, email send or production deployment occurred.
+Verification: 103/108 default intake tests passed (5 opt-ins skipped), frontend
+typecheck/build passed, `node --check` and `git diff --check` passed, and the
+secret scanner found 0 values across 351 tracked files. Vercel connector
+inspection returned 403 for the scoped project; scoped CLI inspection also
+failed, so no deployment state was inferred from those calls.
+
+Phase 4 worker packaging checkpoint — 10 October 2026: the isolated worker
+package previously omitted `server/rds-client.mjs` and its AWS RDS CA bundle,
+although `start-cloud-processing-worker.mjs` imports the client. Both files are
+now in the build context and Dockerfile; the packaging test checks them. Updated
+the processing rollout document for the RDS app-data target. Verification:
+22/22 focused worker, daemon, Gemini and packaging tests passed; syntax and diff
+checks passed. No Docker build, provider call, worker deployment, processing
+gate change or customer-data transmission occurred. Exact owner-trained model,
+endpoint, version and hosting remain to be supplied and evaluated.
+Owner clarified that the intended model is served through Ollama on the Mac.
+Read-only `/api/tags` inventory from a temporary loopback Ollama server showed
+two remote-backed entries (`deepseek-v4-pro:cloud` and
+`treyleo16/kimi-k3:latest`, each with `remote_host`) and no local-weight entry
+in the active model directory. The temporary server was stopped. No model
+prompt was sent. Obtain the actual trained local model tag or file path and
+verify its origin before adding a production adapter or sending customer data.
+
+Phase 4 model discovery and smoke — 10 October 2026: owner supplied the v3 GGUF
+outside this repository. Verified GGUF magic, 2,019,377,440-byte size and
+SHA-256 `bfb12fd83e389740def4713b27d29a9abbacb68c7a2c3b160588eb3dcc09c490`
+against its manifest. The saved handoff identifies a llama.cpp CPU runtime and
+a separate nine-field policy/wrapper, not an Ollama-imported local tag. Started
+the existing loopback server, ran one synthetic example and eight saved fresh
+smoke cases; 6/8 matched, two failed closed on evidence grounding and
+inbound/outbound mismatch. Stopped the server. Earlier 7/8 is not reproduced.
+See `docs/runbooks/phase-4-local-model-2026-10-10.md`. No customer data, model
+service deployment, processing activation or external provider call occurred.
+
+Phase 4 wrapper retry — 10 October 2026: in the separate training workspace,
+updated the v3 wrapper/prompt so trusted prospect suppression bypasses inference,
+prior customer-history quotes can ground evidence, assistant/blank evidence
+fails, and website-only prospects remain unknown fit. Four targeted tests pass;
+eight synthetic fresh cases passed 7/8 on first retry and 8/8 after reproducing
+the remaining thin-prospect failure. GGUF weights did not change. Both outcomes
+are regression evidence only, not a real-data holdout or permission to enable
+processing. The model server was stopped; no customer data or deployment used.
+
+Phase 4 evaluation and app-input checkpoint — 10 October 2026: a local audit
+compared 41 synthetic cases once and nine selected cases three times against
+raw GGUF, wrapper and app validator. Raw asserted-field matches were 32/41;
+wrapped matches 39/41, with untested draft-quality gaps. A ten-case new
+synthetic challenge scored raw 7/10 and wrapped 10/10 on asserted fields, but
+one privacy draft failed a quality check. The separate model wrapper was then
+updated to retain typed product-knowledge evidence with source IDs, remove
+ungrounded quotes when valid evidence remains, and withhold redundant or
+unsafe drafts for review. Replay of the saved 41 raw outputs scored 40/41
+asserted fields with eight review flags; replay of the ten challenge outputs
+scored 10/10 simple quality checks only because six drafts were withheld. This
+is regression evidence, not an untouched holdout or production accuracy.
+`server/nodalx-v3-input.mjs` now stages a minimal inquiry-to-model input map:
+separate name/email/company are omitted and verified context must come from
+trusted server arguments. Its two focused tests pass. It is not wired into the
+worker; the existing result contract still drops evidence, review status and
+recipe provenance. No production schema/deployment, gate, customer data or
+outbound action changed. See the separate model-workspace
+`outputs/nodalx-v3/audits/stage-progress-2026-10-10.md` and
+`outputs/nodalx-v3/evaluation-rubric.md`. Next: independently reviewed locked
+evaluation set, full versioned result/review storage, supervised model host,
+synthetic worker-to-RDS rehearsal, then a monitored human-reviewed pilot.
+
+Phase 4 frozen synthetic evaluation — 10 October 2026: owner has no consented
+real examples yet and chose to decide hosting after evaluation. A new 16-case
+synthetic set was checksummed before one local inference run and had zero exact
+user-message overlap with saved training/validation files. Raw asserted-field
+matches were 9/16 and wrapped matches 11/16; all 16 passed the existing app
+shape validator, which did not catch wrong decisions. Release blockers: smoke
+from an electrical panel was not escalated/high urgency; a personal-data
+deletion request was not escalated; a wrapper reschedule draft asked about the
+old Friday rather than requested Monday; prospect-fit errors persisted; and a
+repaired new-service label retained a contradictory support summary/draft.
+Fixture and recipe were fixed before the first run; that result is preserved. See the
+separate model-workspace `outputs/nodalx-v3/audits/locked-synthetic-v1-report.md`.
+This is agent-authored synthetic evidence, not a human-reviewed real-world
+holdout. The local model server was stopped. Do not enable processing or claim
+industry readiness. Build a new development set for fixes, then freeze a new
+benchmark; choose hosting only after evaluation, per owner preference.
+
+Phase 4 post-benchmark safety pass — 10 October 2026: in the separate model
+workspace, new development tests drove deterministic handling of immediate
+physical hazards and personal-data deletion requests, selection of the target
+reschedule day, clearing stale summaries/drafts after a repaired route, and an
+additional domain-only unknown-fit phrase. Eight wrapper tests pass. Replaying
+the saved v1 raw outputs yields 14/16 asserted-field matches and five review
+flags, but v1 is now a regression set, not a fresh holdout. Remaining label
+misses are exploratory interest and a strong-fit prospect. A simple phrase
+check falsely flags “rescheduled” in a question; manual inspection confirmed
+the new draft asks about Monday. No model weights, app gate, deployment or
+customer data changed.
+
+Phase 4 further evaluation — 10 October 2026: newly frozen agent-authored
+synthetic v2 first run matched 17/20 wrapped asserted fields (12/20 raw).
+Development fixes based on those failures yielded a 20/20 replay, which is a
+tuned regression result. A separately frozen synthetic v3 first run matched
+11/12 wrapped asserted fields (8/12 raw). Manual review found a draft asking
+for size and material already supplied in the inquiry. Do not enable the
+production processing gate or claim readiness from these synthetic scores.
+The staged nodalx-v3 analysis packet has a strict structural validator and
+provenance hashes; worker storage and dashboard review are not yet wired.
+
+Phase 4 draft grounding, v4 evaluation, and human review path — 10 October 2026:
+investigated draft grounding on development cases; wrapper now catches drafts
+repeating known dimensions, materials, quantities, and colors, safely withholding
+them (`draft_repeats_known_dimensions`, `draft_repeats_known_material`,
+`draft_repeats_known_quantity`, `draft_repeats_known_color`), and recognizes
+expanded exploratory low-urgency phrasing. Replay of saved v3 raw outputs
+scored 12/12 asserted fields with 4 review flags and 0 quality errors. Authoring
+and freezing genuinely new 15-case benchmark `locked-synthetic-v4.json`
+(SHA-256 `295b0658d2dd1484575d78b5cd4fb7bf245b8da7b3a7ed33a170b299c3af71b5`)
+before a single local inference run scored raw 11/15, wrapped 12/15, 2 review
+flags, 14/15 quality checks passed, and 1 wrapper error (failed closed on evidence
+grounding when the model quoted internal JSON structure). Ungrounded draft on
+`v4_quote_signage` was intercepted and withheld. Identified persistent hazard
+keyword brittleness (`smoking` missed `\bsmoke\b`). Local server was stopped;
+production gate remains disabled. Built the versioned packet persistence and
+human review state behind the existing disabled gate: `validateReviewDecision`
+added to `server/nodalx-v3-result.mjs`; `server/processing-worker.mjs` validates
+and persists `analysis_packet` in job settlement; worker packaging and tests
+updated; migration `20261010214000_inquiry_analysis_persistence_and_review.sql`
+extends `finish_processing_job` and `update_own_inquiry` for `review_decision`;
+`server/supabase-workspace.mjs` validates review decisions on PATCH and
+serializes `analysis_packet` and `review_decision`; `ModelAnalysisReview` component
+in `frontend/components/ModelAnalysisReview.tsx` provides review UI in the
+Inquiry Desk drawer in `Dashboard.tsx` (inspect recommendations, flags, citations,
+record accepted/edited/dismissed human decisions, or apply drafts); `inquiryDesk.ts`
+and tests updated. Verification: 109/109 default backend tests passed (5 opt-ins
+skipped), 12/12 frontend desk tests passed, frontend build clean (0 errors),
+secret scan clean (0 found across 351 tracked files), model tests clean (13/13).
+
+Phase 4 safety hazard inflection, evidence normalization, v4 replay, and continuous improvement — 10 October 2026:
+in `outputs/nodalx-v3/classify.mjs`, expanded `hasImmediatePhysicalHazard` regex
+to cover inflectional forms and hazard synonyms (`smok\w*`, `fire\w*`, `spark\w*`,
+`electric(?:al)?\s+(?:shock|fire|hazard)`, `gas\s+leak`, `burning\w*`, `melt\w*`,
+`live\s+wire`, `short\s+circuit`) alongside temporal urgency indicators (`urgent\w*`,
+`immediately`, `asap`, `emergency`), resolving the missed escalation on `v4_hazard_melting_cord`.
+Hardened evidence normalization with `sanitizeEvidenceSnippet` to strip leaked prompt/JSON
+envelope syntax (`^(?:[\s\{\}\[\]]*\\?["']?\w+\\?["']?\s*:\s*\\?["']?)+`) before grounding
+checks, resolving the ungrounded evidence exception on `v4_prospect_thin` while preserving
+fail-closed rejection of ungrounded hallucinations. Added unit tests to `classify.test.mjs`
+(15/15 passed). Added `locked-synthetic-v4.json` to `replay-audit.mjs` and replayed
+`locked-synthetic-v4-results.json` into `locked-synthetic-v4-regression-replay.json`: scored
+14/15 asserted-field matches (up from 12/15), 15/15 quality checks passed, 6 review flags,
+and 0 wrapper errors. In the app repo, added `buildCorrectionRecord` and validated optional
+`edited_classification` in `server/nodalx-v3-result.mjs`, aligning inquiry desk review decisions
+(`accepted`, `edited`, `dismissed`) with the training pipeline correction record schema in
+`continuous-improvement.md` and `next-training-data-rubric.md`. Full verification: 110/110
+backend tests passed (5 opt-ins skipped), 12/12 frontend desk tests passed, frontend build clean,
+`git diff --check` clean, and secret scanner clean (0 found across 351 tracked files). Production
+model processing remains strictly disabled (`ALLOW_PROCESSING_NETWORK=false`).
+
+Phase 4 verification + review-loop SQL coverage — 10 October 2026: inspected the
+completed Phase 4 checkpoint before editing and preserved all unrelated
+uncommitted work (13 modified, 8 untracked files remain untouched). Re-verified
+the cited evidence independently: model wrapper tests 15/15, app packet/input
+tests 6/6, frontend desk tests 12/12, frontend production build clean, default
+backend suite 110 pass / 0 fail / 5 Docker opt-ins skipped, secret scan 351
+files / 0, `git diff --check` clean. Confirmed the frozen v4 benchmark hash is
+still `295b0658d2dd1484575d78b5cd4fb7bf245b8da7b3a7ed33a170b299c3af71b5`.
+
+Found and recorded a real gap: the Phase 4 migration
+`supabase/migrations/20261010214000_inquiry_analysis_persistence_and_review.sql`
+was wired into the migration list automatically but had **never been applied to
+RDS**. Read-only introspection of `nodalx_app` confirmed `finish_processing_job`
+and `update_own_inquiry` are still the pre-Phase-4 definitions with no
+`analysis_packet` and no `review_decision` handling, and the last applied
+migration is `20261007162333`. The migration file applies cleanly from zero and
+all existing assertions pass, so the SQL is valid and non-breaking. The
+application code that stores packets and review decisions is therefore inert
+against the live database until this migration is applied; it was deliberately
+**not** applied here because that is a production schema change.
+
+Added ten database-level regression assertions for the human review decision
+path in `supabase/tests/database/inquiry_desk.test.sql`, which previously had
+zero coverage even though the review desk is the intended human-in-the-loop
+control. They cover: accepted decision persistence, camelCase `reviewDecision`
+normalization onto the server-owned `review_decision` payload key, edited-draft
+persistence for later training curation, denial of unknown decision values,
+denial of overlong notes, denial of review decisions against a foreign
+workspace's inquiry, and that a review decision never overwrites the original
+message. Two test-authoring defects were found and fixed while writing them: the
+durable rate-limit assertion had to move after the new review writes and drop
+from 58 to 56 iterations because `update_own_criteria` and each accepted review
+decision spend the same 60-write desk budget, and the overlong-notes payload had
+to be built with `format()`/`jsonb_build_object` because `repeat()` inside a JSON
+string literal is literal text, not a function call. Verification:
+`npm run test:rds -- --reset` 156/156 from zero and an idempotent re-run 156/156;
+the shared production SQL test files other than this one were not modified. An
+attempt to add equivalent `analysis_packet` settlement assertions to
+`processing_queue.test.sql` was reverted rather than left fragile, because that
+file's credit and lease choreography does not admit an independent claimed job;
+packet settlement stays covered by the worker's `validateNodalxV3Packet` tests.
+No production schema, environment, deployment or gate change. Processing remains
+disabled (`ALLOW_PROCESSING_NETWORK=false`), and this is still synthetic
+evidence, not a production accuracy or readiness claim.
