@@ -1,6 +1,7 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync, existsSync} from 'node:fs';
+import path from 'node:path';
 import handler from '../api/migration.mjs';
 
 test('migration routing preserves public liveness without requiring an account', async () => {
@@ -43,5 +44,26 @@ test('the root deployment bundles Supabase handlers instead of proxying suspende
   assert.match(config.rewrites[0].source, /automation/);
   for (const file of ['api/migration.mjs', 'api/automation.mjs', 'server/make-processing.mjs', 'server/processing-daemon.mjs', 'server/processing-worker.mjs', 'server/gemini-processor.mjs', 'server/supabase-account.mjs', 'server/rds-client.mjs', 'server/supabase-workspace.mjs', 'server/outbound-email.mjs', 'certs/rds-us-east-1-bundle.pem', 'package-lock.json']) {
     assert.ok(allowlist.includes(`!${file}`));
+  }
+  // A hand-maintained list cannot catch a newly added server module, and a
+  // missing entry ships a function that dies at runtime with
+  // ERR_MODULE_NOT_FOUND even though the build is green. Derive the required
+  // set from the imports the deployed entrypoints actually use.
+  const entrypoints = ['api/migration.mjs', 'api/automation.mjs', 'api/contact.mjs', 'api/intake.mjs',
+    'api/feedback.mjs', 'api/send-email.mjs', 'api/user/profile.mjs'];
+  const deployed = new Set(['certs/rds-us-east-1-bundle.pem', 'package.json', 'package-lock.json', 'vercel.json']);
+  const queue = [...entrypoints];
+  while (queue.length) {
+    const file = queue.shift();
+    const source = readFileSync(new URL(`../${file}`, import.meta.url), 'utf8');
+    for (const match of source.matchAll(/from\s+'(\.[^']+)'/g)) {
+      const resolved = path.posix.normalize(path.posix.join(path.posix.dirname(file), match[1]));
+      if (deployed.has(resolved)) continue;
+      deployed.add(resolved);
+      queue.push(resolved);
+    }
+  }
+  for (const file of deployed) {
+    assert.ok(allowlist.includes(`!${file}`), `${file} is reachable at runtime but missing from .vercelignore`);
   }
 });

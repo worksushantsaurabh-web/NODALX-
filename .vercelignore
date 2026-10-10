@@ -21,6 +21,8 @@
 !server/processing-daemon.mjs
 !server/processing-worker.mjs
 !server/gemini-processor.mjs
+!server/nodalx-v3-input.mjs
+!server/nodalx-v3-result.mjs
 !certs
 !certs/rds-us-east-1-bundle.pem
 !package.json
