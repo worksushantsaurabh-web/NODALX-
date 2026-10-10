@@ -1117,3 +1117,37 @@ clean. Processing remains disabled (`ALLOW_PROCESSING_NETWORK=false`); the
 review desk only becomes reachable once the matching code is promoted to
 Production, which is still an owner decision. No customer data was written,
 no email was sent, and no Make or Gemini execution occurred.
+
+Phase 4 deployment packaging fix — 10 October 2026: a preview smoke test of
+commit `116aa7b` returned `FUNCTION_INVOCATION_FAILED` on every API route while
+the build stayed green. Function logs showed `ERR_MODULE_NOT_FOUND` for
+`server/nodalx-v3-result.mjs` imported by `server/supabase-workspace.mjs`:
+`.vercelignore` is a strict allowlist and the new Phase 4 server module was
+never added to it, so the module was excluded from the deployment while the
+frontend typecheck and bundle, which never touch server modules, passed
+cleanly. This is the same failure class as the earlier RDS client/CA packaging
+gap. Had this reached Production it would have taken every API route down while
+appearing healthy in build logs.
+
+Fixed by adding `server/nodalx-v3-input.mjs` and `server/nodalx-v3-result.mjs`
+to `.vercelignore`, and by replacing the hand-maintained file list in
+`tests/supabase-routing.test.mjs` with one derived by walking imports from the
+deployed entrypoints. The literal list could not detect a newly added server
+module, which is exactly how a broken deployment shipped green; the derived
+check fails naming the missing path, and the negative case was verified by
+temporarily removing the entry (test failed with `server/nodalx-v3-result.mjs is
+reachable at runtime but missing from .vercelignore`, then passed on restore).
+Committed and pushed as `8437840`; the resulting Preview builds from that exact
+commit and its authorized smoke checks return 200 liveness with the RDS
+data-source header, `INTAKE_DISABLED` on the Preview contact route (fail-closed,
+no write) and `AUTH_REQUIRED` on unauthenticated workspace and email routes,
+with zero runtime errors.
+
+Production promotion was attempted from a clean worktree and was Blocked again
+for the same team-permission reason: "the deployment was blocked because the
+commit author doesn't have permission to create deployments for this project"
+(`dpl_GKbFhFyZsWokpi4rb65E1GcfVJ7R`). This is a team access setting, not a code
+or configuration problem, and it cannot be resolved from the CLI. `nodalx.in`
+is unchanged and healthy; the owner must promote the verified Preview from the
+dashboard or grant the deploying account production permission. No customer
+data was written, no email was sent, and no Make or Gemini execution occurred.

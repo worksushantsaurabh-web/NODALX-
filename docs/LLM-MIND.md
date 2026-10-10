@@ -144,7 +144,20 @@ Email: Resend, nodalx.in verified; desk gate enabled on Preview only
 - Phase 4 re-verification (10 Oct): wrapper 15/15, app packet/input 6/6, desk
   12/12, backend 110 pass/0 fail (5 Docker opt-ins skipped), frontend build
   clean, secret scan 351/0, diff clean; frozen v4 hash unchanged.
-- **Phase 4 is now committed and applied.** Changeset pushed as `96188cc`
+- **Deploy packaging gap found and fixed.** Commit `116aa7b` built green but
+  every API route 500'd on the Preview: `.vercelignore` is a strict allowlist
+  and `server/nodalx-v3-result.mjs` was never added, so it was excluded while
+  frontend typecheck/bundle (which never touch server modules) passed. Added
+  both new v3 modules and replaced the routing test's literal file list with one
+  derived from real imports; negative case verified. Fixed in `8437840`, whose
+  Preview returns 200 liveness w/ RDS header, `INTAKE_DISABLED` (no write),
+  `AUTH_REQUIRED`, zero runtime errors.
+- **Production deploy is Blocked by team permission**, not code: "the commit
+  author doesn't have permission to create deployments for this project"
+  (`dpl_GKbFhFyZsWokpi4rb65E1GcfVJ7R`). Not fixable from the CLI. `nodalx.in`
+  unchanged and healthy; owner promotes the `8437840` Preview or grants the
+  deploying account production permission.
+- **Phase 4 is committed and applied.** Changeset pushed as `96188cc`
   (working tree clean; pre-migration function defs saved to
   `/private/tmp/nodalx-pre-phase4-functions.sql`). Migration
   `20261010214000` applied to RDS `nodalx_app` (19 prior steps verified by
@@ -234,10 +247,11 @@ credential distribution to Make.
 4. Put the real hosted Supabase service-role key in gitignored `.env.local`
    (never chat), run `npm run test:intake:hosted`, then convert the remaining
    three opt-in test files using the same dual-mode pattern.
-5. Deploy the committed Phase 4 review desk (`96188cc`) through the normal
-   preview → production path when the owner promotes; until then the review
-   path is stored and validated but not reachable in the live UI. Keep
-   `ALLOW_PROCESSING_NETWORK=false`.
+5. Promote the verified Preview for commit `8437840` to Production
+   (dashboard ⋯ → Promote), or grant the deploying account production
+   permission so CLI deploys are unblocked. Then re-run liveness/RDS-header,
+   contact-gate and auth-denial checks on `nodalx.in` before any labelled
+   email test. Keep `ALLOW_PROCESSING_NETWORK=false`.
 6. Capture real operator corrections from live inquiries before any LoRA
    dataset decision.
 7. Follow the release roadmap order; every production/network/spend step
