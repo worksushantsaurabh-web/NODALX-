@@ -846,3 +846,32 @@ counter restored to 0 (no events or emails had been created), and final counts
 are all zero. No environment setting, deployment, credential or cloud config
 was changed. `docs/LLM-MIND.md` refreshed in the same turn, including the
 lesson to re-verify current gate state before probing any write endpoint.
+
+Release reconciliation + production email staging — 10 October 2026: fast-forwarded
+the local checkout from `1b8d694` to remote `6c06821` (backup branch
+`backup/pre-sync-20261010`); stash-pop conflicts resolved in favour of the
+release-tested intake-router and recovery-code SignInModal, the superset
+email-desk `supabase-workspace.mjs` routes and notice wording from local work,
+and a union package.json. Verification: 103 intake tests (5 Docker opt-ins
+skipped), frontend build, JS syntax, secret scan (351 files, 0), diff checks.
+Vercel CLI login repaired through the owner device flow. Production environment
+gained `RESEND_API_KEY` (Secret), `RESEND_EMAIL_DOMAIN`, `OUTBOUND_EMAIL_FROM`
+and `OUTBOUND_EMAIL_ENABLED=true`; `DATA_BACKEND=rds` restored to the Preview
+(nodalx-staging) branch scope where it had been lost. Committed and pushed the
+reconciled snapshot as `ac6dda5`; the Git integration built Ready Preview
+`dpl_HLPdoJ9cZPZud7oLjLrRHpaK1cAJ` — smoke checks via authorized curl returned
+200 liveness and the new inquiry email routes answer 401 `AUTH_REQUIRED`. A CLI
+production deploy of the same commit was Blocked because the commit author
+lacks production-deploy permission in the team; `nodalx.in` remains on
+`dpl_FFL6UHqrpWpyt9QhubpvYcHWRqno` (rollback `dpl_5ciNeME248zgEb8VwDARqWHU4pqk`).
+Owner actions: promote `dpl_HLPdoJ9…` via the dashboard (or grant the deploying
+account production permission), then send one labelled dashboard test email;
+regenerate the Deployment Protection bypass token that the Vercel CLI debug
+output printed during smoke checks. Hosted test harness started:
+`scripts/test-target.mjs` plus dual-mode `tests/intake-e2e.local.test.mjs` and
+`npm run test:intake:hosted`; it fails closed on the placeholder service-role
+key (the real value must go in gitignored `.env.local`, never chat), and the
+remaining three opt-in files are not yet converted. Make and Gemini execution
+remain excluded per owner; the owner-trained model is the intended processing
+path. Owner housekeeping still open: delete the two rehearsal emails and
+rotate the RDS password echoed earlier into a transcript.

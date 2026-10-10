@@ -24,11 +24,13 @@ on the RDS-backed deployment. Immediate engineering state:
 
 - `nodalx.in` runs commit `0eee233` as Production deployment
   `dpl_FFL6UHqrpWpyt9QhubpvYcHWRqno`; the public inquiry form writes
-  directly to RDS through one server-owned website source.
-- The local main checkout remains dirty with unrelated work, based on
-  `1b8d694`; focused intake changes were reconciled there. The reviewed
-  release commit is on remote `nodalx-staging`. Do not deploy the dirty
-  checkout wholesale over the live build.
+  directly to RDS through one server-owned website source. The reconciled
+  email-desk release `ac6dda5` is a Ready Preview (`dpl_HLPdoJ9…`) with
+  outbound-email env staged in Production scope; promotion is one owner
+  dashboard click (CLI production deploy is permission-blocked).
+- The local checkout is now synced to `ac6dda5` (was dirty at `1b8d694`;
+  backup branch `backup/pre-sync-20261010`). Do not deploy the checkout
+  wholesale without review.
 
 ## TARGET / LEGACY
 
@@ -76,8 +78,18 @@ Email: Resend, nodalx.in verified; desk gate enabled on Preview only
   `npm run migrate:rds` still reports every step Already applied.
 - RDS `service_role` now has BYPASSRLS, versioned as
   `rds/service_role_bypass_rls.sql` (fixes silent RLS-filtered `finalize()`).
-- 102 intake tests (97 pass, 5 Docker opt-ins skipped), secret scan 302/0,
-  `git diff --check` clean; frontend typecheck/build green.
+- 103 intake tests (5 Docker opt-ins skipped), secret scan 351/0,
+  `git diff --check` clean; frontend build green.
+- Endpoint health re-check (10 Oct): `check:rds` PG18.3/TLS; migrate 19/19
+  Already applied; 27 public tables all RLS; service_role BYPASSRLS set; data
+  = 1 owner workspace/user/binding, zero inquiries/emails; `test:rds` 146/146;
+  boundary-valid POST `201 stored` re-confirmed live intake; the probe row
+  `3db9d4e3…` was deleted at once and counts restored to zero.
+- Release `ac6dda5` (10 Oct): local checkout synced to remote (backup branch
+  kept), email-desk routes reconciled into the RDS release line, production
+  Resend/outbound-email env staged, Ready Preview `dpl_HLPdoJ9…` smoke-checked
+  (200 alive; inquiry email routes 401). CLI production deploy Blocked on
+  commit-author team permission; nodalx.in unchanged.
 - Earlier staging audits (6–7 Oct): cloud migrations applied, RLS/advisor
   hardening, protected-preview liveness/auth-denial, Auth redirect allowlist.
 
@@ -86,10 +98,11 @@ Email: Resend, nodalx.in verified; desk gate enabled on Preview only
 - Resend Marketplace terms, GoDaddy DNS edits accepted earlier.
 
 **Unverified / pending:**
-- Production email configuration/delivery; notification/history/identity
-  parity before any behavioral cutover.
-- 5 opt-in integration tests still Docker-only; post-RDS cloud Supabase beyond
-  Auth unverified.
+- Production email delivery: env staged and routes deployed on Preview, but
+  promotion + one labelled dashboard send are still required; notification/
+  history/identity parity remains a separate cutover gate.
+- Hosted dual-mode intake harness built and fail-closed on the placeholder
+  service-role key; not yet executed, and three opt-in files not yet converted.
 - Tuned-model evidence (provider, immutable model ID, endpoint, held-out eval,
   production integration) — keep processing gates off until approved.
 
@@ -136,16 +149,20 @@ credential distribution to Make.
 
 ## NEXT ACTION ORDER
 
-1. Review/merge the remaining dirty working tree as the next release
-   snapshot; do not deploy it wholesale over commit `0eee233`.
-2. Keep Make, processing, and production outbound-email gates off until their
-   separate verification and release decisions. Website RDS intake is live.
+1. Owner: promote Ready Preview `dpl_HLPdoJ9…` to Production (dashboard
+   ⋯ → Promote) or grant the deploying account production permission; then
+   verify nodalx.in liveness keeps the RDS header and the inquiry email routes
+   answer 401 before sending one labelled dashboard test email.
+2. Keep Make and Gemini execution off; the owner-trained model is the intended
+   processing path. Website RDS intake stays live; outbound email activates
+   only after promotion + the labelled test.
 3. Owner housekeeping: delete the two rehearsal emails in `support@nodalx.in`,
    rotate the RDS password (one CLI error echoed it into a transcript),
+   regenerate the Deployment Protection bypass token printed in CLI debug,
    keep Vercel SSO/protection as-is.
-4. Separate approvals required for: re-pointing the 5 opt-in tests to
-   RDS + hosted Auth, production email enablement, notification/history
-   parity, any Make or Gemini execution.
+4. Put the real hosted Supabase service-role key in gitignored `.env.local`
+   (never chat), run `npm run test:intake:hosted`, then convert the remaining
+   three opt-in test files using the same dual-mode pattern.
 5. Follow the release roadmap order; every production/network/spend step
    needs explicit owner authorization.
 
