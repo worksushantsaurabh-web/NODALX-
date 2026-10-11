@@ -78,8 +78,8 @@ export default function Changelog() {
 
         <p className="ml-[3.75rem] mt-8 text-xs text-neutral-400">
           Have a bug or feature request?{' '}
-          <a href="mailto:nodalxai@gmail.com" className="text-white text-text-secondary hover:underline">
-            nodalxai@gmail.com
+          <a href="mailto:support@nodalx.in" className="text-white text-text-secondary hover:underline">
+            support@nodalx.in
           </a>
         </p>
       </div>

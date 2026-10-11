@@ -2,7 +2,7 @@ import { useNavigate } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
 
 const EFFECTIVE_DATE = '1 October 2026';
-const CONTACT_EMAIL = 'nodalxai@gmail.com';
+const CONTACT_EMAIL = 'support@nodalx.in';
 const COMPANY = 'NodalX';
 
 export default function Terms() {

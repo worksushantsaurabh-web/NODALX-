@@ -119,7 +119,7 @@ export default function Footer() {
             <a href="#/changelog" className="hover:text-text-primary transition-colors">Changelog</a>
             <a href="#/privacy" className="hover:text-text-primary transition-colors">Privacy Policy</a>
             <a href="#/terms" className="hover:text-text-primary transition-colors">Terms of Service</a>
-            <a href="mailto:nodalxai@gmail.com" className="hover:text-text-primary transition-colors">Contact</a>
+            <a href="mailto:support@nodalx.in" className="hover:text-text-primary transition-colors">Contact</a>
           </div>
           <button
             onClick={scrollToTop}
