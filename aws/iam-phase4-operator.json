@@ -1,0 +1,46 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "RunCommandsOnlyOnStagingHost",
+      "Effect": "Allow",
+      "Action": "ssm:SendCommand",
+      "Resource": [
+        "arn:aws:ssm:us-east-1::document/AWS-RunShellScript",
+        "arn:aws:ec2:us-east-1:560246495281:instance/i-0a39a885ceb38a8b9"
+      ],
+      "Condition": { "Bool": { "aws:MultiFactorAuthPresent": "true" } }
+    },
+    {
+      "Sid": "ReadStagingCommandStatus",
+      "Effect": "Allow",
+      "Action": ["ssm:GetCommandInvocation", "ssm:ListCommandInvocations", "ssm:DescribeInstanceInformation"],
+      "Resource": "*",
+      "Condition": {
+        "Bool": { "aws:MultiFactorAuthPresent": "true" },
+        "StringEquals": { "aws:RequestedRegion": "us-east-1" }
+      }
+    },
+    {
+      "Sid": "CreateStagingApiSecretWithoutReadBack",
+      "Effect": "Allow",
+      "Action": ["secretsmanager:CreateSecret", "secretsmanager:DescribeSecret", "secretsmanager:PutSecretValue"],
+      "Resource": "arn:aws:secretsmanager:us-east-1:560246495281:secret:nodalx/api/staging-*",
+      "Condition": { "Bool": { "aws:MultiFactorAuthPresent": "true" } }
+    },
+    {
+      "Sid": "CreatePrivateApiArtifactBucket",
+      "Effect": "Allow",
+      "Action": ["s3:CreateBucket", "s3:PutBucketPublicAccessBlock", "s3:GetBucketPublicAccessBlock", "s3:GetBucketLocation"],
+      "Resource": "arn:aws:s3:::nodalx-api-artifacts-560246495281-us-east-1",
+      "Condition": { "Bool": { "aws:MultiFactorAuthPresent": "true" } }
+    },
+    {
+      "Sid": "UploadOnlyApiReleases",
+      "Effect": "Allow",
+      "Action": ["s3:PutObject", "s3:GetObject", "s3:DeleteObject"],
+      "Resource": "arn:aws:s3:::nodalx-api-artifacts-560246495281-us-east-1/releases/*",
+      "Condition": { "Bool": { "aws:MultiFactorAuthPresent": "true" } }
+    }
+  ]
+}

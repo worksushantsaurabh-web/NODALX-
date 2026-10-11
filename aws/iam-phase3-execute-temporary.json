@@ -1,0 +1,55 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "ExecuteReviewedChangeSetWithMfa",
+      "Effect": "Allow",
+      "Action": "cloudformation:ExecuteChangeSet",
+      "Resource": [
+        "arn:aws:cloudformation:us-east-1:560246495281:stack/nodalx-api-staging/*",
+        "arn:aws:cloudformation:us-east-1:560246495281:changeSet/nodalx-api-staging-initial-20261012/*"
+      ],
+      "Condition": {
+        "Bool": { "aws:MultiFactorAuthPresent": "true" }
+      }
+    },
+    {
+      "Sid": "ProvisionAndRollbackOnlyRequiredEc2ActionsWithMfa",
+      "Effect": "Allow",
+      "Action": [
+        "ec2:CreateSecurityGroup",
+        "ec2:DeleteSecurityGroup",
+        "ec2:AuthorizeSecurityGroupIngress",
+        "ec2:RevokeSecurityGroupIngress",
+        "ec2:AuthorizeSecurityGroupEgress",
+        "ec2:RevokeSecurityGroupEgress",
+        "ec2:CreateTags",
+        "ec2:DeleteTags",
+        "ec2:RunInstances",
+        "ec2:TerminateInstances",
+        "ec2:AllocateAddress",
+        "ec2:ReleaseAddress",
+        "ec2:AssociateAddress",
+        "ec2:DisassociateAddress",
+        "ec2:DescribeInstanceStatus",
+        "ec2:DescribeAvailabilityZones",
+        "ec2:DescribeInstanceTypes"
+      ],
+      "Resource": "*",
+      "Condition": {
+        "Bool": { "aws:MultiFactorAuthPresent": "true" },
+        "StringEquals": { "aws:RequestedRegion": "us-east-1" }
+      }
+    },
+    {
+      "Sid": "PassOnlyNodalxApiRuntimeRoleToEc2WithMfa",
+      "Effect": "Allow",
+      "Action": "iam:PassRole",
+      "Resource": "arn:aws:iam::560246495281:role/nodalx-api-instance-role",
+      "Condition": {
+        "Bool": { "aws:MultiFactorAuthPresent": "true" },
+        "StringEquals": { "iam:PassedToService": "ec2.amazonaws.com" }
+      }
+    }
+  ]
+}

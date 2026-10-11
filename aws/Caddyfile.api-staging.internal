@@ -1,0 +1,15 @@
+{
+  skip_install_trust
+}
+
+api-staging.nodalx.in {
+  tls internal
+  encode gzip
+  @api path /api/*
+  handle @api {
+    reverse_proxy 127.0.0.1:5000 {
+      header_up X-Forwarded-For {remote_host}
+    }
+  }
+  respond 404
+}

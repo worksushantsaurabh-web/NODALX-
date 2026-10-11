@@ -1,0 +1,23 @@
+[Unit]
+Description=NODALX API
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=simple
+User=nodalx
+Group=nodalx
+WorkingDirectory=/opt/nodalx-api/current
+EnvironmentFile=/etc/nodalx-api/bootstrap.env
+ExecStart=/usr/bin/node-24 scripts/start-aws-api-from-secrets.mjs
+Restart=always
+RestartSec=5
+TimeoutStopSec=35
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectHome=true
+ProtectSystem=strict
+LimitNOFILE=4096
+
+[Install]
+WantedBy=multi-user.target

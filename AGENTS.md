@@ -1266,3 +1266,239 @@ secret and receiving switch. Managed sending stayed off, Production Vercel
 code was not deployed, and no dashboard outbound/reply or old-alias live
 mail was tested. All 176 isolated RDS SQL assertions, 119 backend tests,
 frontend build, secret scan and diff checks passed before the staged test.
+
+Support relay security fix — 11 October 2026: `api/send-email.mjs` was verified
+live and reachable at `https://nodalx.in/api/send-email` (GET returns 405 with
+`allow: POST` from the real handler). It had no authentication, no rate limit
+and no origin check, accepted a client-chosen `to` and `html`, used
+`RESEND_API_KEY` in Production, and bypassed the `OUTBOUND_EMAIL_ENABLED` gate
+that protects `server/outbound-email.mjs`. It was an unauthenticated open relay
+on the NodalX sending domain. The endpoint is now a server-recipient support
+inbox: `to` is rejected, the recipient is pinned to `SUPPORT_EMAIL_TO`
+(default support@nodalx.in), `from` is server-owned, `html`/`cc`/`bcc` are
+refused, `replyTo` is the only client address field, and a missing or
+non-matching `Origin` is refused (same-origin by default, exact list via
+`SUPPORT_EMAIL_ALLOWED_ORIGINS`). It fails closed behind
+`SUPPORT_EMAIL_ENABLED`, rate limits 5 per 10 minutes per client, caps CR/LF
+header injection in subject and reply address, and returns generic errors that
+no longer echo provider text. The handler is exported through
+`createSupportEmailHandler` for an injected Resend client so tests make no
+network call. `FeedbackWidget.tsx` sends `replyTo` instead of `to`.
+Verification: 15 focused tests, 131 default backend tests passed (5 Docker
+opt-ins skipped), frontend typecheck/build clean, secret scan 368 tracked files
+with 0 findings, `git diff --check` clean. NOT deployed: the live relay stays
+open until this is promoted, and enabling it requires setting
+`SUPPORT_EMAIL_ENABLED=true` in the target scope.
+
+Oracle Cloud assessment — 11 October 2026: read-only repository review, no
+infrastructure change. Verified: React+Vite static frontend on Vercel; Node ESM
+serverless API in `api/`+`server/`; PostgreSQL 18.3 on RDS reached through a
+hand-written PostgREST-compatible `pg` client with no ORM; hosted Supabase Auth
+as identity only; a Postgres-backed queue with leases and no Redis anywhere;
+the processing worker is Docker-packaged but has never been built or deployed.
+All production dependencies are pure JS, so ARM64 is unblocked. OCI is Mumbai
+(1,500 OCPU-hrs / 9,000 GB-hrs Always Free, already at the 2 OCPU / 12 GB cap)
+while RDS is us-east-1, and the 200 GB boot volume at Balanced 10 VPU/GB is a
+recurring VPU charge rather than free capacity. Recommended order: fix the boot
+volume cost first, move only the processing worker to OCI, leave the API on
+Vercel (free at current scale), do not introduce Redis, and treat any database
+move as a separate approved phase. No OCI resource, DNS, firewall, deployment
+or credential was touched.
+
+Support relay fix deployed — 11 October 2026: promoted to Production after
+owner approval. CLI deployed `dpl_8gLbferLXPnxgTpqB6Lkn72Kr11J` (READY,
+`nodalx.in`), superseding `dpl_DdYdeXRcEADyR2eSJaRAM2tjUbPG`; rollback
+reference remains the pre-fix Production `dpl_CPLoArpwoRQyniemYQKpQSZ2UVem`.
+Added `SUPPORT_EMAIL_ENABLED=true`, `SUPPORT_EMAIL_TO=support@nodalx.in` and
+`SUPPORT_EMAIL_FROM=NodalX Support <support@nodalx.in>` as Production Secrets;
+note the first `vercel env add` auto-redeploy snapshotted before all three
+existed and still returned `SUPPORT_EMAIL_DISABLED`, so an explicit redeploy was
+required — always confirm a live probe after an env-triggered redeploy rather
+than trusting the Ready state. Live verification: unauthenticated relay attempt
+and cross-origin spoof both return 403 `ORIGIN_NOT_ALLOWED`; client-chosen `to`
+and `html` return 400 `INVALID_INPUT`; one labelled same-origin message was
+accepted by Resend (`01a12bb7…`); rate limiting engaged. Liveness returns 200
+with `x-nodalx-data-source: rds`, unauthenticated inquiries 401, invalid
+contact body 400, frontend 200, and the deployment logs show no runtime errors.
+Caveat: the 5-per-10-minutes limit is an in-process store, so on Vercel it is
+best-effort per warm instance rather than a global guarantee; the real control
+is the pinned server-owned recipient plus the same-origin requirement. Three
+verification emails were delivered to `support@nodalx.in` for the owner to
+delete. No database, RDS, DNS or OCI change was made, and the other intake,
+processing and outbound-desk gates were not touched.
+
+RDS connection limit applied — 11 October 2026: after owner approval, ran
+`ALTER ROLE postgres CONNECTION LIMIT 50` on RDS `nodalx_app` (previously `-1`,
+unlimited). Chosen from measured data, not guesswork: instance `max_connections`
+is 81 with 3 superuser-reserved (78 usable), the app pool is `max: 4`, observed
+live usage is 1 connection, and intake is already capped in-database at 60/min
+per source and 120/min router-wide. 50 therefore leaves roughly 12x legitimate
+headroom (about 12 concurrent function instances) while bounding a
+credential-flood attacker to about 64% of free slots. Enforcement was proven,
+not assumed: holding one admin connection, 49 further connections were accepted
+and the 50th was rejected with PostgreSQL `53300`. Verified after the change:
+live liveness 200 with `x-nodalx-data-source: rds`, unauthenticated inquiries
+401, invalid contact body 400, frontend 200, and `/api/send-email` still
+correctly refuses a no-Origin relay attempt. Suites: 176/176 RDS SQL
+assertions, 131 default backend tests (5 Docker opt-ins skipped), and
+`migrate:rds` reports every step Already applied. Reversible with
+`ALTER ROLE postgres CONNECTION LIMIT -1`. No data, schema, code or deployment
+changed.
+
+RDS network exposure — corrected finding, 11 October 2026: the earlier advice
+to narrow RDS security-group ingress to "Vercel egress IPs" was WRONG and was
+not executed. Vercel serverless functions have no fixed outbound IP on any plan
+the project uses; static egress requires Vercel Static IPs at $100/month per
+project, and Vercel publishes no allowlistable range. Applying that advice would
+have cut off all production API database access. Read-only inspection of live
+RDS instead established the actual posture: TLS 1.3 with
+`TLS_AES_256_GCM_SHA384`; `pg_hba` line 13 is `hostssl all all 0.0.0.0/0 md5`,
+so plaintext authentication is impossible; `postgres` is NOT a superuser and
+holds no BYPASSRLS, being only a member of the restricted `rds_superuser` role;
+`rdsadmin` is the sole superuser and is rejected from host access by pg_hba
+rules 11-12. Therefore the genuine residual risk is credential stuffing and
+connection flooding, not direct data exposure, and the connection limit addresses
+the flooding half. On this Vercel plan, closing broad RDS ingress requires a
+new database-facing API path; a paid Vercel Static IP add-on is another option.
+The later AWS private-RDS plan supersedes the earlier OCI API recommendation.
+The old local SSO profile expired and is not used for AWS inspection.
+
+AWS private-RDS API preparation — 11 October 2026: owner chose a cost-aware AWS
+API in the RDS VPC instead of the OCI cross-region API. A new console-login CLI
+profile can read account resources; it currently represents root and is not a
+deployment identity. Read-only AWS inspection confirmed RDS `PubliclyAccessible`
+and 5432 ingress from `0.0.0.0/0`, plus one /32; the VPC has no EC2 instance or
+NAT. Five eligible credits total $180 remaining, expiring 2 October 2027;
+two $1 monthly budgets already exist. AWS Price List showed t4g.micro at
+$0.0084/hour and t4g.small at $0.0168/hour in N. Virginia. Prepared a local
+Node HTTP adapter for the existing Vercel handlers in `server/aws-api-http.mjs`,
+a loopback-only entrypoint `scripts/start-aws-api.mjs`, and a strict 27-file
+package in `scripts/package-aws-api.mjs`; raw Resend payloads stay unparsed for
+signature verification. No AWS instance, IAM principal,
+security group, RDS setting, DNS record, Vercel route or production secret was
+changed. `TMPDIR=/private/tmp npm run test:intake` passed 133/133 with five
+Docker opt-ins skipped; frontend build and secret scan passed. The first test
+run had only a sandbox temp-directory EPERM and passed with the approved temp
+path. The adapter is not a deployed integration; reverse-proxy, role,
+secret delivery and protected live route checks remain.
+
+AWS API phased implementation — 11 October 2026: created
+`docs/runbooks/aws-api-migration-phases-2026-10-11.md` with eight explicit
+phases and rollback gates. Phase 1 local implementation now includes a
+CloudFormation template for a parallel t4g.small AL2023 host, encrypted gp3,
+EIP, SSM-only administration, one-secret read role, and SG-to-SG RDS ingress;
+AWS CloudFormation validated the template but no stack was created. Added
+Secrets Manager bootstrap that loads JSON into process memory without logging
+values or writing an env file, plus systemd and Caddy example configs. The
+adapter preserves all current route classes and fail-closed gates. Full
+backend suite passed 136 tests (five Docker opt-ins skipped); frontend build,
+29-file package, tracked secret scan and diff check passed. No live AWS,
+Vercel, RDS, DNS or secret change. Next gate: owner enrollment of a non-root
+console operator with MFA, then reviewed parallel stack deployment.
+Isolated package install (`npm ci --omit=dev --ignore-scripts`) succeeded with
+28 production packages and zero reported vulnerabilities; the packaged server
+returned 200 for liveness. The temporary package dependencies were removed.
+Read-only `aws organizations describe-organization` returned
+`AWSOrganizationsNotInUseException`: this is a standalone account. An IAM
+Identity Center account instance would not grant AWS account permissions, so
+Phase 2 uses a non-root IAM console operator with MFA and short-lived CLI
+login; no IAM user or policy was created this turn.
+
+Phase 2 update (11 October 2026): root bootstrap created IAM user
+`nodalx-operator` with only `SignInLocalDevelopmentAccess` and narrow inline
+`NodalxOperatorSelfMfa` (`aws/iam-operator-self-mfa.json`). Verified no access
+keys or MFA devices. No login profile or AWS resource permissions yet. Owner
+must set the console password privately and enroll MFA. Verify a non-root
+`aws login --profile nodalx-operator` and MFA before granting scoped,
+MFA-conditioned provisioning rights or starting Phase 3. Root `nodalx-console`
+remains a bootstrap-only profile.
+
+Phase 2 identity verification: `aws sts get-caller-identity --profile
+nodalx-operator` now returns the IAM user ARN. `aws iam list-mfa-devices`
+returned an empty list. Keep Phase 2 open until owner enrolls MFA and the
+device is verified; no Phase 3 provisioning rights have been attached.
+
+Phase 2 closed: a repeat IAM `list-mfa-devices` returned one enabled FIDO/U2F
+device for `nodalx-operator` (11 October 2026, 18:23:30 UTC), and STS still
+returned the IAM user ARN. No provisioning rights have been attached. The
+root `nodalx-console` CLI session has expired; use the operator profile for
+subsequent work after granting scoped, MFA-conditioned Phase 3 rights.
+
+Phase 3 began: the operator's EC2 `DescribeSubnets` and CloudFormation
+`ValidateTemplate` calls were denied for missing identity permissions.
+Prepared an initial MFA-conditioned us-east-1 inspection policy (later
+superseded by `aws/iam-phase3-operator.json`) with no mutation rights. The root bootstrap CLI session has expired;
+owner reauthentication is needed for its one-time attachment. No Phase 3
+IAM grant, secret, change set or infrastructure resource has been created.
+
+Phase 3 bootstrap update (12 October 2026): root identity was reverified
+and attached an initial `NodalxPhase3Review` inline policy (later superseded
+by customer-managed `NodalxPhase3OperatorReview`) to the
+operator. It grants MFA-conditioned us-east-1 inspection only. The operator
+CLI session expired and needs a fresh login before testing that condition.
+Root read-only checks confirmed the target subnet's VPC, public main route
+via IGW, RDS availability and unchanged broad 5432 ingress; the API secret
+and stack do not exist. No stack infrastructure has been deployed.
+
+Phase 3 change-set update (12 October 2026): operator live `DescribeSubnets`
+and `ValidateTemplate` succeeded after MFA login. Root bootstrap created
+`nodalx-api-instance-role`/`nodalx-api-instance-profile` with SSM managed
+policy plus staged-secret read restricted to `nodalx/api/staging-*`. The
+CloudFormation template now consumes this profile and creates no IAM role.
+IAM user inline Phase 3 policies exceeded the 2 KB aggregate limit; replaced
+them with customer-managed `NodalxPhase3OperatorReview` from
+`aws/iam-phase3-operator.json`, then removed redundant Phase 3 inline policies.
+This policy permits inspection and preparing the named change set with MFA,
+but `ExecuteChangeSet` remains denied. Change set
+`nodalx-api-staging-initial-20261012` is `CREATE_COMPLETE`/`AVAILABLE` with
+five additions (EC2, EIP, association, API SG, private RDS ingress). It has
+NOT been executed; no host, EIP, new SG, RDS ingress, or secret exists yet.
+Owner review is the next gate. RDS public ingress and live Vercel stay as is.
+
+Phase 3 complete (12 October 2026): owner approved the five-resource change
+set; the operator executed it and CloudFormation reached CREATE_COMPLETE.
+Host `i-0a39a885ceb38a8b9` is running at EIP `18.213.226.253`, private
+`172.31.82.166`; API SG `sg-02b3168235eb8f3a6` allows 80/443, no SSH.
+The root gp3 volume is encrypted, IMDSv2 required, and AL2023 SSM is Online.
+RDS SG has a new API SG-to-SG 5432 rule; the original world and /32 ingress
+remain for live Vercel. The temporary execute policy was detached and
+deleted after success. No API service, staging secret, DNS or Vercel routing
+change yet. Phase 4 must provision secret securely, install Node/Caddy and
+service via SSM, then verify loopback health before external staging tests.
+
+Phase 4 installation (12 October 2026): MFA-authenticated operator deployed a
+29-file allowlisted API archive through a private, encrypted S3 artifact bucket
+and SSM. Node 24 and Caddy 2.11.7 run under systemd on the staging EC2 host;
+the API binds `127.0.0.1:5000`, and Caddy proxies 80/443. The Secrets Manager
+staging JSON contains `DATA_BACKEND=rds`, RDS URL, hosted Supabase URL and
+publishable key only. The bootstrap file contains only the secret ARN. No
+sending, intake, processing or Make gate was enabled. Local and external-IP
+HTTPS health returned `{"status":"alive"}` with `x-nodalx-data-source: rds`;
+unauthenticated profile returned 401. The host reached `nodalx_app` on a
+private RDS address with TLS and hosted Supabase Auth health returned 200.
+After action-time owner approval, Cloudflare published a DNS-only A record
+`api-staging.nodalx.in` to `18.213.226.253`. Caddy switched to publicly
+trusted Let's Encrypt TLS. Normal HTTPS health passed certificate validation
+and returned RDS source; HTTP redirects to HTTPS. Public negative probes
+returned 401 for unauthenticated profile/workspace, 503 for disabled contact
+and support mail, and 503 for unconfigured inbound mail. Signed-in routes,
+authorized intake and webhook signature behavior remain Phase 5 gates. Vercel
+routing and existing public RDS access remain unchanged. See the AWS API
+migration runbook for the exact verification record.
+
+Phase 5 staging verification (12 October 2026): end-to-end verification of
+the staging API was completed against `https://api-staging.nodalx.in`.
+Public boundary matrix confirmed health 200 w/ RDS header, 401 unauthenticated
+for profile/workspace/usage/feedback, 503 for disabled routes, 400 for malformed
+JSON, and 308 redirect from HTTP. Direct intake was staged with a temporary
+intake source binding in `private.intake_sources` and enabled intake in
+Secrets Manager; SSM restarted `nodalx-api`. Initial `/api/contact` POST
+returned 201 Created (`duplicate: false`, canonical row in RDS); identical
+replay returned 200 OK (`duplicate: true`); changed content returned 409
+Conflict. Inbound webhook `/api/resend-inbound` was tested with gate active;
+missing/forged Svix signatures returned 401 (`INVALID_WEBHOOK`). All synthetic
+data and source bindings were cleaned up (inquiries restored to 0), Secrets
+Manager staging configuration restored to disabled defaults, and `nodalx-api`
+restarted via SSM. Full backend suite passed 136/136 tests (5 Docker opt-ins
+skipped); secret scan clean across 368 tracked files. Phase 6 (Vercel rewrite)
+is next.

@@ -74,8 +74,8 @@ export default function FeedbackWidget() {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
         body: JSON.stringify({
-          to: 'support@nodalx.in',
-          subject: `[NodalX ${category.toUpperCase()}] Support message from ${senderEmail}`,
+          replyTo: senderEmail,
+          subject: `[NodalX ${category.toUpperCase()}] Support message`,
           message: `Category: ${category}\nFrom: ${senderEmail}\nPage: ${page}\nTimestamp: ${new Date().toISOString()}\n\nMessage:\n${message.trim()}`,
         }),
       });

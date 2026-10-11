@@ -4,6 +4,8 @@
   "scripts": {
     "dev:cloud": "node --env-file=.env.local scripts/dev-cloud.mjs",
     "dev:rds": "node --env-file=.env.local --env-file=.env.rds.local scripts/dev-rds.mjs",
+    "start:aws-api": "node scripts/start-aws-api.mjs",
+    "build:aws-api": "node scripts/package-aws-api.mjs",
     "check:rds": "node --env-file=.env.rds.local scripts/check-rds.mjs",
     "migrate:rds": "node --env-file=.env.rds.local scripts/migrate-rds.mjs",
     "test:rds": "node --env-file=.env.rds.local scripts/test-rds-db.mjs",

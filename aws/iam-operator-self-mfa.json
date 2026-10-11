@@ -1,0 +1,23 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "ListMfaSetup",
+      "Effect": "Allow",
+      "Action": ["iam:ListVirtualMFADevices"],
+      "Resource": "*"
+    },
+    {
+      "Sid": "CreateVirtualMfa",
+      "Effect": "Allow",
+      "Action": ["iam:CreateVirtualMFADevice"],
+      "Resource": "arn:aws:iam::560246495281:mfa/*"
+    },
+    {
+      "Sid": "EnrollOwnMfa",
+      "Effect": "Allow",
+      "Action": ["iam:EnableMFADevice", "iam:GetMFADevice", "iam:ListMFADevices", "iam:ResyncMFADevice"],
+      "Resource": "arn:aws:iam::560246495281:user/nodalx-operator"
+    }
+  ]
+}

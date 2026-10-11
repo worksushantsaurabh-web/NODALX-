@@ -1,0 +1,10 @@
+api-staging.nodalx.in {
+  encode gzip
+  @api path /api/*
+  handle @api {
+    reverse_proxy 127.0.0.1:5000 {
+      header_up X-Forwarded-For {remote_host}
+    }
+  }
+  respond 404
+}
