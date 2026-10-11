@@ -2,6 +2,9 @@ import {randomUUID} from 'node:crypto';
 import {authorizeWorkspace, databaseError, failure, receiveAccountRequest} from './supabase-account.mjs';
 import {listInquiryEmails, sendInquiryEmail} from './outbound-email.mjs';
 import {validateReviewDecision} from './nodalx-v3-result.mjs';
+import {createClient} from '@supabase/supabase-js';
+import {createRdsClient} from './rds-client.mjs';
+import {safeSenderName} from './outbound-email.mjs';
 
 const limits = {
   trial: {inquiries: 100, credits: 50, sheets: 1, batchRows: 25, concurrentJobs: 1},
@@ -156,6 +159,39 @@ export async function receiveWorkspaceRequest(request, options = {}) {
       const result = await client.rpc('update_own_criteria', {value: request.body.criteria});
       databaseError(result.error);
       body = {success: true};
+    } else if (path === '/api/workspace/email-identity' && request.method === 'GET') {
+      const result = await client.from('workspaces').select('name,email_alias').eq('id', workspaceId).maybeSingle();
+      databaseError(result.error);
+      if (!result.data) throw failure(404, 'NOT_FOUND', 'Workspace not found.');
+      const profile = await client.from('profiles').select('display_name').eq('workspace_id', workspaceId).maybeSingle();
+      databaseError(profile.error);
+      body = {address: result.data.email_alias ? `${result.data.email_alias}@reply.nodalx.in` : null,
+        alias: result.data.email_alias, displayName: safeSenderName(result.data.name, profile.data?.display_name),
+        receivingActive: environment.WORKSPACE_INBOUND_ENABLED === 'true' &&
+          environment.WORKSPACE_INBOUND_RECEIVING_ENABLED === 'true'};
+    } else if (path === '/api/workspace/email-identity/change' && request.method === 'POST') {
+      const input = request.body;
+      if (!input || typeof input !== 'object' || Array.isArray(input) ||
+        Object.keys(input).some(key => !['alias', 'confirmed'].includes(key)) ||
+        input.confirmed !== true || typeof input.alias !== 'string' ||
+        !/^[a-z0-9]([a-z0-9-]*[a-z0-9])?$/.test(input.alias) || input.alias.length < 3 ||
+        input.alias.length > 30 || input.alias.includes('--') ||
+        ['admin','support','postmaster','abuse','noreply','security','billing','help','root','www'].includes(input.alias)) {
+        throw failure(400, 'INVALID_INPUT', 'Choose a lowercase address name of 3 to 30 letters, numbers or hyphens.');
+      }
+      const admin = environment.DATA_BACKEND === 'rds' ? createRdsClient({role: 'service_role', environment}) :
+        createClient(environment.SUPABASE_URL, environment.SUPABASE_SERVICE_ROLE_KEY, {auth: {persistSession: false}});
+      const changed = await admin.rpc('change_workspace_email_alias_service', {
+        owned_workspace: workspaceId, requested_alias: input.alias, actor_user_id: user.id,
+      });
+      databaseError(changed.error);
+      body = {address: `${changed.data}@reply.nodalx.in`};
+    } else if (path === '/api/workspace/inbox' && request.method === 'GET') {
+      const received = await client.from('inbound_emails')
+        .select('provider_email_id,inquiry_id,received_alias,sender,subject,body,created_at')
+        .eq('workspace_id', workspaceId).order('created_at', {ascending: false}).limit(50);
+      databaseError(received.error);
+      body = {messages: received.data};
     } else if (/^\/api\/(?:workspace\/)?inquiries\/[^/]+(?:\/status)?$/.test(path) && request.method === 'PATCH') {
       const id = decodedRecordId(path.split('/').at(path.endsWith('/status') ? -2 : -1));
       if (request.body?.review_decision) validateReviewDecision(request.body.review_decision);
@@ -175,7 +211,12 @@ export async function receiveWorkspaceRequest(request, options = {}) {
         events: events.data.map(event => ({id: event.id, previousStatus: event.previous_status, changes: event.changes, at: Date.parse(event.created_at)}))};
     } else if (/^\/api\/workspace\/inquiries\/[^/]+\/emails$/.test(path) && request.method === 'GET') {
       const id = decodedRecordId(path.split('/').at(-2));
-      body = {emails: await listInquiryEmails(client, workspaceId, id)};
+      const received = await client.from('inbound_emails')
+        .select('provider_email_id,sender,subject,body,created_at')
+        .eq('workspace_id', workspaceId).eq('inquiry_id', id)
+        .order('created_at', {ascending: false}).limit(20);
+      databaseError(received.error);
+      body = {emails: await listInquiryEmails(client, workspaceId, id), received: received.data};
     } else if (/^\/api\/workspace\/inquiries\/[^/]+\/emails$/.test(path) && request.method === 'POST') {
       const id = decodedRecordId(path.split('/').at(-2));
       body = await sendInquiryEmail({client, workspaceId, inquiryId: id, body: request.body,

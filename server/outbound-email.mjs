@@ -27,6 +27,9 @@ function requireConfiguration(environment) {
     (!environment.SUPABASE_URL || !environment.SUPABASE_SERVICE_ROLE_KEY)) {
     throw failure(503, 'EMAIL_UNAVAILABLE', 'Email storage is not fully configured.');
   }
+  if (environment.WORKSPACE_INBOUND_ENABLED === 'true' && environment.WORKSPACE_EMAIL_DOMAIN !== 'reply.nodalx.in') {
+    throw failure(503, 'EMAIL_UNAVAILABLE', 'Workspace receiving domain is not configured.');
+  }
 }
 
 function adminClient(environment, clientFactory) {
@@ -38,9 +41,10 @@ function adminClient(environment, clientFactory) {
   });
 }
 
-async function finalize(admin, workspaceId, emailId, inquiryId, state, providerMessageId, failureCode) {
+async function finalize(admin, workspaceId, emailId, inquiryId, state, providerMessageId, failureCode, rfcMessageId = null) {
   const update = {state, provider_message_id: providerMessageId || null, failure_code: failureCode || null,
-    sent_at: state === 'sent' ? new Date().toISOString() : null};
+    sent_at: state === 'sent' ? new Date().toISOString() : null,
+    ...(rfcMessageId ? {provider_rfc_message_id: rfcMessageId} : {})};
   const saved = await admin.from('outbound_emails').update(update).eq('workspace_id', workspaceId).eq('id', emailId).eq('state', 'prepared').select('id').maybeSingle();
   databaseError(saved.error);
   if (state !== 'sent' || !saved.data) return;
@@ -55,20 +59,34 @@ async function finalize(admin, workspaceId, emailId, inquiryId, state, providerM
   databaseError(event.error);
 }
 
-// Providers only send from domains verified in the account, so an operator's
-// own address is used as the sender only when it belongs to a domain we can
-// send as. Otherwise the message is sent from the NodalX domain and the
-// operator's verified address is set as Reply-To, so replies still reach them.
-// The address always comes from the authenticated server-side identity, never
-// from the request body.
-export function senderFor(accountEmail, environment) {
+export function safeSenderName(companyName, operatorName) {
+  for (const value of [companyName, operatorName, 'NodalX']) {
+    const cleaned = typeof value === 'string' ? value.replace(/[\x00-\x1f\x7f\u2028\u2029]/g, ' ')
+      .replace(/\S+@\S+/g, '').replace(/[<>\"]/g, '').trim().replace(/\s+/g, ' ').slice(0, 60).trim() : '';
+    if (cleaned && cleaned !== 'My Workspace' && cleaned !== 'User') return cleaned;
+  }
+  return 'NodalX';
+}
+
+// The managed sender is enabled only after the receiving domain and webhook
+// have passed an end-to-end test. Both alias and display name are server-owned.
+export function senderFor(accountEmail, environment, workspace = null, operatorName = '') {
+  const alias = workspace?.email_alias;
+  const domain = environment.WORKSPACE_EMAIL_DOMAIN;
+  if (environment.WORKSPACE_INBOUND_ENABLED === 'true' &&
+    environment.WORKSPACE_INBOUND_RECEIVING_ENABLED === 'true' && domain === 'reply.nodalx.in' &&
+    typeof alias === 'string' && /^[a-z0-9]([a-z0-9-]*[a-z0-9])?$/.test(alias) &&
+    alias.length >= 3 && alias.length <= 30 && !alias.includes('--')) {
+    const address = `${alias}@${domain}`;
+    return {from: `${safeSenderName(workspace.name, operatorName)} <${address}>`, replyTo: address};
+  }
   const configured = environment.OUTBOUND_EMAIL_FROM;
   const local = configured.replace(/^.*<([^>]+)>$/, '$1');
   const configuredDomain = (local.split('@')[1] || '').toLowerCase();
   const address = typeof accountEmail === 'string' ? accountEmail.trim().toLowerCase() : '';
   if (!emailPattern.test(address)) return {from: configured, replyTo: null};
-  const domain = address.split('@')[1];
-  if (domain !== configuredDomain) return {from: configured, replyTo: address};
+  const accountDomain = address.split('@')[1];
+  if (accountDomain !== configuredDomain) return {from: configured, replyTo: address};
   const displayName = (environment.OUTBOUND_EMAIL_DISPLAY_NAME || '').trim();
   return {from: displayName ? `${displayName} <${address}>` : address, replyTo: address};
 }
@@ -79,6 +97,23 @@ export async function sendInquiryEmail({workspaceId, inquiryId, body, accountEma
   const input = validateOutboundEmail(body);
   const payloadHash = createHash('sha256').update(JSON.stringify({inquiryId, subject: input.subject, body: input.body})).digest('hex');
   const admin = adminClient(environment, options.createClient || createClient);
+  let workspace = null;
+  let operatorName = '';
+  if (environment.WORKSPACE_INBOUND_ENABLED === 'true' && environment.WORKSPACE_INBOUND_RECEIVING_ENABLED === 'true') {
+    const workspaceResult = await admin.from('workspaces').select('name,email_alias').eq('id', workspaceId).maybeSingle();
+    databaseError(workspaceResult.error);
+    if (!workspaceResult.data) throw failure(503, 'EMAIL_UNAVAILABLE', 'Workspace sending identity is unavailable.');
+    workspace = workspaceResult.data;
+    const profileResult = await admin.from('profiles').select('display_name').eq('workspace_id', workspaceId).maybeSingle();
+    databaseError(profileResult.error);
+    operatorName = profileResult.data?.display_name || '';
+  }
+  const sender = senderFor(accountEmail, environment, workspace, operatorName);
+  if (environment.WORKSPACE_INBOUND_ENABLED === 'true' &&
+    environment.WORKSPACE_INBOUND_RECEIVING_ENABLED === 'true' &&
+    !sender.replyTo?.endsWith('@reply.nodalx.in')) {
+    throw failure(503, 'EMAIL_UNAVAILABLE', 'Workspace sending address is unavailable.');
+  }
   const reservation = await admin.rpc('reserve_outbound_email_service', {
     owned_workspace: workspaceId, record_id: inquiryId, requested_key: input.requestKey, email_subject: input.subject,
     email_body: input.body, content_hash: payloadHash,
@@ -89,9 +124,7 @@ export async function sendInquiryEmail({workspaceId, inquiryId, body, accountEma
     throw failure(503, 'EMAIL_UNAVAILABLE', 'Email storage did not confirm a valid recipient.');
   }
   if (!prepared.created) return {sent: prepared.state === 'sent', replayed: true, state: prepared.state, id: prepared.id};
-
   let response;
-  const sender = senderFor(accountEmail, environment);
   try {
     response = await (options.fetch || fetch)('https://api.resend.com/emails', {
       method: 'POST',
@@ -115,7 +148,20 @@ export async function sendInquiryEmail({workspaceId, inquiryId, body, accountEma
     await finalize(admin, workspaceId, prepared.id, inquiryId, 'unknown', null, 'invalid_provider_response');
     throw failure(503, 'EMAIL_STATUS_UNKNOWN', 'The provider response could not be confirmed. The message will not be retried automatically.');
   }
-  await finalize(admin, workspaceId, prepared.id, inquiryId, 'sent', provider.id, null);
+  let rfcMessageId = null;
+  if (environment.WORKSPACE_INBOUND_ENABLED === 'true' && environment.WORKSPACE_INBOUND_RECEIVING_ENABLED === 'true') {
+    try {
+      const detail = await (options.fetch || fetch)(`https://api.resend.com/emails/${encodeURIComponent(provider.id)}`, {
+        headers: {'Authorization': `Bearer ${environment.RESEND_API_KEY}`}, signal: AbortSignal.timeout(3000),
+      });
+      if (detail.ok) {
+        const sent = await detail.json();
+        if (typeof sent.message_id === 'string' && sent.message_id.length <= 500 &&
+          /^<[^\r\n<>]+>$/.test(sent.message_id)) rfcMessageId = sent.message_id;
+      }
+    } catch { /* Provider accepted the email; lack of thread metadata must not reverse that. */ }
+  }
+  await finalize(admin, workspaceId, prepared.id, inquiryId, 'sent', provider.id, null, rfcMessageId);
   return {sent: true, replayed: false, state: 'sent', id: prepared.id};
 }
 

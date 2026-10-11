@@ -1,5 +1,12 @@
 # NodalX — IDE handoff prompt: per-workspace email aliases
 
+> Update, 11 October 2026: implementation work has started in this checkout.
+> The chosen managed identity is `<alias>@reply.nodalx.in`, with that address
+> used as both From and Reply-To after end-to-end receiving verification.
+> See `workspace-email-replies-2026-10-11.md` for the current staged status.
+> The dated clean-tree and test counts below describe the earlier handoff
+> snapshot, not the current working tree.
+
 > Copy everything below this line into a new IDE session (Cursor, Claude Code,
 > Copilot, Windsurf, or opencode). It is self-contained: another agent should be
 > able to execute the task without reading this repository's history.

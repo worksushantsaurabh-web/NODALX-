@@ -1223,3 +1223,30 @@ opt-ins skipped), 156/156 SQL assertions, 6 NodalX packet/input tests, frontend
 build clean, secret scan 359 tracked files / 0, `git diff --check` clean.
 Committed as `e882db9`; NOT deployed. Live sending behavior is unchanged until
 this is promoted, and the labelled dashboard test remains the owner's action.
+
+
+Workspace managed email replies — 11 October 2026: staged a new RDS migration
+for server-generated per-workspace aliases at reply.nodalx.in, explicit owner
+changes with a 24-hour limit and retained old aliases, tenant-readable inbound
+messages, and service-only idempotent receipt. The sender uses the alias as
+both From and Reply-To only behind two disabled gates; otherwise the existing
+sender remains. A signed Resend inbound webhook, workspace inbox, inquiry
+conversation history and a customer custom-domain note were added. Inbound
+mail joins an inquiry only when the sent RFC Message-ID and stored recipient
+both match; otherwise it stays in the workspace inbox. Existing
+nodalx.in mail routing was not changed. RDS nodalx_test passed 176/176 SQL
+assertions across ten files; 119 backend tests passed (5 opt-ins skipped),
+and the frontend build and secret scan passed. DNS, webhook delivery, actual
+reply, attachments and operator notifications remain
+unverified. No production migration, environment, deployment or real email
+change. See docs/runbooks/workspace-email-replies-2026-10-11.md.
+
+Workspace email staged verification — 11 October 2026: with owner approval,
+applied `20261011055601_workspace_email_alias.sql` to live RDS `nodalx_app`;
+all earlier migration hashes matched. Live database inspection found one
+workspace with one allocated alias and zero inbound/outbound email rows.
+Created `reply.nodalx.in` in Resend and enabled its receiving capability;
+the provider reports pending DNS verification. The existing root mail route
+was not changed and managed sending remains off. Re-ran 176/176 isolated RDS
+SQL assertions, 119 backend tests (5 Docker opt-ins skipped), and the frontend
+build. DNS, webhook, Preview, and real mail checks are still pending.

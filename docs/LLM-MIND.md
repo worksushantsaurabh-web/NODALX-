@@ -341,3 +341,26 @@ decisions stay separate and owned.
 - Full verification: 110/110 default backend tests passed (5 opt-ins skipped), 12/12 frontend desk tests
   passed, frontend build clean, `git diff --check` clean, 0 secrets flagged across 351 tracked files.
   Production model processing remains strictly disabled (`ALLOW_PROCESSING_NETWORK=false`).
+
+
+## Workspace managed email replies — staged 11 October 2026
+
+- A new migration allocates each workspace a unique reply.nodalx.in alias,
+  enforces format and reserved names in PostgreSQL, audits owner-requested
+  changes, limits changes to once per 24 hours, and keeps old aliases reserved
+  and receivable. Tenant-scoped inbound messages are stored idempotently.
+  Inquiry linking requires a sent RFC Message-ID and stored recipient match;
+  sender address alone never claims a thread.
+- The sender uses the workspace alias as From and Reply-To only when the
+  separate receiving and managed-sending gates are enabled; both default off.
+  The signed Resend webhook, workspace inbox, inquiry conversation view and
+  custom-domain customer note are implemented in the staging checkout.
+- Verification: 176/176 SQL assertions on isolated RDS nodalx_test; 119 backend
+  tests passed (5 opt-ins skipped); frontend build and secret scan passed.
+  With owner approval, the alias migration was applied to live RDS nodalx_app:
+  one workspace has an alias, with zero inbound/outbound emails. Resend now
+  has reply.nodalx.in with receiving enabled but DNS verification pending.
+  DNS, webhook, protected Preview and real reply routing remain pending;
+  attachments and notifications remain outside the current implementation.
+  Managed sending stays off, and Production Vercel is unchanged.
+  See docs/runbooks/workspace-email-replies-2026-10-11.md.

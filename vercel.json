@@ -7,10 +7,11 @@
   "functions": {
     "api/contact.mjs": { "maxDuration": 60 },
     "api/intake.mjs": { "maxDuration": 30 },
-    "api/send-email.mjs": { "maxDuration": 30 }
+    "api/send-email.mjs": { "maxDuration": 30 },
+    "api/resend-inbound.mjs": { "maxDuration": 30 }
   },
   "rewrites": [
-    { "source": "/api/:path((?!contact(?:/|$)|intake(?:/|$)|migration(?:/|$)|automation(?:/|$)|send-email(?:/|$)).*)", "destination": "/api/migration?path=:path*" },
+    { "source": "/api/:path((?!contact(?:/|$)|intake(?:/|$)|migration(?:/|$)|automation(?:/|$)|send-email(?:/|$)|resend-inbound(?:/|$)).*)", "destination": "/api/migration?path=:path*" },
     { "source": "/:path((?!api(?:/|$)).*)", "destination": "/index.html" }
   ],
   "headers": [

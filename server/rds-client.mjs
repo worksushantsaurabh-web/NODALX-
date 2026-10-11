@@ -5,7 +5,7 @@ const tables = new Set([
   'api_keys', 'artifacts', 'billing_bindings', 'connector_credentials', 'connectors',
   'feedback', 'flows', 'identity_bindings', 'import_recipes', 'import_runs',
   'inquiries', 'inquiry_events', 'job_events', 'job_rows', 'jobs',
-  'notification_settings', 'outbound_emails', 'outbox', 'profiles',
+  'notification_settings', 'outbound_emails', 'inbound_emails', 'outbox', 'profiles',
   'review_exceptions', 'sheet_connections', 'subscriptions', 'usage_periods',
   'usage_reservations', 'webhook_receipts', 'workspace_settings', 'workspaces',
 ]);
@@ -17,6 +17,7 @@ const functions = new Set([
   'ingest_source_inquiry', 'stage_source_inquiry', 'claim_intake_delivery',
   'complete_intake_delivery', 'retry_intake_delivery', 'claim_make_processing_job',
   'processing_worker_heartbeat',
+  'change_workspace_email_alias_service', 'store_received_email_service',
 ]);
 const identifier = /^[a-z_][a-z0-9_]*$/;
 const ca = readFileSync(new URL('../certs/rds-us-east-1-bundle.pem', import.meta.url), 'utf8');

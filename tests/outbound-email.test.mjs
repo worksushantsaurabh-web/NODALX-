@@ -1,6 +1,63 @@
 import assert from 'node:assert/strict';
 import {test} from 'node:test';
-import {sendInquiryEmail, validateOutboundEmail, senderFor} from '../server/outbound-email.mjs';
+import {sendInquiryEmail, validateOutboundEmail, senderFor, safeSenderName} from '../server/outbound-email.mjs';
+
+test('managed sender stays gated and sanitizes the company name', () => {
+  const environment = {OUTBOUND_EMAIL_FROM: 'NodalX <reply@nodalx.in>',
+    WORKSPACE_EMAIL_DOMAIN: 'reply.nodalx.in', WORKSPACE_INBOUND_ENABLED: 'true',
+    WORKSPACE_INBOUND_RECEIVING_ENABLED: 'true'};
+  const workspace = {name: 'Acme\r\nBcc: x@example.com <bad> "Co"', email_alias: 'acme'};
+  assert.deepEqual(senderFor('owner@gmail.com', environment, workspace), {
+    from: 'Acme Bcc: bad Co <acme@reply.nodalx.in>', replyTo: 'acme@reply.nodalx.in',
+  });
+  assert.equal(safeSenderName('My Workspace', 'Owner'), 'Owner');
+  assert.equal(safeSenderName('My Workspace', 'User'), 'NodalX');
+  assert.equal(senderFor('owner@gmail.com', {...environment, WORKSPACE_INBOUND_RECEIVING_ENABLED: 'false'}, workspace).from,
+    'NodalX <reply@nodalx.in>');
+  assert.equal(senderFor('owner@gmail.com', environment, {...workspace, email_alias: 'x\r\nBcc'}).from,
+    'NodalX <reply@nodalx.in>');
+});
+
+test('managed send reads the workspace alias on the server and replies return to it', async () => {
+  let sent; let savedMessageId;
+  const admin = {rpc: async () => ({error: null, data: {created: true, id: 'mail-id', state: 'prepared',
+    recipient: 'lead@example.com', subject: 'Hello', body: 'Message'}}), from(table) {
+    if (table === 'workspaces') return {select() {return chain({name: 'Acme', email_alias: 'acme'});}};
+    if (table === 'profiles') return {select() {return chain({display_name: 'Owner'});}};
+    if (table === 'inquiries') return {select() {return chain({status: 'Qualified'});}, update() {return chain(null, false);}};
+    if (table === 'inquiry_events') return {insert() {return Promise.resolve({error: null});}};
+    return {update(value) {savedMessageId = value.provider_rfc_message_id; return chain({id: 'mail-id'});}};
+  }};
+  await sendInquiryEmail({workspaceId: 'workspace-a', inquiryId: 'inquiry-a', accountEmail: 'owner@gmail.com',
+    body: {requestKey: 'request_123', subject: 'Hello', body: 'Message', confirmed: true}}, {
+    environment: {OUTBOUND_EMAIL_ENABLED: 'true', RESEND_API_KEY: 'test',
+      OUTBOUND_EMAIL_FROM: 'NodalX <reply@nodalx.in>', WORKSPACE_INBOUND_ENABLED: 'true',
+      WORKSPACE_INBOUND_RECEIVING_ENABLED: 'true', WORKSPACE_EMAIL_DOMAIN: 'reply.nodalx.in',
+      SUPABASE_URL: 'https://example.supabase.co', SUPABASE_SERVICE_ROLE_KEY: 'test'},
+    createClient: () => admin,
+    fetch: async (_url, init) => {
+      if (!init.body) return {ok: true, json: async () => ({message_id: '<sent-rfc-id>'})};
+      sent = JSON.parse(init.body); return {ok: true, json: async () => ({id: 'provider-id'})};
+    },
+  });
+  assert.equal(sent.from, 'Acme <acme@reply.nodalx.in>');
+  assert.equal(sent.reply_to, 'acme@reply.nodalx.in');
+  assert.deepEqual(sent.to, ['lead@example.com']);
+  assert.equal(savedMessageId, '<sent-rfc-id>');
+});
+
+test('missing managed alias fails before an outbound reservation', async () => {
+  let reserved = false;
+  await assert.rejects(sendInquiryEmail({workspaceId: 'workspace-a', inquiryId: 'inquiry-a',
+    body: {requestKey: 'request_123', subject: 'Hello', body: 'Message', confirmed: true}}, {
+    environment: {OUTBOUND_EMAIL_ENABLED: 'true', RESEND_API_KEY: 'test',
+      OUTBOUND_EMAIL_FROM: 'NodalX <reply@nodalx.in>', WORKSPACE_INBOUND_ENABLED: 'true',
+      WORKSPACE_INBOUND_RECEIVING_ENABLED: 'true', WORKSPACE_EMAIL_DOMAIN: 'reply.nodalx.in',
+      SUPABASE_URL: 'https://example.supabase.co', SUPABASE_SERVICE_ROLE_KEY: 'test'},
+    createClient: () => ({rpc() {reserved = true;}, from() {return {select() {return chain({name: 'Acme', email_alias: null});}};}}),
+  }), error => error.code === 'EMAIL_UNAVAILABLE');
+  assert.equal(reserved, false);
+});
 
 test('outbound email validation requires explicit confirmation and rejects header injection', () => {
   assert.throws(() => validateOutboundEmail({requestKey: 'request_123', subject: 'Hello', body: 'Message', confirmed: false}), /Review and confirm/);

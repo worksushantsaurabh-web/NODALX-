@@ -12,6 +12,7 @@ import { resolveDashboardTab, type DashboardTab } from './dashboardTabs';
 import type { Inquiry, InquirySource, QueueFilter, QueueSort, SourceSnapshot } from './inquiryDesk';
 import { useTheme } from '../contexts/ThemeContext';
 import { ModelAnalysisReview } from '../components/ModelAnalysisReview';
+import {InquiryEmailThread} from '../components/workspace/InquiryEmailThread';
 
 const PAGE_SIZE = 20;
 const control = 'inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-border-strong bg-surface px-4 py-2 text-sm font-medium text-text-primary transition-colors hover:bg-surface-hover disabled:cursor-not-allowed disabled:opacity-40';
@@ -26,7 +27,7 @@ const tabLabels: Array<{ id: DashboardTab; label: string; icon: React.ElementTyp
   { id: 'connectors', label: 'Imports & processing', icon: Inbox },
   { id: 'automation', label: 'Automation', icon: Repeat },
   { id: 'billing', label: 'Usage & billing', icon: CreditCard },
-  { id: 'settings', label: 'Qualification settings', icon: Settings2 },
+  { id: 'settings', label: 'Workspace settings & inbox', icon: Settings2 },
 ];
 
 function formatActivity(value: string) {
@@ -416,6 +417,7 @@ export default function Dashboard({ defaultTab = 'overview' }: { defaultTab?: st
                   <p className="text-xs leading-relaxed text-text-secondary">NodalX never sends automatically from urgency or fit score. A successful provider acceptance marks this inquiry Contacted; delivery or a reply is not guaranteed.</p>
                   {copyState?.key === selected.key && <p role={copyState.error ? 'alert' : 'status'} className={`text-sm leading-relaxed ${copyState.error ? 'border-l-2 border-border-strong pl-3 font-medium' : 'text-text-secondary'}`}>{copyState.error || copyState.message}</p>}
                   {emailState?.key === selected.key && <p role={emailState.error ? 'alert' : 'status'} className={`text-sm leading-relaxed ${emailState.error ? 'border-l-2 border-border-strong pl-3 font-medium' : 'text-text-secondary'}`}>{emailState.pending ? 'Sending email…' : emailState.error || emailState.message}</p>}
+                  {selected.source === 'backend' && <InquiryEmailThread key={selected.id} id={selected.id} />}
                 </div>
 
                 <div className="space-y-3 border-t border-border pt-5">
