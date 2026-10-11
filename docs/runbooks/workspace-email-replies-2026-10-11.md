@@ -33,9 +33,17 @@ messages idempotently through a service-only database function.
 ## Known limits
 
 - The reviewed migration is applied to live RDS `nodalx_app` (11 October 2026).
-  Resend domain `reply.nodalx.in` exists with receiving enabled, but DNS
-  verification, webhook delivery and real reply delivery remain unverified.
-  Managed sending remains off.
+  Resend verified all five Cloudflare DNS records for `reply.nodalx.in`; the
+  existing root mail route stayed intact. Protected Preview deployment
+  `dpl_B6HtAda83ZK3tvmw7jzpXLWLC6Bc` processed one labelled real inbound
+  message through a signed Resend webhook into the correct RDS workspace inbox.
+  Resend reported webhook success and replay left exactly one inbox row. The
+  temporary Preview webhook and access bypass were removed afterward, along
+  with the branch-scoped signing secret and receiving switch. Managed sending
+  remains off. A dashboard outbound message and its actual lead reply have
+  not been tested; Production application code has not been deployed.
+- An old alias has not been exercised with live mail because the only live
+  workspace has never changed its alias. SQL tests cover retention and routing.
 - Received messages are displayed as text. Attachments are not surfaced in
   the dashboard yet. The inbox has manual refresh rather than notifications.
 - A provider failure to return the sent RFC Message-ID leaves later replies

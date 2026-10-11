@@ -358,9 +358,13 @@ decisions stay separate and owned.
 - Verification: 176/176 SQL assertions on isolated RDS nodalx_test; 119 backend
   tests passed (5 opt-ins skipped); frontend build and secret scan passed.
   With owner approval, the alias migration was applied to live RDS nodalx_app:
-  one workspace has an alias, with zero inbound/outbound emails. Resend now
-  has reply.nodalx.in with receiving enabled but DNS verification pending.
-  DNS, webhook, protected Preview and real reply routing remain pending;
-  attachments and notifications remain outside the current implementation.
+  one workspace has an alias. Resend verified reply.nodalx.in sending and
+  receiving through five new subdomain DNS records. Protected Preview
+  dpl_B6HtAda83ZK3tvmw7jzpXLWLC6Bc processed one labelled real inbound
+  email through a signed webhook into the correct workspace inbox; replay
+  left exactly one row. The temporary Preview webhook and bypass were
+  removed, and its branch-scoped webhook secret and receiving switch removed.
+  No dashboard outbound/actual lead reply or old-alias live mail was tested.
+  Attachments and notifications remain outside the current implementation.
   Managed sending stays off, and Production Vercel is unchanged.
   See docs/runbooks/workspace-email-replies-2026-10-11.md.

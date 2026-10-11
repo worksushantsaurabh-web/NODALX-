@@ -1250,3 +1250,19 @@ the provider reports pending DNS verification. The existing root mail route
 was not changed and managed sending remains off. Re-ran 176/176 isolated RDS
 SQL assertions, 119 backend tests (5 Docker opt-ins skipped), and the frontend
 build. DNS, webhook, Preview, and real mail checks are still pending.
+
+Workspace email staged verification result — 11 October 2026: added the five
+Resend-issued DNS records only on the reply subdomain in Cloudflare. Resend
+reports all five verified with sending and receiving capabilities enabled;
+`dig` confirmed public MX, DKIM, SPF and CNAME answers. Preview
+`dpl_B6HtAda83ZK3tvmw7jzpXLWLC6Bc` loaded the RDS route and rejected an
+unsigned inbound POST. One labelled email from `support@nodalx.in` to the
+allocated workspace alias was accepted and received by Resend. Its signed
+`email.received` webhook succeeded and wrote one unlinked inbox row to the
+correct workspace in live RDS; replay kept the count at one. Removed the
+temporary Resend Preview webhook and temporary Vercel automation bypass,
+leaving the pre-existing bypass intact. Removed the branch-scoped webhook
+secret and receiving switch. Managed sending stayed off, Production Vercel
+code was not deployed, and no dashboard outbound/reply or old-alias live
+mail was tested. All 176 isolated RDS SQL assertions, 119 backend tests,
+frontend build, secret scan and diff checks passed before the staged test.
