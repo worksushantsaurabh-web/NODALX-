@@ -115,6 +115,16 @@ Email: Resend, nodalx.in verified; desk gate staged in Production scope
 ## KNOWLEDGE STATES
 
 **Independently observed (recorded in AGENTS.md):**
+- Public contact surfaces now use `support@nodalx.in`: footer contact link,
+  Terms, Privacy Policy and Changelog no longer publish a personal gmail
+  address. `support@nodalx.in` is the inbound/support address; the dashboard
+  lead reply is a separate path that sends to the lead's own stored address.
+- Dashboard reply sender (`e882db9`, committed, not deployed): uses the
+  operator's authenticated account address as `from` when it is on a domain
+  the provider can send as, otherwise keeps the NodalX sender with the
+  operator address in `reply_to`. The address comes from the verified session
+  identity, never the request body; lookalike domains and header-injection
+  shaped values are rejected.
 - Production smoke: liveness 200 with RDS header; the live browser inquiry
   form confirmed success and RDS stored its exact message in the owner
   workspace. Live API checks: 201 initial, 200 identical replay, 409 changed

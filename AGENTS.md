@@ -1203,3 +1203,23 @@ recipient-routing change was made. If the owner wants leads to receive mail
 credential, environment or database change; frontend build clean, desk tests
 12/12, secret scan 359 tracked files / 0, `git diff --check` clean. Nothing was
 deployed to Production by this entry.
+
+Operator-scoped email sender — 11 October 2026: dashboard replies previously
+always used the single configured `OUTBOUND_EMAIL_FROM`, so every lead saw the
+same sender regardless of who replied. `senderFor()` in
+`server/outbound-email.mjs` now uses the operator's authenticated account
+address as `from` when it belongs to a domain the provider can send as, and
+otherwise keeps the NodalX sender and sets the operator address in `reply_to`,
+because Resend only sends from domains verified in the account. The address is
+read from the verified Supabase session identity returned by `authorizeWorkspace`
+and is never accepted from the request body, so it cannot be forged; the
+workspace handler previously discarded that `user` object and now passes
+`user.email` through. The lead's own stored address remains the sole recipient,
+so no owner-directed routing was introduced. Tests cover same-domain sending,
+external-domain fallback, a lookalike domain (`attacker@nodalx.in.evil.com`)
+that must never be treated as sendable, and a header-injection shaped value
+that is rejected outright. Verification: 112 default backend tests (5 Docker
+opt-ins skipped), 156/156 SQL assertions, 6 NodalX packet/input tests, frontend
+build clean, secret scan 359 tracked files / 0, `git diff --check` clean.
+Committed as `e882db9`; NOT deployed. Live sending behavior is unchanged until
+this is promoted, and the labelled dashboard test remains the owner's action.
