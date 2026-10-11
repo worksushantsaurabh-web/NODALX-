@@ -55,7 +55,25 @@ async function finalize(admin, workspaceId, emailId, inquiryId, state, providerM
   databaseError(event.error);
 }
 
-export async function sendInquiryEmail({workspaceId, inquiryId, body}, options = {}) {
+// Providers only send from domains verified in the account, so an operator's
+// own address is used as the sender only when it belongs to a domain we can
+// send as. Otherwise the message is sent from the NodalX domain and the
+// operator's verified address is set as Reply-To, so replies still reach them.
+// The address always comes from the authenticated server-side identity, never
+// from the request body.
+export function senderFor(accountEmail, environment) {
+  const configured = environment.OUTBOUND_EMAIL_FROM;
+  const local = configured.replace(/^.*<([^>]+)>$/, '$1');
+  const configuredDomain = (local.split('@')[1] || '').toLowerCase();
+  const address = typeof accountEmail === 'string' ? accountEmail.trim().toLowerCase() : '';
+  if (!emailPattern.test(address)) return {from: configured, replyTo: null};
+  const domain = address.split('@')[1];
+  if (domain !== configuredDomain) return {from: configured, replyTo: address};
+  const displayName = (environment.OUTBOUND_EMAIL_DISPLAY_NAME || '').trim();
+  return {from: displayName ? `${displayName} <${address}>` : address, replyTo: address};
+}
+
+export async function sendInquiryEmail({workspaceId, inquiryId, body, accountEmail}, options = {}) {
   const environment = options.environment || process.env;
   requireConfiguration(environment);
   const input = validateOutboundEmail(body);
@@ -73,12 +91,14 @@ export async function sendInquiryEmail({workspaceId, inquiryId, body}, options =
   if (!prepared.created) return {sent: prepared.state === 'sent', replayed: true, state: prepared.state, id: prepared.id};
 
   let response;
+  const sender = senderFor(accountEmail, environment);
   try {
     response = await (options.fetch || fetch)('https://api.resend.com/emails', {
       method: 'POST',
       headers: {'Authorization': `Bearer ${environment.RESEND_API_KEY}`, 'Content-Type': 'application/json',
         'Idempotency-Key': `nodalx/${workspaceId}/${input.requestKey}`},
-      body: JSON.stringify({from: environment.OUTBOUND_EMAIL_FROM, to: [prepared.recipient], subject: prepared.subject, text: prepared.body}),
+      body: JSON.stringify({from: sender.from, to: [prepared.recipient], subject: prepared.subject, text: prepared.body,
+        ...(sender.replyTo ? {reply_to: sender.replyTo} : {})}),
       signal: AbortSignal.timeout(15000),
     });
   } catch {

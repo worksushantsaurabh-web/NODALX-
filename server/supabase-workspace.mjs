@@ -101,7 +101,7 @@ export async function receiveWorkspaceRequest(request, options = {}) {
       return receiveAccountRequest({...request, route: path === '/api/feedback' ? 'feedback' : 'profile'}, options);
     }
     if (path === '/api/health/live' && request.method === 'GET') return {status: 200, headers, body: {status: 'alive'}};
-    const {client, workspaceId} = await authorizeWorkspace(request.authorization, options);
+    const {client, workspaceId, user} = await authorizeWorkspace(request.authorization, options);
     for (const parameter of ['limit', 'cursor', 'days']) {
       if (url.searchParams.getAll(parameter).length > 1) throw failure(400, 'INVALID_INPUT', 'Repeated query parameter.');
     }
@@ -178,7 +178,8 @@ export async function receiveWorkspaceRequest(request, options = {}) {
       body = {emails: await listInquiryEmails(client, workspaceId, id)};
     } else if (/^\/api\/workspace\/inquiries\/[^/]+\/emails$/.test(path) && request.method === 'POST') {
       const id = decodedRecordId(path.split('/').at(-2));
-      body = await sendInquiryEmail({client, workspaceId, inquiryId: id, body: request.body}, options);
+      body = await sendInquiryEmail({client, workspaceId, inquiryId: id, body: request.body,
+        accountEmail: user?.email}, options);
     } else if (['/api/health/ready', '/api/health'].includes(path) && request.method === 'GET') {
       const processing = await client.rpc('processing_readiness');
       databaseError(processing.error);

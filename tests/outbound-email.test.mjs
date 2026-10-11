@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import {test} from 'node:test';
-import {sendInquiryEmail, validateOutboundEmail} from '../server/outbound-email.mjs';
+import {sendInquiryEmail, validateOutboundEmail, senderFor} from '../server/outbound-email.mjs';
 
 test('outbound email validation requires explicit confirmation and rejects header injection', () => {
   assert.throws(() => validateOutboundEmail({requestKey: 'request_123', subject: 'Hello', body: 'Message', confirmed: false}), /Review and confirm/);
@@ -42,6 +42,51 @@ test('outbound email uses stored recipient, provider idempotency and marks accep
   assert.deepEqual(JSON.parse(request.init.body).to, ['lead@example.com']);
   assert.equal(updates.some(update => update.table === 'inquiries' && update.value.status === 'Contacted'), true);
   assert.equal(updates.some(update => update.table === 'inquiry_events' && update.value.changes.emailSent === true), true);
+});
+
+test('sender uses the verified account address only on a sendable domain and always falls back safely', () => {
+  const environment = {OUTBOUND_EMAIL_FROM: 'NodalX <reply@nodalx.in>'};
+  // Same verified domain: send directly from the operator's own address.
+  assert.deepEqual(senderFor('sales@nodalx.in', environment), {from: 'sales@nodalx.in', replyTo: 'sales@nodalx.in'});
+  assert.deepEqual(senderFor('Sales@NodalX.in', {OUTBOUND_EMAIL_FROM: 'NodalX <reply@nodalx.in>', OUTBOUND_EMAIL_DISPLAY_NAME: 'NodalX'}),
+    {from: 'NodalX <sales@nodalx.in>', replyTo: 'sales@nodalx.in'});
+  // Unverified/foreign domain: providers cannot send as it, so keep the NodalX
+  // sender and route replies to the operator.
+  assert.deepEqual(senderFor('owner@gmail.com', environment), {from: 'NodalX <reply@nodalx.in>', replyTo: 'owner@gmail.com'});
+  // A lookalike domain must never be treated as sendable.
+  assert.deepEqual(senderFor('attacker@nodalx.in.evil.com', environment), {from: 'NodalX <reply@nodalx.in>', replyTo: 'attacker@nodalx.in.evil.com'});
+  // Missing or malformed identity keeps the configured sender with no reply-to.
+  assert.deepEqual(senderFor(undefined, environment), {from: 'NodalX <reply@nodalx.in>', replyTo: null});
+  assert.deepEqual(senderFor('not-an-email', environment), {from: 'NodalX <reply@nodalx.in>', replyTo: null});
+  assert.deepEqual(senderFor('a@b.com\r\nBcc: x@evil.com', environment), {from: 'NodalX <reply@nodalx.in>', replyTo: null});
+});
+
+test('outbound email prefers the operator address as sender and sets reply-to otherwise', async () => {
+  async function sentBody(accountEmail) {
+    let request;
+    await sendInquiryEmail({workspaceId: 'workspace-a', inquiryId: 'inquiry-a', accountEmail,
+      body: {requestKey: 'request_123', subject: 'Hello', body: 'Message', confirmed: true}}, {
+      environment: {OUTBOUND_EMAIL_ENABLED: 'true', RESEND_API_KEY: 'server-secret', OUTBOUND_EMAIL_FROM: 'NodalX <reply@nodalx.in>',
+        SUPABASE_URL: 'https://example.supabase.co', SUPABASE_SERVICE_ROLE_KEY: 'service-secret'},
+      createClient: () => ({rpc: async () => ({error: null, data: {created: true, id: 'mail-id', state: 'prepared',
+        recipient: 'lead@example.com', subject: 'Hello', body: 'Message'}}),
+        from(table) {
+          if (table === 'inquiries') return {select() {return chain({status: 'Qualified'});},
+            update() {return chain(null, false);}};
+          if (table === 'inquiry_events') return {insert() {return Promise.resolve({error: null});}};
+          return {update() {return chain({id: 'mail-id'});}};
+        }}),
+      fetch: async (url, init) => {request = {url, init}; return {ok: true, json: async () => ({id: 'provider-id'})};},
+    });
+    return JSON.parse(request.init.body);
+  }
+  const owned = await sentBody('sales@nodalx.in');
+  assert.equal(owned.from, 'sales@nodalx.in');
+  assert.equal(owned.reply_to, 'sales@nodalx.in');
+  const external = await sentBody('owner@gmail.com');
+  assert.equal(external.from, 'NodalX <reply@nodalx.in>');
+  assert.equal(external.reply_to, 'owner@gmail.com');
+  assert.deepEqual(external.to, ['lead@example.com'], 'the lead still receives the reply at their own address');
 });
 
 function chain(data, terminal = true) {
