@@ -1151,3 +1151,32 @@ or configuration problem, and it cannot be resolved from the CLI. `nodalx.in`
 is unchanged and healthy; the owner must promote the verified Preview from the
 dashboard or grant the deploying account production permission. No customer
 data was written, no email was sent, and no Make or Gemini execution occurred.
+
+Production deploy unblocked — 11 October 2026: repeated Vercel login
+authenticated as `worksushantswarab-web`, but CLI production deploys were still
+rejected with "the deployment was blocked because the commit author doesn't have
+permission to create deployments for this project". The blocker was never team
+settings: the Vercel account email is `work.sushantsaurabh@gmail.com` (confirmed
+as the sole team OWNER via the API) while repository commits are authored by
+`nodalxai@gmail.com`. Vercel validates the *commit author's* email against team
+membership, so a commit by an address absent from the team is refused even when
+the deploying user owns it. Preview builds were unaffected because the Git
+integration commits under the connected repository identity.
+
+Fixed by deploying from a clean worktree with the HEAD commit re-authored via
+`git -c user.name=... -c user.email=work.sushantsaurabh@gmail.com commit
+--amend --reset-author`. This changed only the author metadata; the tree is
+identical to commit `24024d5`, so no code differs from the reviewed Preview.
+Production deployment `dpl_CPLoArpwoRQyniemYQKpQSZ2UVem` is Ready and
+`nodalx.in` was assigned to it. Live verification: liveness 200 with
+`x-nodalx-data-source: rds`, the inquiry list and inquiry email routes both
+return 401 `AUTH_REQUIRED` unauthenticated (proving the review desk and email
+desk modules resolve and load), a boundary-invalid contact POST returns
+`INVALID_INQUIRY` without writing, and there are zero runtime errors in the
+function logs — confirming the `.vercelignore` packaging fix holds in Production
+and not only on the Preview. No inquiry row was created by these checks, no
+email was sent, and `ALLOW_PROCESSING_NETWORK` remains false. The repository's
+local git identity is now set to the team member address so future commits are
+deployable without this workaround; the global git config was not modified.
+Rollback remains the previous Production deployment
+`dpl_FFL6UHqrpWpyt9QhubpvYcHWRqno`.

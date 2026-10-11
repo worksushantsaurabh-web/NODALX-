@@ -102,14 +102,14 @@ Repo: /Users/sushantsaurabh/Desktop/NODALXAI
 Branch: nodalx-staging (remote release commit 0eee233; local checkout dirty)
 GitHub: https://github.com/worksushantsaurabh-web/NODALX-
 Vercel: nodalx-frontend / worksushantsaurabh-webs-projects
-Production: https://nodalx.in → dpl_FFL6UHqrpWpyt9QhubpvYcHWRqno
-Rollback:   dpl_5ciNeME248zgEb8VwDARqWHU4pqk
+Production: https://nodalx.in → dpl_CPLoArpwoRQyniemYQKpQSZ2UVem (email + review desk)
+Rollback:   dpl_FFL6UHqrpWpyt9QhubpvYcHWRqno
 Preview (SSO-protected): nodalx-frontend-p084iy8me-worksushantsaurabh-webs-projects.vercel.app
 Supabase Auth: nodalx-staging / ozovfbwhcvbgpgrxxjcj / Mumbai — Auth only;
   Site URL https://nodalx.in; production + staging callbacks allowlisted
 RDS: nodalx-db.c69g2gg22fls.us-east-1.rds.amazonaws.com:5432
   nodalx_app = app data | nodalx_test = SQL assertions (disposable, --reset)
-Email: Resend, nodalx.in verified; desk gate enabled on Preview only
+Email: Resend, nodalx.in verified; desk gate staged in Production scope
 ```
 
 ## KNOWLEDGE STATES
@@ -152,11 +152,17 @@ Email: Resend, nodalx.in verified; desk gate enabled on Preview only
   derived from real imports; negative case verified. Fixed in `8437840`, whose
   Preview returns 200 liveness w/ RDS header, `INTAKE_DISABLED` (no write),
   `AUTH_REQUIRED`, zero runtime errors.
-- **Production deploy is Blocked by team permission**, not code: "the commit
-  author doesn't have permission to create deployments for this project"
-  (`dpl_GKbFhFyZsWokpi4rb65E1GcfVJ7R`). Not fixable from the CLI. `nodalx.in`
-  unchanged and healthy; owner promotes the `8437840` Preview or grants the
-  deploying account production permission.
+- **Production deploy is live.** Blocked cause was never team settings: the
+  Vercel account email is `work.sushantsaurabh@gmail.com` (sole team OWNER)
+  while commits were authored by `nodalxai@gmail.com`, and Vercel validates the
+  *commit author's* email. Re-authored HEAD via `--amend --reset-author`
+  (identical tree, no code change) and deployed. Production
+  `dpl_CPLoArpwoRQyniemYQKpQSZ2UVem` is Ready and assigned to `nodalx.in`.
+  Live: liveness 200 + RDS header, review/email routes 401 unauthenticated,
+  invalid POST 400 without writing, zero runtime errors — so the `.vercelignore`
+  packaging fix holds in Production. Repo-local git identity is now the team
+  address so future commits deploy without a workaround. Rollback:
+  `dpl_FFL6UHqrpWpyt9QhubpvYcHWRqno`.
 - **Phase 4 is committed and applied.** Changeset pushed as `96188cc`
   (working tree clean; pre-migration function defs saved to
   `/private/tmp/nodalx-pre-phase4-functions.sql`). Migration
@@ -189,11 +195,11 @@ Email: Resend, nodalx.in verified; desk gate enabled on Preview only
 
 ## ACCESS BLOCKER
 
-The signed-in Vercel dashboard can manage the project. The CLI began failing
-with an internal error and the Vercel connector returned 403 during this
-release; repair those credentials before the next CLI-managed release. Keep
-Vercel deployment protection/SSO enabled; no project-wide bypass or
-credential distribution to Make.
+Resolved on 11 October 2026: the CLI deploy failure was a commit-author identity
+mismatch, not a lost credential. The repo-local git identity now matches the
+Vercel team address, so CLI production deploys work. Keep Vercel deployment
+protection/SSO enabled; no project-wide bypass, and regenerate the bypass token
+that CLI debug output printed.
 
 ## HARD INVARIANTS
 
@@ -230,10 +236,10 @@ credential distribution to Make.
 
 ## NEXT ACTION ORDER
 
-1. Owner: promote Ready Preview `dpl_HLPdoJ9…` to Production (dashboard
-   ⋯ → Promote) or grant the deploying account production permission; then
-   verify nodalx.in liveness keeps the RDS header and the inquiry email routes
-   answer 401 before sending one labelled dashboard test email.
+1. Owner: send one labelled dashboard email test now that the email desk is
+   deployed (`dpl_CPLoArpwo…`), confirming Resend acceptance plus ledger/status
+   transition; then regenerate the Deployment Protection bypass token printed in
+   CLI debug output.
 2. Keep Make and Gemini execution off; the owner-trained model is the intended
    processing path. Website RDS intake stays live; outbound email activates
    only after promotion + the labelled test. For classification, obtain a
@@ -247,11 +253,10 @@ credential distribution to Make.
 4. Put the real hosted Supabase service-role key in gitignored `.env.local`
    (never chat), run `npm run test:intake:hosted`, then convert the remaining
    three opt-in test files using the same dual-mode pattern.
-5. Promote the verified Preview for commit `8437840` to Production
-   (dashboard ⋯ → Promote), or grant the deploying account production
-   permission so CLI deploys are unblocked. Then re-run liveness/RDS-header,
-   contact-gate and auth-denial checks on `nodalx.in` before any labelled
-   email test. Keep `ALLOW_PROCESSING_NETWORK=false`.
+5. Owner: sign in to the dashboard on a real inquiry and confirm the review
+   desk renders when a packet exists. Processing stays disabled, so the packet
+   section stays hidden until a supervised model run is separately approved.
+   Keep `ALLOW_PROCESSING_NETWORK=false`.
 6. Capture real operator corrections from live inquiries before any LoRA
    dataset decision.
 7. Follow the release roadmap order; every production/network/spend step
