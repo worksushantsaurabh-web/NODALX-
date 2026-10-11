@@ -1180,3 +1180,26 @@ local git identity is now set to the team member address so future commits are
 deployable without this workaround; the global git config was not modified.
 Rollback remains the previous Production deployment
 `dpl_FFL6UHqrpWpyt9QhubpvYcHWRqno`.
+
+Public contact address cleanup — 11 October 2026: removed
+`nodalxai@gmail.com` from every customer-facing surface and replaced it with
+`support@nodalx.in`: the footer contact link, `Terms.tsx`, `PrivacyPolicy.tsx`
+and `Changelog.tsx` all published a personal address that should not have been
+shipped. The footer already displayed `support@nodalx.in` as the primary
+contact, so this makes the remaining surfaces consistent. The gitignored
+`_archive/` legacy copy was corrected too. Two deliberate references remain in
+the memory log: `AGENTS.md` records the commit-author identity that caused the
+Vercel deploy block, and `docs/LLM-MIND.md` records the same fact; both are
+historical evidence, not user-facing contact info.
+
+Clarified a routing misconception while making this change: `support@nodalx.in`
+is the inbound/support address (footer, legal pages, feedback widget), while
+the dashboard lead reply is a separate path that sends *from*
+`OUTBOUND_EMAIL_FROM` *to* the lead's own stored address
+(`prepared.recipient`). The lead reply has never sent to the owner, so no
+recipient-routing change was made. If the owner wants leads to receive mail
+*from* `support@nodalx.in` instead of `reply@nodalx.in`, that is a Production
+`OUTBOUND_EMAIL_FROM` change and a separate approval. No sending behavior,
+credential, environment or database change; frontend build clean, desk tests
+12/12, secret scan 359 tracked files / 0, `git diff --check` clean. Nothing was
+deployed to Production by this entry.
