@@ -10,8 +10,11 @@
     "api/send-email.mjs": { "maxDuration": 30 },
     "api/resend-inbound.mjs": { "maxDuration": 30 }
   },
+  "routes": [
+    { "src": "/api/(.*)", "dest": "https://api-staging.nodalx.in/api/$1" }
+  ],
   "rewrites": [
-    { "source": "/api/:path((?!contact(?:/|$)|intake(?:/|$)|migration(?:/|$)|automation(?:/|$)|send-email(?:/|$)|resend-inbound(?:/|$)).*)", "destination": "/api/migration?path=:path*" },
+    { "source": "/api/:path*", "destination": "https://api-staging.nodalx.in/api/:path*" },
     { "source": "/:path((?!api(?:/|$)).*)", "destination": "/index.html" }
   ],
   "headers": [

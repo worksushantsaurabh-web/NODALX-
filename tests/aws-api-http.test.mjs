@@ -1,15 +1,32 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {once} from 'node:events';
+import {createHmac} from 'node:crypto';
 import {createAwsApiServer} from '../server/aws-api-http.mjs';
 
-async function withServer(run) {
-  const server = createAwsApiServer();
+async function withServer(run, options) {
+  const server = createAwsApiServer({logger: {info() {}, error() {}}, ...options});
   server.listen(0, '127.0.0.1');
   await once(server, 'listening');
   try { await run(`http://127.0.0.1:${server.address().port}`); }
   finally { await new Promise((resolve, reject) => server.close(error => error ? reject(error) : resolve())); }
 }
+
+test('AWS access log correlates a response without recording query strings or credentials', async () => {
+  const entries = [];
+  await withServer(async origin => {
+    const result = await fetch(`${origin}/api/workspace/overview?secret=do-not-log`, {
+      headers: {Authorization: 'Bearer do-not-log'},
+    });
+    assert.equal(result.status, 503);
+    assert.equal(entries.length, 1);
+    assert.deepEqual(entries[0], {
+      method: 'GET', route: '/api/workspace/*', status: 503,
+      requestId: result.headers.get('x-request-id'),
+    });
+    assert.ok(!JSON.stringify(entries).includes('do-not-log'));
+  }, {logger: {info(_message, fields) { entries.push(fields); }, error() {}}});
+});
 
 test('AWS adapter preserves catch-all and direct route behavior without credentials', async () => {
   await withServer(async origin => {
@@ -73,6 +90,41 @@ test('AWS adapter dispatches every dedicated route with its existing failure gat
     for (const [key, value] of Object.entries(old)) {
       if (value === undefined) delete process.env[key];
       else process.env[key] = value;
+    }
+  }
+});
+
+test('AWS adapter preserves signed raw webhook bytes and rejects missing, forged and expired signatures', async () => {
+  const values = {WORKSPACE_INBOUND_RECEIVING_ENABLED: 'true',
+    WORKSPACE_EMAIL_DOMAIN: 'reply.nodalx.in', RESEND_API_KEY: 're_synthetic_stage6c',
+    RESEND_WEBHOOK_SECRET: `whsec_${Buffer.from('synthetic-stage6c-key').toString('base64')}`};
+  const previous = Object.fromEntries(Object.keys(values).map(key => [key, process.env[key]]));
+  Object.assign(process.env, values);
+  const payload = '{\n  "type": "stage6c.ignored", "data": {}\n}\n';
+  const id = 'msg_stage6c_synthetic';
+  const timestamp = String(Math.floor(Date.now() / 1000));
+  const signature = time => `v1,${createHmac('sha256', Buffer.from('synthetic-stage6c-key'))
+    .update(`${id}.${time}.${payload}`).digest('base64')}`;
+  try {
+    await withServer(async origin => {
+      const send = headers => fetch(`${origin}/api/resend-inbound`, {method: 'POST',
+        headers: {'content-type': 'application/json', ...headers}, body: payload});
+      const valid = await send({'svix-id': id, 'svix-timestamp': timestamp,
+        'svix-signature': signature(timestamp)});
+      assert.equal(valid.status, 200);
+      assert.deepEqual(await valid.json(), {accepted: false});
+      const expired = String(Number(timestamp) - 600);
+      for (const headers of [{}, {'svix-id': id, 'svix-timestamp': timestamp,
+        'svix-signature': 'v1,Zm9yZ2Vk'}, {'svix-id': id, 'svix-timestamp': expired,
+        'svix-signature': signature(expired)}]) {
+        const result = await send(headers);
+        assert.equal(result.status, 401);
+        assert.deepEqual(await result.json(), {code: 'INVALID_WEBHOOK'});
+      }
+    });
+  } finally {
+    for (const [key, value] of Object.entries(previous)) {
+      if (value === undefined) delete process.env[key]; else process.env[key] = value;
     }
   }
 });

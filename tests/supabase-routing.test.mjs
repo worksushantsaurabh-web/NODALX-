@@ -36,12 +36,19 @@ test('the root deployment bundles Supabase handlers instead of proxying suspende
   const config = JSON.parse(readFileSync(new URL('../vercel.json', import.meta.url), 'utf8'));
   assert.equal(existsSync(new URL('../frontend/vercel.json', import.meta.url)), false);
   assert.equal(config.rewrites.some(rule => rule.destination.includes('firebase') || rule.destination.includes('web.app')), false);
-  assert.equal(config.rewrites[0].destination, '/api/migration?path=:path*');
+  // Staging cutover routing: an ordered route ahead of filesystem matching sends
+  // all /api/* to the AWS staging API; the rewrite is the fallback for the same
+  // destination. Physical Vercel function files still exist, so an unordered
+  // rewrite alone would lose the race and serve Vercel handlers instead of AWS.
+  const route = config.routes?.[0];
+  assert.ok(route, 'ordered /api route to the AWS staging API is required');
+  assert.match(route.src, /^\/api\//);
+  assert.equal(route.dest, 'https://api-staging.nodalx.in/api/$1');
+  assert.equal(config.rewrites[0].destination, 'https://api-staging.nodalx.in/api/:path*');
   assert.equal(config.functions['api/contact.mjs'].maxDuration, 60);
   assert.match(config.installCommand, /npm ci --omit=dev/);
   assert.match(config.installCommand, /frontend ci --include=dev/);
   const allowlist = readFileSync(new URL('../.vercelignore', import.meta.url), 'utf8').split('\n');
-  assert.match(config.rewrites[0].source, /automation/);
   for (const file of ['api/migration.mjs', 'api/automation.mjs', 'server/make-processing.mjs', 'server/processing-daemon.mjs', 'server/processing-worker.mjs', 'server/gemini-processor.mjs', 'server/supabase-account.mjs', 'server/rds-client.mjs', 'server/supabase-workspace.mjs', 'server/outbound-email.mjs', 'certs/rds-us-east-1-bundle.pem', 'package-lock.json']) {
     assert.ok(allowlist.includes(`!${file}`));
   }

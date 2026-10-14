@@ -55,22 +55,27 @@ test('AWS template is explicitly intake-only with secret references and stage th
   assert.equal(template.Resources.ContactLogs.Properties.RetentionInDays, 14);
 });
 
-test('Vercel rewrites reserve contact for the local function and do not rewrite unknown API routes to HTML', async () => {
+test('Vercel routing sends every API path to the AWS staging API and never serves HTML for API routes', async () => {
   const configuration = JSON.parse(await readFile(new URL('../vercel.json', import.meta.url), 'utf8'));
-  assert.ok(configuration.rewrites[0].source.includes('(?!contact'));
+  // Cutover routing: the ordered route ahead of filesystem matching intercepts
+  // every /api/* path (physical functions like contact would otherwise win),
+  // and the rewrite fallback targets the same AWS staging origin.
+  const ordered = configuration.routes?.[0];
+  assert.ok(ordered, 'ordered /api route to the AWS staging API is required');
+  assert.match(ordered.src, /^\/api\//);
+  assert.equal(ordered.dest, 'https://api-staging.nodalx.in/api/$1');
+  assert.equal(configuration.rewrites[0].source, '/api/:path*');
+  assert.equal(configuration.rewrites[0].destination, 'https://api-staging.nodalx.in/api/:path*');
+  // The SPA fallback must never shadow or intercept API paths.
   assert.ok(configuration.rewrites[1].source.includes('(?!api'));
-  const legacyApi = new RegExp(`^/api/${configuration.rewrites[0].source.slice('/api/:path('.length, -1)}$`);
+  const api = new RegExp('^' + configuration.routes[0].src + '$');
   const spa = new RegExp(`^/${configuration.rewrites[1].source.slice('/:path('.length, -1)}$`);
-  for (const path of ['/api/contact', '/api/contact/nested']) {
-    assert.equal(legacyApi.test(path), false);
-    assert.equal(spa.test(path), false);
-  }
-  for (const path of ['/api/health/live', '/api/workspace/inquiries']) {
-    assert.equal(legacyApi.test(path), true);
+  for (const path of ['/api/contact', '/api/contact/nested', '/api/health/live', '/api/workspace/inquiries']) {
+    assert.equal(api.test(path), true);
     assert.equal(spa.test(path), false);
   }
   for (const path of ['/', '/dashboard', '/contact', '/application']) {
-    assert.equal(legacyApi.test(path), false);
+    assert.equal(api.test(path), false);
     assert.equal(spa.test(path), true);
   }
 });

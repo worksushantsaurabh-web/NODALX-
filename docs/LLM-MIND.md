@@ -6,7 +6,7 @@
 > Make is optional (historical mandatory-Make sequence below). **Update this
 > file and `AGENTS.md` after every passed/successful implementation.**
 
-Updated: 11 October 2026. `AGENTS.md` holds authoritative rules and the dated
+Updated: 14 October 2026. `AGENTS.md` holds authoritative rules and the dated
 implementation log. Phase table: `docs/runbooks/ide-handoff-current-2026-10-07.md`.
 Ordered work: `docs/runbooks/release-roadmap-2026-10-07.md`.
 
@@ -18,18 +18,97 @@ automation. No guaranteed revenue, fabricated insight or autonomous sending clai
 
 ## CURRENT TASK
 
-Current AWS security migration: prepare an AWS API in the RDS VPC, verify it
-in parallel, then move Vercel same-origin API routing and close public RDS
-5432 only after live traffic passes. The AWS account currently has $180 in
-eligible credits expiring 2 October 2027 and two $1 monthly budgets. The CLI
-console-login profile authenticates as root; create a non-root deployment
-identity before provisioning. RDS is still public with 5432 open from
-`0.0.0.0/0`. `server/aws-api-http.mjs` and `scripts/start-aws-api.mjs` are local
-preparation only; no AWS API has been deployed. The adapter preserves raw
-Resend webhook bodies and binds only to loopback. A strict 27-file API package
-is prepared with `npm run build:aws-api`. Full backend suite passed
-133/133 with five Docker opt-ins skipped; frontend build and secret scan pass.
-See `docs/runbooks/aws-api-private-rds-cutover-2026-10-11.md`.
+Current AWS security migration: Phases 0–5 are complete. Phase 6 has a protected
+Vercel Preview (`dpl_D2YRaNZp1dP8RxYKJrfP9DJgr98T`) routing `/api/*` to the
+staging AWS API via an ordered route in `vercel.json`; plain rewrites alone let
+existing Vercel API functions win. Health returned 200 with RDS/Caddy headers,
+unauthenticated profile and workspace requests returned 401 via Caddy, and
+contact remained disabled (503). The Preview bundle uses
+`VITE_API_BASE_URL=same-origin`. On 14 October, the owner signed in and an
+authenticated overview response ID `ce3dad2b-5f13-40ab-8ec0-dc037d056cf1`
+matched the AWS EC2 API journal (`GET /api/workspace/*`, 200). Authenticated
+overview, inquiries, usage, email identity, inbox and settings returned 200
+through Caddy/RDS. The privacy-safe API access log runs in staging release
+`86d01c6e758e06949b538214ba1debb94eefb0545f55bdcca91277651f0f4cb8`;
+previous release `04f26e63754961462d69580b45e153cd28c853ddfe9130699becfd4eecbff6f2`
+is retained. The local intake suite passed 137 tests with five optional skips.
+Stage 6C owner-approved synthetic intake passed via protected Preview:
+201 created, 200 identical replay with one ID, 409 changed-body conflict;
+RDS exact original and owner UI one row; owner RLS one and unrelated user
+zero. Exact test row was removed, staged source disabled/count reset to zero,
+and owner UI returned to zero. AWS intake gates were restored off in secret
+version `bc32f6c375c6f35b7705297efdb53aa7`; staging contact is again 503.
+Controlled support and reviewed outbound tests passed with Resend acceptance;
+their exact synthetic rows were removed. Current secret is
+`e92ad26290d034a9107f572f9806c0cf`, intake/support/outbound gates off.
+Local real-Svix adapter testing verifies unchanged raw bytes and missing,
+forged and expired signature rejection. Preview candidate redeploy and full
+route checks remain. Caddy overwrites X-Forwarded-For with its peer address;
+through Vercel this groups users by proxy IP in the support rate limiter.
+Review that behavior before claiming the client-IP parity gate passes.
+RDS remains publicly accessible and
+`nodalx.in` still uses Vercel API functions. No CloudFront distribution exists;
+AWS Support case `179179095800228` awaits account verification. See
+`docs/runbooks/aws-api-migration-phases-2026-10-11.md`.
+
+Next execution order is now explicit in that runbook: 6A inventory live routes
+and config, 6B make AWS feature and DB-login parity, 6C full protected Preview
+E2E with authenticated trace, 6D rollback/backup/alarm preflight, 6E Production
+cutover, 7A remove public RDS ingress, 7B set RDS private, then 8 operate.
+Current AWS staging gates would cause Production feature outages if promoted
+as-is. No Production cutover or database closure has occurred.
+
+Stage 6A was executed read-only on 12 October. The phase runbook holds the exact
+Production/Preview deployment IDs, operator and EC2 release, RDS public SG
+rules, and route/feature matrix. Production contact and support email are live;
+outbound email is enabled. AWS staging secret has only RDS/Auth keys, so these
+three paths block Production cutover. Inbound receiving, Make intake and
+processing remain disabled. Next is Stage 6B feature parity, then protected
+Preview authenticated/write verification. This Stage 6A record predates the
+13 October credential-exposure incident described below.
+
+Stage 6B is in progress. A disposable `nodalx_test` login rehearsal passed and
+was cleaned up. Dedicated login `nodalx_api_d056879d5d5484` is staged in the
+AWS API rollback secret version `b6a405d8-5727-4fbe-8cb9-b65da292bc39`; it has no
+direct workspace read, only explicit `SET ROLE` paths. The API restarted and
+settled healthy through loopback and public Caddy HTTPS. On 14 October, a new
+restricted login, disabled independent website binding and domain-scoped
+sending-only Resend key were stored in AWSCURRENT staging secret version
+`567631cc-08f9-4fa5-a362-8e0323b0e2ce`. On-host checks confirmed the
+feature gates are off and the sending key cannot list API keys (403).
+Staging health is 200; disabled contact/support remain 503. Production routing
+remains blocked pending value-safe support settings and Stage 6C verification.
+Routing tests were realigned to the cutover routing on 14 October:
+`tests/supabase-routing.test.mjs` and `tests/aws-contact.test.mjs` now assert the
+ordered `/api/(.*)` route and `/api/:path*` rewrite both target the AWS staging
+origin (they previously asserted the retired Vercel-function routing).
+An on-host value-safe parity check (`aws/check-staging-config-parity.mjs`, SSM,
+key names and match outcomes only) on 14 October found `SUPPORT_EMAIL_TO` and
+`SUPPORT_EMAIL_FROM` MISSING from staging secret version
+`567631cc-08f9-4fa5-a362-8e0323b0e2ce`; both values are public configuration in
+`.env.example` and must be staged before `SUPPORT_EMAIL_ENABLED` turns on. All
+intake/email gates confirmed OFF on host. Verification: intake 136/136
+(5 opt-ins skipped), SQL 176/176 on `nodalx_test`, frontend build clean, secret
+scan 394/0, `git diff --check` clean.
+An on-host query with the staged secret confirmed the new login connected to
+RDS private address `172.31.82.70` with TLS enabled.
+Owner-authorized Stage 6B Step 1 on 14 October added the two missing support
+addresses to AWS staging secret version `dfaafdf39fd369b9fe4af79199ffca48`
+(`567631cc-08f9-4fa5-a362-8e0323b0e2ce` is AWSPREVIOUS) using an encrypted,
+in-memory SSM relay. Value-safe on-host checks matched both support addresses,
+outbound sender and domain; all six intake/email/processing gates stayed off.
+SSM restart settled active; staging HTTPS health was 200/RDS and gated contact,
+support and inbound webhook routes were 503. Production stayed on Vercel.
+The intake suite passed 136 tests with five opt-ins skipped; tracked secret
+scan and diff check were clean. Step 2 requires `RDS_INTAKE_ENABLED=true` in
+addition to the supplied intake flags. Protected Preview acceptance, stable
+Production origin decision, and Production cutover remain pending.
+An existing local full-access Resend key was accidentally printed in a tool
+result on 13 October. Treat it as compromised; identify its Production/Auth
+dependencies and rotate it. Its use timestamp points to the separate
+`resend-email-copper-bell` key, but Vercel's hidden key value cannot be directly
+compared. Never copy that key to AWS or revoke it before Production replacement.
+The Supabase Auth key is separately named; do not revoke it. No key is in tracked code.
 
 Phased execution is tracked in
 `docs/runbooks/aws-api-migration-phases-2026-10-11.md`. Phases 0–5 are complete:
@@ -39,8 +118,8 @@ provisioned via CloudFormation stack `nodalx-api-staging` with private RDS ingre
 staging API & Caddy installed with Let's Encrypt TLS on `api-staging.nodalx.in`;
 Phase 5 E2E verified with live direct intake (201 created, 200 idempotent replay,
 409 conflict), Svix webhook signature rejection (401), and full data cleanup to
-0 inquiries. Staging host is restored to safe defaults. Phase 6 (Vercel same-origin
-rewrite) is the next milestone.
+0 inquiries. Staging host is restored to safe defaults. Phase 6 Preview is
+deployed and owner-tested; authenticated trace and Production are pending.
 
 Historical roadmap context follows; its deployment identifiers and immediate
 engineering state may be superseded by later entries in `AGENTS.md`.
@@ -580,3 +659,49 @@ to 0); Secrets Manager staging config was restored to safe disabled defaults,
 and `nodalx-api` restarted via SSM. Full backend suite passed 136/136 tests (5
 Docker opt-ins skipped); secret scan clean (368 files). Phase 6 is next: Vercel
 same-origin API rewrite cutover.
+
+Staging performance follow-up on 12 October: direct Mac-to-us-east-1 health
+timing was about 240 ms TCP connect, 489 ms through TLS and 733 ms total;
+second request on one connection took about 248 ms. OpenSSL TLS 1.2 reconnect
+showed five `Reused` sessions, so Caddy session resumption already works.
+Prepared and CloudFormation-validated `aws/api-staging-cloudfront.yaml` with
+PriceClass 200 (India included), HTTPS origin, five-second edge caching only
+for exact `/api/health/live`, and caching disabled with viewer auth/cookies/
+query forwarding for other routes. Owner approved a staging benchmark; the
+root CLI session must be refreshed to attach the temporary, MFA-conditioned
+`aws/iam-staging-edge-temporary.json` policy to the operator. No CloudFront
+stack or DNS/Vercel routing change has occurred yet. Cached liveness can hide
+an outage for up to five seconds; live user traffic should not use this edge
+before authenticated parity and client-IP handling are verified.
+
+The root session was refreshed and verified. Operator executed the reviewed
+two-resource CloudFront staging change set, but AWS rejected creation of the
+distribution with HTTP 403: account verification is required before adding
+new CloudFront resources. CloudFormation reached ROLLBACK_COMPLETE. Root
+verified no staging distribution and no custom health cache policy remained,
+then detached and deleted the temporary operator policy. The rollback stack
+record remains as an audit artifact. No CloudFront edge exists or can be
+benchmarked until AWS Support verifies the account. Live DNS, Caddy, Vercel
+and RDS access were unchanged by this attempt.
+
+After explicit owner authorization, AWS Support case `179179095800228` was
+submitted via the signed-in web console on 12 October 2026 under Account and
+billing / Account / Other Account Issues. Subject: “CloudFront account
+verification required to create distribution.” It contains the 403 error and
+CloudFront request ID, with no credentials or app data. Case status was
+Unassigned immediately after submission. Wait for AWS to verify the account
+before retrying CloudFront creation; direct staging Caddy remains live.
+
+Stage 6C email checkpoint, 14 October 2026: with separate owner approvals,
+the protected Preview sent one labelled support test and one reviewed Inquiry
+Desk reply, both to `support@nodalx.in`. Support guards rejected invalid
+Origin and client-selected recipient/HTML; the valid send returned Resend
+acceptance ID `01a139e9-bde3-72f7-9ff8-e17c3f8340e9`. The outbound inquiry
+`3e9daeb1-f46c-4735-a86e-ca62904afbf4` reached Contacted; RDS confirmed
+one sent ledger row with provider ID/timestamp and one status event. Exact
+test inquiry, ledger and event were deleted; source
+`815f0b76-3050-4337-884f-504345ea12be` is disabled/count zero. Current
+staging Secrets Manager version `e92ad26290d034a9107f572f9806c0cf` has
+intake, support and outbound gates off; health 200 Caddy/RDS, contact 503.
+Provider acceptance is confirmed; inbox delivery is not. Preview redeploy,
+webhook/route matrix and Stage 6D operations checks remain before Production.

@@ -48,6 +48,15 @@ export function createAwsApiServer({logger = console} = {}) {
     let path;
     try { path = new URL(request.url, 'http://localhost').pathname; }
     catch { return json(response, 400, {code: 'INVALID_PATH'}); }
+    const route = routes.has(path) ? path :
+      path.startsWith('/api/workspace/') ? '/api/workspace/*' : '/api/*';
+    response.once('finish', () => {
+      const requestId = response.getHeader('X-Request-ID');
+      logger.info?.('AWS API access', {
+        method: request.method, route, status: response.statusCode,
+        ...(typeof requestId === 'string' ? {requestId} : {}),
+      });
+    });
     if (!path.startsWith('/api/')) return json(response, 404, {code: 'NOT_FOUND'});
     const handler = routes.get(path) || migration;
     if (handler !== resendInbound) {
