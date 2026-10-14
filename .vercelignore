@@ -8,6 +8,7 @@
 !api/automation.mjs
 !api/feedback.mjs
 !api/send-email.mjs
+!api/support-proxy.mjs
 !api/resend-inbound.mjs
 !api/user
 !api/user/profile.mjs
@@ -18,6 +19,7 @@
 !server/rds-client.mjs
 !server/supabase-workspace.mjs
 !server/outbound-email.mjs
+!server/support-proxy-auth.mjs
 !server/inbound-email.mjs
 !server/make-processing.mjs
 !server/processing-daemon.mjs

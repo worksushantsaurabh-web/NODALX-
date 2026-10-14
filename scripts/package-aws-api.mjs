@@ -16,6 +16,7 @@ const files = [
   'server/intake-router.mjs', 'server/make-processing.mjs',
   'server/nodalx-v3-input.mjs', 'server/nodalx-v3-result.mjs',
   'server/outbound-email.mjs', 'server/processing-daemon.mjs',
+  'server/support-proxy-auth.mjs',
   'server/processing-worker.mjs', 'server/rds-client.mjs',
   'server/supabase-account.mjs', 'server/supabase-workspace.mjs',
 ];

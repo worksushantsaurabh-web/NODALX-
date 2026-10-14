@@ -1726,3 +1726,51 @@ NRestarts=0 and no unhandled API failures in the prior hour. Live Caddy config
 sets X-Forwarded-For to remote_host, which is a Vercel proxy for Preview calls;
 support's IP rate limiter therefore groups callers by proxy. Do not mark
 client-IP parity green or trust arbitrary forwarding headers to fix it.
+
+Stage 6C candidate deployed (14 October 2026): commit `8c7d1db` under
+`work.sushantsaurabh@gmail.com` produced protected Preview
+`dpl_FspG96XzJDDvT7rHwqK2wgDM7k1T` (Ready, 40 seconds). Owner signed in.
+Overview response `e7c056fd-ea31-4a77-b01f-fbf5616d57bd` returned 200
+Caddy/RDS and independently matched EC2's journal. Measured overview response
+headers ~980 ms; existing Preview route samples ~264–660 ms, with a new-build
+health cold sample ~889 ms. These are samples, not a load/SLO test. Restricted
+login query confirmed private `172.31.82.70`, TLS and one app connection at
+that instant. All seven staging feature gates false; cleanup reverified.
+Prepared signed support proxy (HMAC-SHA256 binds client IP, POST support path,
+timestamp and JSON body; 60-second window, constant-time comparison), with
+four passing proxy tests and local no-email rate-limit isolation. Updated
+both packaging allowlists (AWS now 30 files) and added import-graph regression.
+Owner explicitly approved staging signing-key writes, proxy deployment and
+temporary support activation for invalid/no-send verification. Vercel CLI
+reports invalid token; owner login refresh is required before secure stdin
+key installation. Proxy changes are local and not yet released. Gate/source
+remain off; current secret `e92ad26290d034a9107f572f9806c0cf`.
+
+Stage 6C proxy preparation checkpoint (14 October 2026): owner approved the
+staging fix. AWS 30-file release
+`3eb50bec23f79acd698cbddd3de9b753cff101d941cb695417688993144e4753`
+was checksum-verified and installed via SSM command
+`2421b712-d151-4649-a3ba-71fef3db0f3c`; 28 production dependencies installed
+with scripts disabled. Restart settled healthy; public staging health 200.
+Previous `86d01c6e758e06949b538214ba1debb94eefb0545f55bdcca91277651f0f4cb8`
+release remains. Signing key has NOT been written and support gate remains off.
+Proxy frontend/routing changes remain local, pending Vercel login refresh.
+Full backend suite now 143 passed/five skips; packaging import closure passed.
+On candidate `dpl_FspG96XzJDDvT7rHwqK2wgDM7k1T`, authenticated profile,
+inquiries (limit query), jobs, usage, plans, settings, email identity and inbox
+all returned 200 through Caddy (workspace routes RDS header). Invalid contact
+JSON/content type returned 400, webhook GET 405 and oversized raw body 413.
+Usage had one 4.3-second latency sample; no performance SLO is established.
+Last CLI check explicitly reports logged out. Pending owner action:
+`vercel login`, then approved support-proxy-stage key install, Preview deploy,
+no-send live rate checks and safe support-disable. Do not repeat real emails.
+
+Stage 6C signing key configured (14 October 2026): Vercel login verified as
+`worksushantsaurabh-web`. Owner-approved `support-proxy-stage` installed
+`SUPPORT_PROXY_SIGNING_KEY` as a Secret for Preview/nodalx-staging through
+stdin and stored the same value through the encrypted AWS relay, without
+printing it. Current AWS version `fa7d25090c49af0b8775a5eb537c5a96`;
+previous `e92ad26290d034a9107f572f9806c0cf`. All feature gates remain off.
+Exact observed branch alias was added to support origins. Eight focused
+proxy/packaging tests and diff check passed. Next: release the Preview signer,
+restart AWS to load key, run approved no-send checks and restore support off.

@@ -19,6 +19,24 @@ test('migration routing preserves public liveness without requiring an account',
   assert.equal(headers['Cache-Control'], 'no-store');
 });
 
+test('AWS API package includes every local runtime import', () => {
+  const packageSource = readFileSync(new URL('../scripts/package-aws-api.mjs', import.meta.url), 'utf8');
+  const list = packageSource.match(/const files = \[([\s\S]*?)\];/)[1];
+  const files = new Set([...list.matchAll(/'([^']+)'/g)].map(match => match[1]));
+  const queue = ['server/aws-api-http.mjs', 'scripts/start-aws-api-from-secrets.mjs'];
+  const visited = new Set();
+  while (queue.length) {
+    const file = queue.shift();
+    if (visited.has(file)) continue;
+    visited.add(file);
+    assert.ok(files.has(file), `${file} missing from AWS API package`);
+    const source = readFileSync(new URL(`../${file}`, import.meta.url), 'utf8');
+    for (const match of source.matchAll(/(?:from\s+|import\()'(\.[^']+)'/g)) {
+      queue.push(path.posix.normalize(path.posix.join(path.posix.dirname(file), match[1])));
+    }
+  }
+});
+
 test('protected migration routes cannot bypass authentication through the router', async () => {
   let status;
   let body;
@@ -40,11 +58,13 @@ test('the root deployment bundles Supabase handlers instead of proxying suspende
   // all /api/* to the AWS staging API; the rewrite is the fallback for the same
   // destination. Physical Vercel function files still exist, so an unordered
   // rewrite alone would lose the race and serve Vercel handlers instead of AWS.
-  const route = config.routes?.[0];
+  assert.deepEqual(config.routes?.[0], {src: '/api/send-email', dest: '/api/support-proxy'});
+  const route = config.routes?.[1];
   assert.ok(route, 'ordered /api route to the AWS staging API is required');
   assert.match(route.src, /^\/api\//);
   assert.equal(route.dest, 'https://api-staging.nodalx.in/api/$1');
-  assert.equal(config.rewrites[0].destination, 'https://api-staging.nodalx.in/api/:path*');
+  assert.equal(config.rewrites[0].destination, '/api/support-proxy');
+  assert.equal(config.rewrites[1].destination, 'https://api-staging.nodalx.in/api/:path*');
   assert.equal(config.functions['api/contact.mjs'].maxDuration, 60);
   assert.match(config.installCommand, /npm ci --omit=dev/);
   assert.match(config.installCommand, /frontend ci --include=dev/);
@@ -57,7 +77,7 @@ test('the root deployment bundles Supabase handlers instead of proxying suspende
   // ERR_MODULE_NOT_FOUND even though the build is green. Derive the required
   // set from the imports the deployed entrypoints actually use.
   const entrypoints = ['api/migration.mjs', 'api/automation.mjs', 'api/contact.mjs', 'api/intake.mjs',
-    'api/feedback.mjs', 'api/send-email.mjs', 'api/user/profile.mjs'];
+    'api/feedback.mjs', 'api/send-email.mjs', 'api/support-proxy.mjs', 'api/user/profile.mjs'];
   const deployed = new Set(['certs/rds-us-east-1-bundle.pem', 'package.json', 'package-lock.json', 'vercel.json']);
   const queue = [...entrypoints];
   while (queue.length) {

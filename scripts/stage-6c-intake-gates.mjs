@@ -8,6 +8,7 @@ import {parseAwsApiSecret} from './load-aws-api-secret.mjs';
 const secretId = 'arn:aws:secretsmanager:us-east-1:560246495281:secret:nodalx/api/staging-AUnFpD';
 const mode = process.argv[2];
 const plans = {
+  'support-proxy-stage': {},
   'intake-enable': {RDS_INTAKE_ENABLED: ['false', 'true'], ALLOW_INTAKE_NETWORK: ['false', 'true']},
   'intake-disable': {RDS_INTAKE_ENABLED: ['true', 'false'], ALLOW_INTAKE_NETWORK: ['true', 'false']},
   'support-enable': {SUPPORT_EMAIL_ENABLED: ['false', 'true']},
@@ -128,6 +129,19 @@ try {
   if (!new Set((config.SUPPORT_EMAIL_ALLOWED_ORIGINS || '').split(',').map(value => value.trim()))
     .has('https://nodalx-frontend-8z7kpdrjn-worksushantsaurabh-webs-projects.vercel.app')) {
     throw new Error('Protected Preview support origin is not allowlisted.');
+  }
+  if (mode === 'support-proxy-stage') {
+    if (config.SUPPORT_PROXY_SIGNING_KEY) throw new Error('Signing key already exists; review before any rotation.');
+    const signingKey = randomBytes(32).toString('hex');
+    const vercel = spawnSync('vercel', ['env', 'add', 'SUPPORT_PROXY_SIGNING_KEY', 'preview',
+      '--git-branch', 'nodalx-staging', '--sensitive', '--yes', '--project', 'nodalx-frontend',
+      '--scope', 'worksushantsaurabh-webs-projects'],
+    {input: signingKey, encoding: 'utf8', maxBuffer: 131072, timeout: 30000});
+    if (vercel.status !== 0) throw new Error('Vercel signing-key installation failed; no AWS secret was written.');
+    config.SUPPORT_PROXY_SIGNING_KEY = signingKey;
+    const origins = new Set(config.SUPPORT_EMAIL_ALLOWED_ORIGINS.split(',').map(value => value.trim()));
+    origins.add('https://nodalx-frontend-git-nod-04bf63-worksushantsaurabh-webs-projects.vercel.app');
+    config.SUPPORT_EMAIL_ALLOWED_ORIGINS = [...origins].join(',');
   }
   for (const [field, [before, after]] of Object.entries(plans[mode])) {
     if (config[field] !== before) throw new Error(`Unexpected ${field}; review before updating.`);

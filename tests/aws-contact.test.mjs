@@ -60,16 +60,17 @@ test('Vercel routing sends every API path to the AWS staging API and never serve
   // Cutover routing: the ordered route ahead of filesystem matching intercepts
   // every /api/* path (physical functions like contact would otherwise win),
   // and the rewrite fallback targets the same AWS staging origin.
-  const ordered = configuration.routes?.[0];
+  assert.deepEqual(configuration.routes?.[0], {src: '/api/send-email', dest: '/api/support-proxy'});
+  const ordered = configuration.routes?.[1];
   assert.ok(ordered, 'ordered /api route to the AWS staging API is required');
   assert.match(ordered.src, /^\/api\//);
   assert.equal(ordered.dest, 'https://api-staging.nodalx.in/api/$1');
-  assert.equal(configuration.rewrites[0].source, '/api/:path*');
-  assert.equal(configuration.rewrites[0].destination, 'https://api-staging.nodalx.in/api/:path*');
+  assert.equal(configuration.rewrites[1].source, '/api/:path*');
+  assert.equal(configuration.rewrites[1].destination, 'https://api-staging.nodalx.in/api/:path*');
   // The SPA fallback must never shadow or intercept API paths.
-  assert.ok(configuration.rewrites[1].source.includes('(?!api'));
-  const api = new RegExp('^' + configuration.routes[0].src + '$');
-  const spa = new RegExp(`^/${configuration.rewrites[1].source.slice('/:path('.length, -1)}$`);
+  assert.ok(configuration.rewrites[2].source.includes('(?!api'));
+  const api = new RegExp('^' + configuration.routes[1].src + '$');
+  const spa = new RegExp(`^/${configuration.rewrites[2].source.slice('/:path('.length, -1)}$`);
   for (const path of ['/api/contact', '/api/contact/nested', '/api/health/live', '/api/workspace/inquiries']) {
     assert.equal(api.test(path), true);
     assert.equal(spa.test(path), false);

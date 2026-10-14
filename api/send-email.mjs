@@ -1,4 +1,5 @@
 import {Resend} from 'resend';
+import {verifiedSupportProxyIp} from '../server/support-proxy-auth.mjs';
 
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const permittedFields = new Set(['replyTo', 'subject', 'message']);
@@ -13,6 +14,8 @@ function supportAddress(value, fallback) {
 }
 
 function clientKey(request) {
+  const signed = verifiedSupportProxyIp(request, process.env.SUPPORT_PROXY_SIGNING_KEY);
+  if (signed) return signed;
   const forwarded = request.headers?.['x-forwarded-for'];
   const single = (Array.isArray(forwarded) ? forwarded[0] : forwarded || '').split(',')[0].trim();
   if (single) return single.replace(/[^0-9a-fA-F:.]/g, '').slice(0, 64);

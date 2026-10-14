@@ -5,15 +5,18 @@
   "outputDirectory": "frontend/dist",
   "installCommand": "npm ci --omit=dev && npm --prefix frontend ci --include=dev",
   "functions": {
+    "api/support-proxy.mjs": { "maxDuration": 15 },
     "api/contact.mjs": { "maxDuration": 60 },
     "api/intake.mjs": { "maxDuration": 30 },
     "api/send-email.mjs": { "maxDuration": 30 },
     "api/resend-inbound.mjs": { "maxDuration": 30 }
   },
   "routes": [
+    { "src": "/api/send-email", "dest": "/api/support-proxy" },
     { "src": "/api/(.*)", "dest": "https://api-staging.nodalx.in/api/$1" }
   ],
   "rewrites": [
+    { "source": "/api/send-email", "destination": "/api/support-proxy" },
     { "source": "/api/:path*", "destination": "https://api-staging.nodalx.in/api/:path*" },
     { "source": "/:path((?!api(?:/|$)).*)", "destination": "/index.html" }
   ],

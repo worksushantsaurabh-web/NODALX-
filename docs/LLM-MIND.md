@@ -46,6 +46,27 @@ forged and expired signature rejection. Preview candidate redeploy and full
 route checks remain. Caddy overwrites X-Forwarded-For with its peer address;
 through Vercel this groups users by proxy IP in the support rate limiter.
 Review that behavior before claiming the client-IP parity gate passes.
+Reviewed candidate `8c7d1db` deployed to protected Preview
+`dpl_FspG96XzJDDvT7rHwqK2wgDM7k1T`; owner signed in and overview 200
+Caddy/RDS request `e7c056fd-ea31-4a77-b01f-fbf5616d57bd` matched the
+AWS journal. Restricted login still uses private RDS/TLS; cleanup verified.
+Signed support proxy fix is local, tested (four focused tests), and approved
+for staging key configuration/deployment plus invalid no-send verification.
+AWS package grows to 30 files; runtime imports are verified. Vercel CLI token
+is invalid; owner login refresh is pending. Do not mark Stage 6C complete
+until the proxy is live and its no-send rate tests pass with gate restored off.
+AWS proxy-verifier code is now deployed in 30-file release
+`3eb50bec23f79acd698cbddd3de9b753cff101d941cb695417688993144e4753`
+(SSM command `2421b712-d151-4649-a3ba-71fef3db0f3c`, checksum verified,
+restart settled healthy). Key not installed; Preview signer/routing local only.
+Full suite 143 passed/five skips. New-build authenticated profile/read matrix
+and malformed/oversized webhook boundaries passed. One usage sample 4.3s;
+no SLO claim. Vercel CLI now reports logged out; `vercel login` is pending.
+Vercel login subsequently verified as `worksushantsaurabh-web`. Approved key
+installation succeeded for Preview/nodalx-staging and AWS secret version
+`fa7d25090c49af0b8775a5eb537c5a96` (prior `e92ad26290d034a9107f572f9806c0cf`),
+without exposing the key. Gates remain off; signer release and no-send
+verification remain before Stage 6C completion.
 RDS remains publicly accessible and
 `nodalx.in` still uses Vercel API functions. No CloudFront distribution exists;
 AWS Support case `179179095800228` awaits account verification. See
